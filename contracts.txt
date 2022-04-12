@@ -1,0 +1,5 @@
+./artifacts/@ensdomains/ens-contracts/contracts/registry/ENS.sol
+./artifacts/@ensdomains/ens-contracts/contracts/registry/ENSRegistry.sol
+./artifacts/@ensdomains/ens-contracts/contracts/registry/FIFSRegistrar.sol
+./artifacts/@ensdomains/ens-contracts/contracts/registry/ReverseRegistrar.sol
+./artifacts/@ensdomains/ens-contracts/contracts/resolvers/PublicResolver.sol

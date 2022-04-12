@@ -1,0 +1,8 @@
+node_modules
+**/__snapshots__/**
+*.log
+*.lock
+package-lock.json
+dist
+cache/**
+artifacts/**

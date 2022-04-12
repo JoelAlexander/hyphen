@@ -1,0 +1,4 @@
+Change chainId and rpc url in App.js then run:
+
+npm install && npm run contracts && npm start
+

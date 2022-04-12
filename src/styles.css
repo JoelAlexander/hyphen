@@ -1,0 +1,35 @@
+html, body, #root {
+	height: 100%;
+}
+
+.container {
+	height: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.sidebar-restricted-width {
+    display: inline-block;
+}
+
+.recipe-form > label {
+	display: block;
+	margin-bottom: .5em;
+}
+
+.recipe-form > label > input {
+	display: block;
+	margin-top: 0.25em;
+}
+
+.recipe-form label label {
+	display: block;
+	margin-right: .5em;
+}
+
+.recipe-form label > label > input {
+	width: 68%;
+	margin-top: 0.25em;
+	margin-left: 0.25em;
+}
