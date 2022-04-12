@@ -57,6 +57,31 @@ class RecipeMenu extends React.Component {
 
 class RecipeViewer extends React.Component {
 
+  constructor(props) {
+    super(props);
+    this.state = {};
+  }
+
+  componentDidMount() {
+    this.update();
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (prevProps.recipe != this.props.recipe) {
+      this.update();
+    }
+  }
+
+  update = () => {
+    if (this.props.recipe && this.props.recipe.author) {
+      this.props.provider.lookupAddress(this.props.recipe.author).then((authorName) => {
+        this.setState({
+          authorName: authorName
+        })
+      })
+    }
+  };
+
   render() {
     const ingredients =
       this.props.recipe &&
@@ -93,7 +118,7 @@ class RecipeViewer extends React.Component {
     var deleteButton;
     var authorship;
     if (this.props.recipe && this.props.recipe.author) {
-      authorship = <h4>Authored by {this.props.recipe.author}</h4>;
+      authorship = <h4>Authored by {this.state.authorName || this.props.recipe.author}</h4>;
       editButton = <button onClick={() => this.props.startEditing(this.props.recipe)}>Edit</button>
       deleteButton = <button onClick={() => this.props.removeRecipe(this.props.recipe.recipe)}>Delete</button>;
     }
@@ -415,6 +440,7 @@ class Recipes extends React.Component {
     return <div>
       {topContent}
       <RecipeViewer
+        provider={this.props.provider}
         recipe={displayRecipe}
         startEditing={this.startEditing}
         removeRecipe={this.removeRecipe}/>

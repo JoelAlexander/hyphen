@@ -227,6 +227,7 @@ class Hyphen extends React.Component {
     } else if (this.state.app === "recipes") {
       app =
         <Recipes
+          provider={this.state.provider}
           contractAddress="0x12c881C1a099FA31400fCe0fba10553B134679C5"
           measuresSetAddress="0x9679BAF3E60479a31095AC6134C54b7F54b6ce4C"
           accessDeployedContract={this.accessDeployedContract}
