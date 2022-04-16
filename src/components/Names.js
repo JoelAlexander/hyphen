@@ -35,7 +35,6 @@ class Names extends React.Component {
 
   update = () => {
     this.state.contract.ens().then((result) => {
-      this.props.addMessage("ens contract: " + result)
       this.setState({
         ensContract: this.props.accessDeployedContract(
           result,
