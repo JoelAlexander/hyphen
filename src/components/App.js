@@ -11,6 +11,7 @@ import Kitchen from './Kitchen.js';
 import StatusBar from './StatusBar.js';
 import Faq from './Faq.js';
 import Names from './Names.js';
+import PreparationSpace from './../contracts/PreparationSpace.sol/PreparationSpace.json';
 
 const ethers = require("ethers");
 const ensAddress = "0x16395447324D7e75d8cdeec1DBd1FaDC0A8E7Fc4";
@@ -237,9 +238,10 @@ class Hyphen extends React.Component {
     } else if (this.state.app === "kitchen") {
       app =
         <Kitchen
+          preparationSpace={this.accessDeployedContract("0x17fF4fD203e9935A77933cc8bEEf826cb13c8f92", PreparationSpace.abi)}
+          blockNumber={this.state.blockNumber}
           addMessage={this.addMessage}
           accessDeployedContract={this.accessDeployedContract}
-          measuresSetAddress="0x9679BAF3E60479a31095AC6134C54b7F54b6ce4C"
           executeTransaction={this.executeTransaction} />;
     } else if (this.state.app === "ens") {
       app = <Names
