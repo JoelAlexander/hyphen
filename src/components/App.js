@@ -238,6 +238,7 @@ class Hyphen extends React.Component {
     } else if (this.state.app === "kitchen") {
       app =
         <Kitchen
+          serviceWorkerRegistration={this.props.serviceWorkerRegistration}
           preparationSpace={this.accessDeployedContract("0x17fF4fD203e9935A77933cc8bEEf826cb13c8f92", PreparationSpace.abi)}
           blockNumber={this.state.blockNumber}
           addMessage={this.addMessage}
@@ -290,6 +291,15 @@ class Hyphen extends React.Component {
   }
 }
 
-const App = () => <Hyphen />;
+class App extends React.Component {
+
+  constructor(props) {
+    super(props);
+  }
+
+  render() {
+    return <Hyphen serviceWorkerRegistration={this.props.serviceWorkerRegistration} />;
+  }
+} 
 
 export default hot(module)(App);

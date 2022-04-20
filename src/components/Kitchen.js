@@ -144,7 +144,7 @@ class Kitchen extends React.Component {
             return;
         }
 
-        var notification = new Notification("Something changed!");
+        this.props.serviceWorkerRegistration.showNotification("Something changed!");
         var newPreparations = this.state.preparations.slice();
         updatedPreparationEvents.forEach((preparationEvent) => {
             if (preparationEvent.args.preparation.status.scalePercentage.eq(0)) {
