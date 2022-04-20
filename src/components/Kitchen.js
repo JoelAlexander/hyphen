@@ -34,6 +34,10 @@ class PreparationCreator extends React.Component {
         });
     };
 
+    enableNotifications = () => {
+        Notification.requestPermission().then(function(permission) { /* ... */ });
+    };
+
     render() {
         const recipeOptions = this.props.recipes && this.props.recipes.map((recipe, index) => {
             return {label: recipe.name, value: recipe.recipe};
@@ -50,6 +54,7 @@ class PreparationCreator extends React.Component {
         });
 
         return <div>
+            <button onClick={this.enableNotifications}>Enable notifications</button>
             <Select
                 options={recipeOptions}
                 value={selectedRecipeOption}
@@ -139,6 +144,7 @@ class Kitchen extends React.Component {
             return;
         }
 
+        var notification = new Notification("Something changed!");
         var newPreparations = this.state.preparations.slice();
         updatedPreparationEvents.forEach((preparationEvent) => {
             if (preparationEvent.args.preparation.status.scalePercentage.eq(0)) {
