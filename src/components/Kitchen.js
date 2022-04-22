@@ -34,10 +34,6 @@ class PreparationCreator extends React.Component {
         });
     };
 
-    enableNotifications = () => {
-        Notification.requestPermission().then(function(permission) { /* ... */ });
-    };
-
     render() {
         const recipeOptions = this.props.recipes && this.props.recipes.map((recipe, index) => {
             return {label: recipe.name, value: recipe.recipe};
@@ -54,7 +50,6 @@ class PreparationCreator extends React.Component {
         });
 
         return <div>
-            <button onClick={this.enableNotifications}>Enable notifications</button>
             <Select
                 options={recipeOptions}
                 value={selectedRecipeOption}

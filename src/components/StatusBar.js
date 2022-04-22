@@ -5,7 +5,9 @@ class StatusBar extends React.Component {
 
   constructor(props) {
     super(props);
-    this.state = {};
+    this.state = {
+      notificationPermission: Notification.permission
+    };
   }
 
   componentDidMount() {
@@ -37,6 +39,14 @@ class StatusBar extends React.Component {
     });
   };
 
+  enableNotifications = () => {
+    Notification.requestPermission().then((permission) => {
+      this.setState({
+        notificationPermission: permission
+      });
+    });
+  };
+
   render() {
     var balanceMessage;
     if (this.state.balance) {
@@ -52,13 +62,18 @@ class StatusBar extends React.Component {
 
     var blockNumberMessage = "Current Block: " + this.props.blockNumber;
 
+    var enableNotificationsButton;
+    if (this.state.notificationPermission !== 'granted') {
+      enableNotificationsButton = <button onClick={this.enableNotifications}>🔔</button>;
+    } 
+
     return <div className="pure-g" style={{width: "100%"}}>
       <p className="pure-u-1-6">{addressMessage}</p>
       <p className="pure-u-1-6">{balanceMessage}</p>
       <p className="pure-u-1-4"></p>
       <p className="pure-u-1-12"></p>
       <p className="pure-u-1-6">{blockNumberMessage}</p>
-      <p className="pure-u-1-6"></p>
+      <p className="pure-u-1-6">{enableNotificationsButton}</p>
     </div>;
   }
 }
