@@ -7,11 +7,10 @@ import Menu from './Menu.js';
 import Splash from './Splash.js';
 import Table from './Table.js';
 import Recipes from './Recipes.js';
-import Kitchen from './Kitchen.js';
+import RecipePreparation from './RecipePreparation.js';
 import StatusBar from './StatusBar.js';
 import Faq from './Faq.js';
 import Names from './Names.js';
-import PreparationSpace from './../contracts/PreparationSpace.sol/PreparationSpace.json';
 
 const ethers = require("ethers");
 const ensAddress = "0x16395447324D7e75d8cdeec1DBd1FaDC0A8E7Fc4";
@@ -237,11 +236,11 @@ class Hyphen extends React.Component {
           blockNumber={this.state.blockNumber} />;
     } else if (this.state.app === "kitchen") {
       app =
-        <Kitchen
+        <RecipePreparation
           serviceWorkerRegistration={this.props.serviceWorkerRegistration}
-          preparationSpace={this.accessDeployedContract("0x17fF4fD203e9935A77933cc8bEEf826cb13c8f92", PreparationSpace.abi)}
           blockNumber={this.state.blockNumber}
           addMessage={this.addMessage}
+          provider={this.state.provider}
           accessDeployedContract={this.accessDeployedContract}
           executeTransaction={this.executeTransaction} />;
     } else if (this.state.app === "ens") {
@@ -279,10 +278,10 @@ class Hyphen extends React.Component {
       <div style={{display: "inline-block", width: "100%"}}>
         {topContent}
         <div className="pure-g" style={{width: "100%", height: "100%"}}>
-          <div className="pure-g pure-u-3-5" style={{height: "100%"}}>
+          <div className="pure-g pure-u-4-5" style={{height: "100%"}}>
             <div className="pure-u-1-1">{app}</div>
           </div>
-          <div className="pure-u-2-5">
+          <div className="pure-u-1-5">
             <SessionFeed entries={this.state.entries} clearFeed={this.clearFeed} />
           </div>
         </div>

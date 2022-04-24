@@ -9,6 +9,12 @@ html, body, #root {
 	align-items: center;
 }
 
+.center {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
 .sidebar-restricted-width {
     display: inline-block;
 }

@@ -30,11 +30,12 @@ class RecipeViewer extends React.Component {
   };
 
   render() {
+    const scalePercentage = this.props.scalePercentage ? (this.props.scalePercentage.toNumber() / 100) : 1;
     const ingredients =
       this.props.recipe &&
       this.props.recipe.ingredients &&
       this.props.recipe.ingredients.map(([name, unit, amount], index) => {
-        const amountString = amount > 0 ? threeOrFewerDecimalPlaces(amount / 1000).toString() + " " + unit : "As needed";
+        const amountString = amount > 0 ? threeOrFewerDecimalPlaces(amount * scalePercentage / 1000).toString() + " " + unit : "As needed";
         return <div key={this.props.recipe.name + "i" + index} className="pure-g">
           <div className="pure-u-1-3">{name}</div>
           <div className="pure-u-1-3">{amountString}</div>
@@ -45,7 +46,8 @@ class RecipeViewer extends React.Component {
       this.props.recipe &&
       this.props.recipe.steps &&
       this.props.recipe.steps.map((step, index) => {
-        return <p key={this.props.recipe.name + "s" + index}>{(index + 1).toString() + ". " + step}</p>;
+        const label = <p key={this.props.recipe.name + "s" + index}>{(index + 1).toString() + ". " + step}</p>;
+        return index === this.props.stepIndex ? <b>{label}</b> : label;
       });
     var ingredientsSection;
     if (ingredients && ingredients.length > 0) {
@@ -66,10 +68,11 @@ class RecipeViewer extends React.Component {
     var authorship;
     if (this.props.recipe && this.props.recipe.author) {
       authorship = <h4>Authored by {this.state.authorName || this.props.recipe.author}</h4>;
-      editButton = <button onClick={() => this.props.startEditing(this.props.recipe)}>Edit</button>
-      deleteButton = <button onClick={() => this.props.removeRecipe(this.props.recipe.recipe)}>Delete</button>;
+      editButton = this.props.startEditing ? <button onClick={() => this.props.startEditing(this.props.recipe)}>Edit</button> : null;
+      deleteButton = this.props.removeRecipe ? <button onClick={() => this.props.removeRecipe(this.props.recipe.recipe)}>Delete</button> : null;
     }
-    return <div style={{marginTop: "2em"}}>
+
+    return <div>
       <div className="pure-g">
         <div className="pure-u-2-3">
           <h3>{this.props.recipe && this.props.recipe.name}</h3>
