@@ -46,8 +46,9 @@ class RecipeViewer extends React.Component {
       this.props.recipe &&
       this.props.recipe.steps &&
       this.props.recipe.steps.map((step, index) => {
-        const label = <p key={this.props.recipe.name + "s" + index}>{(index + 1).toString() + ". " + step}</p>;
-        return index === this.props.stepIndex ? <b>{label}</b> : label;
+        const key = this.props.recipe.name + "s" + index;
+        const label = <p key={key}>{(index + 1).toString() + ". " + step}</p>;
+        return index === this.props.stepIndex ? <b key={key}>{label}</b> : label;
       });
     var ingredientsSection;
     if (ingredients && ingredients.length > 0) {

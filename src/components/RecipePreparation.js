@@ -209,16 +209,25 @@ class RecipeSpaceDetail extends React.Component {
         const selectedActiveRecipe = this.state.selectedRecipeIndex === null ?
             null : this.props.activeRecipes[this.state.selectedRecipeIndex]
         const activeRecipeDetails = this.props.activeRecipes.map((activeRecipe, index) => {
-            const isSelected = index === this.state.selectedRecipeIndex;
             const recipeData = this.getRecipeData(activeRecipe.recipe);
+            const isSelected = index === this.state.selectedRecipeIndex;
+            const nextStepIndex = activeRecipe.stepIndex.toNumber() + 1;
+            const isCompleted = recipeData && (nextStepIndex === recipeData.steps.length + 1);
             const recipeLabel = recipeData ? <h4>{recipeData && recipeData.name}</h4> : null;
-            const stepLabel = recipeData ? <p>Step {activeRecipe.stepIndex.toNumber() + 1}/{recipeData.steps.length}</p> : null;
+            const stepLabel = recipeData ? <p>Step {nextStepIndex}/{recipeData.steps.length}</p> : null;
+            const progressLabel = isCompleted ? <p>Completed! ✔️</p> : stepLabel;
             const scaleLabel = recipeData ? <p>{(activeRecipe.scalePercentage.toNumber() / 100).toFixed(2)}x</p> : null;
+            const completeStepButton = !isSelected || (isCompleted) ? null :
+                    <button onClick={() => this.props.updateRecipeStep(activeRecipe.recipe, nextStepIndex) }>Complete step</button>;
+            const removeRecipeButton = !isSelected ? null :
+                <button onClick={() => this.props.removeRecipe(activeRecipe.recipe)}>❌</button>;
             return <div key={activeRecipe.recipe} onClick={() => this.selectActiveRecipe(index)}>
                 <div className="pure-g">
                     <div className="pure-u-1-1">{recipeLabel}</div>
                     <div className="pure-u-1-3">{scaleLabel}</div>
-                    <div className="pure-u-1-3">{stepLabel}</div>
+                    <div className="pure-u-1-3">{progressLabel}</div>
+                    <div className="pure-u-1-1">{completeStepButton}</div>
+                    <div className="pure-u-1-1">{removeRecipeButton}</div>
                 </div>
             </div>;
         });
@@ -237,7 +246,6 @@ class RecipeSpaceDetail extends React.Component {
                 provider={this.props.provider}
                 recipe={this.state.viewerRecipe}
                 stepIndex={selectedActiveRecipe && selectedActiveRecipe.stepIndex.toNumber()}
-                removeRecipe={removeRecipe}
                 scalePercentage={this.state.viewerScalePercentage} /> : null;
 
         return <div className="pure-g">
@@ -384,6 +392,13 @@ class RecipePreparation extends React.Component {
             (reason) => {});
     };
 
+    updateRecipeStepInSpace = (space, recipe, stepIndex) => {
+        this.props.executeTransaction(
+            this.state.hub.updateRecipeStepInSpace(space, recipe, stepIndex),
+            () => {},
+            (reason) => {});
+    };
+
     selectRecipeSpace = (index) => {
         this.setState({
             selectedSpaceIndex: index
@@ -412,6 +427,7 @@ class RecipePreparation extends React.Component {
                 recipes={this.state.recipes}
                 startRecipe={(recipe, scalePercentage) => this.startRecipeInSpace(selectedSpace.address, recipe, scalePercentage)}
                 removeRecipe={(recipe) => this.removeRecipeFromSpace(selectedSpace.address, recipe)}
+                updateRecipeStep={(recipe, stepIndex) => this.updateRecipeStepInSpace(selectedSpace.address, recipe, stepIndex)}
                 provider={this.props.provider}
                 accessDeployedContract={this.props.accessDeployedContract}/>;
 
