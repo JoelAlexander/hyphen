@@ -67,15 +67,15 @@ class StatusBar extends React.Component {
     //   enableNotificationsButton = <button onClick={this.enableNotifications}>🔔</button>;
     // } 
 
-    return <div style={{margin: "1em", textAlign: "right"}}>
+    return <div style={{
+      padding: "1em",
+      textAlign: "right",
+      position: "sticky",
+      top: "0em",
+      background: "white"
+    }}>
       <p>{addressMessage}</p>
       <p>{balanceMessage}</p>
-{/*      <p className="pure-u-1-6"></p>
-      <p className="pure-u-1-6">{balanceMessage}</p>
-      <p className="pure-u-1-4"></p>
-      <p className="pure-u-1-12"></p>
-      <p className="pure-u-1-6">{blockNumberMessage}</p>*/}
-      {/*<p className="pure-u-1-6">{enableNotificationsButton}</p>*/}
     </div>;
   }
 }
