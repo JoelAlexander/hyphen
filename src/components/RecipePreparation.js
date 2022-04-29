@@ -249,11 +249,11 @@ class RecipeSpaceDetail extends React.Component {
                 scalePercentage={this.state.viewerScalePercentage} /> : null;
 
         return <div className="pure-g">
-            <div className="pure-u-1-3">
+            <div className="pure-u-1-1">
                 {activeRecipeDetails}
                 {editingControls}
             </div>
-            <div className="pure-u-2-3">
+            <div className="pure-u-1-1">
                 {recipeViewer}
             </div>
         </div>;
@@ -435,11 +435,11 @@ class RecipePreparation extends React.Component {
         const createNewSpaceButton = allowNewSpace ? <button onClick={this.createRecipeSpace}>New recipe group</button> : null;
         return <div>
             <div className="pure-g">
-                <div className="pure-u-1-4">
+                <div className="pure-u-1-1">
                     {spaceTiles}
                     {createNewSpaceButton}
                 </div>
-                <div className="pure-u-3-4">
+                <div className="pure-u-1-1">
                     {selectedSpaceDetail}
                 </div>
             </div>
