@@ -258,17 +258,7 @@ class Hyphen extends React.Component {
       app = <Splash loggedIn={this.state.signer !== null} />;
     }
 
-    var topContent;
-    if (this.state.signer) {
-      topContent = <StatusBar
-        provider={this.state.provider}
-        signer={this.state.signer}
-        blockNumber={this.state.blockNumber} />;
-    } else {
-      topContent = null;
-    }
-
-    return <div style={{display: "flex", height: "100%"}}>
+    return <div>
       <Menu
         loggedIn={this.state.signer !== null}
         loginWithWalletConnect={this.loginWithWalletConnect}
@@ -276,13 +266,21 @@ class Hyphen extends React.Component {
         logout={this.disconnectWallet}
         activateApp={this.activateApp} />
       <div style={{display: "inline-block", width: "100%"}}>
-        {topContent}
+        <StatusBar
+          provider={this.state.provider}
+          signer={this.state.signer}
+          blockNumber={this.state.blockNumber}
+          entries={this.state.entries}
+          clearFeed={() => {}} />
         <div className="pure-g" style={{width: "100%", height: "100%"}}>
-          <div className="pure-g pure-u-4-5" style={{height: "100%"}}>
-            <div className="pure-u-1-1">{app}</div>
-          </div>
-          <div className="pure-u-1-5">
-            <SessionFeed entries={this.state.entries} clearFeed={this.clearFeed} />
+          <div
+            className="pure-u-1-1"
+            style={{
+              height: "100%",
+              marginLeft: "2em",
+              marginRight: "2em"
+            }}>
+            {app}
           </div>
         </div>
       </div>
