@@ -68,7 +68,7 @@ class RecipeViewer extends React.Component {
     var deleteButton;
     var authorship;
     if (this.props.recipe && this.props.recipe.author) {
-      authorship = <h4>Authored by {this.state.authorName || this.props.recipe.author}</h4>;
+      authorship = <h4>Added by {this.state.authorName || this.props.recipe.author}</h4>;
       editButton = this.props.startEditing ? <button onClick={() => this.props.startEditing(this.props.recipe)}>Edit</button> : null;
       deleteButton = this.props.removeRecipe ? <button onClick={() => this.props.removeRecipe(this.props.recipe.recipe)}>Delete</button> : null;
     }

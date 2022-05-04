@@ -155,10 +155,10 @@ class Hyphen extends React.Component {
   };
 
   disconnectWallet = () => {
+    this.setState(this.createInitialLoggedOutState());
     if (this.state.loginMethod === "WalletConnect" && this.state.provider) {
       this.state.provider.provider.disconnect();
     }
-    this.setState(this.createInitialLoggedOutState());
   };
 
   clearFeed = () => {
