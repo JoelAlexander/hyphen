@@ -2,6 +2,11 @@ html, body, #root {
 	height: 100%;
 }
 
+.selected {
+	border: dotted black 1px;
+	border-radius: 0.5em;
+}
+
 .container {
 	height: 100%;
 	display: flex;

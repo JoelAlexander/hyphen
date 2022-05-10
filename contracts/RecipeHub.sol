@@ -18,6 +18,7 @@ contract RecipeHub {
         RecipeSpace recipeSpace);
 
     AddressSet spaces;
+    mapping(string => address) spacesByName;
 
     constructor() {
         spaces = new AddressSet();
@@ -28,9 +29,11 @@ contract RecipeHub {
         _;
     }
 
-    function createRecipeSpace() external {
-        RecipeSpace space = new RecipeSpace();
+    function createRecipeSpace(string memory name) external {
+        require(spacesByName[name] == address(0), "Recipe space with name must not already exist");
+        RecipeSpace space = new RecipeSpace(name);
         spaces.add(address(space));
+        spacesByName[name] = address(space);
         emit RecipeSpaceChanged(
             msg.sender,
             RecipeSpaceChangeType.CREATED,
@@ -72,20 +75,16 @@ contract RecipeHub {
             space);
     }
 
-    function removeRecipeSpace(RecipeSpace space) isActiveSpace(space) external {
+    function removeRecipeSpace(RecipeSpace space) external {
         spaces.remove(address(space));
+        delete spacesByName[space.name()];
         emit RecipeSpaceChanged(
             msg.sender,
             RecipeSpaceChangeType.REMOVED,
             space);
     }
 
-    function activeRecipeSpaces() external view returns (RecipeSpace[] memory) {
-        address[] memory addresses = spaces.contents();
-        RecipeSpace[] memory converted = new RecipeSpace[](addresses.length);
-        for (uint i = 0; i < addresses.length; i++) {
-            converted[i] = RecipeSpace(addresses[i]);
-        }
-        return converted;
+    function recipeSpaceByName(string memory name) external view returns (RecipeSpace) {
+        return RecipeSpace(spacesByName[name]);
     }
 }

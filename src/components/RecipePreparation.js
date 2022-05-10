@@ -6,6 +6,7 @@ import RecipeSpace from './../contracts/RecipeSpace.sol/RecipeSpace.json';
 import RecipeSet from './../contracts/RecipeSet.sol/RecipeSet.json';
 import Recipe from './../contracts/Recipe.sol/Recipe.json';
 import Select from 'react-select';
+import Blockies from 'react-blockies';
 const ethers = require("ethers");
 
 // Reverse lookups for enum types :/
@@ -27,6 +28,19 @@ class PreparationCreator extends React.Component {
     constructor(props) {
         super(props);
         this.state = {scale: 1.0}
+    }
+
+    componentDidMount() {
+        this.props
+            .accessDeployedContract(
+                this.props.recipeSet,
+                RecipeSet.abi)
+            .contents()
+            .then((recipes) => {
+              this.setState({
+                recipes: recipes
+              });
+            });
     }
 
     onScaleChanged = (event) => {
@@ -51,7 +65,7 @@ class PreparationCreator extends React.Component {
     };
 
     render() {
-        const recipeOptions = this.props.recipes && this.props.recipes.map((recipe, index) => {
+        const recipeOptions = this.state.recipes && this.state.recipes.map((recipe, index) => {
             return {label: recipe.name, value: recipe.recipe};
         });
 
@@ -61,8 +75,8 @@ class PreparationCreator extends React.Component {
             <button onClick={this.startRecipe}>Create preparation</button> :
             null;
 
-        var selectedRecipeOption = this.props.recipe && this.props.recipeOptions.find((option) => {
-            return option.value == this.props.recipe;
+        var selectedRecipeOption = this.state.recipe && recipeOptions.find((option) => {
+            return option.value == this.state.recipe;
         });
 
         return <div>
@@ -71,8 +85,17 @@ class PreparationCreator extends React.Component {
                 value={selectedRecipeOption}
                 onChange={this.onSelectRecipe} />
             <label>
-            <input type="range" min="1" max="8" step="0.01" id="myRange" value={scaleRangeValue} onInput={this.onScaleChanged} />
-                <p>{this.state.scale}x</p>
+            <input
+                type="range"
+                min="1"
+                max="8"
+                step="0.01"
+                id="myRange"
+                value={scaleRangeValue}
+                onInput={this.onScaleChanged}
+                style={{width: "100%"}}
+            />
+                <span>{this.state.scale}x</span>
             </label>
             {submitButton}
             <button onClick={this.props.cancel}>Cancel</button>
@@ -135,34 +158,9 @@ class RecipeSpaceDetail extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            editing: false,
-            selectedRecipeIndex: null,
-            viewerRecipe: null,
-            viewerScalePercentage: null
+            editing: false
         };
     }
-
-    componentDidMount() {
-        this.update();
-    }
-
-    componentDidUpdate(prevProps) {
-        if (prevProps.activeRecipes !== this.props.activeRecipes) {
-            this.update();
-        }
-    }
-
-    update = () => {
-        Promise.all(
-            this.props.activeRecipes.map((activeRecipe) => {
-                return this.props.accessDeployedContract(
-                    activeRecipe.recipe,
-                    Recipe.abi)
-                .getData();
-            })).then((loadedRecipes) => {
-            this.setState({loadedRecipes: loadedRecipes});
-        });
-    };
 
     startRecipe = (recipe, scalePercentage) => {
         this.setState({editing: false}, () => {
@@ -170,87 +168,70 @@ class RecipeSpaceDetail extends React.Component {
         });
     };
 
-    getRecipeData = (recipe) => {
-        if (!this.state.loadedRecipes) return undefined;
-        return this.state.loadedRecipes.find(loadedRecipe => loadedRecipe.recipe === recipe);
-    };
-
     startEditingRecipe = () => {
-        this.setState({
-            editing: true,
-            viewerRecipe: null,
-            viewerScalePercentage: null
-        });
+        this.setState({editing: true});
     };
 
     stopEditingRecipe = () => {
         this.setState({editing: false});
     };
 
-    selectActiveRecipe = (index) => {
-        const activeRecipe = this.props.activeRecipes[index];
-        const recipeData = this.getRecipeData(activeRecipe.recipe);
-        this.setState({
-            selectedRecipeIndex: index,
-            viewerRecipe: recipeData,
-            viewerScalePercentage: activeRecipe.scalePercentage
-        });
-    }; 
-
-    setPreviewRecipe = (recipe, scalePercentage) => {
-        this.setState({
-            selectedRecipeIndex: null,
-            viewerRecipe: recipe,
-            viewerScalePercentage: scalePercentage
-        });
-    };
-
     render() {
-        const selectedActiveRecipe = this.state.selectedRecipeIndex === null ?
-            null : this.props.activeRecipes[this.state.selectedRecipeIndex]
-        const activeRecipeDetails = this.props.activeRecipes.map((activeRecipe, index) => {
-            const recipeData = this.getRecipeData(activeRecipe.recipe);
-            const isSelected = index === this.state.selectedRecipeIndex;
-            const nextStepIndex = activeRecipe.stepIndex.toNumber() + 1;
-            const isCompleted = recipeData && (nextStepIndex === recipeData.steps.length + 1);
-            const recipeLabel = recipeData ? <h4>{recipeData && recipeData.name}</h4> : null;
-            const stepLabel = recipeData ? <p>Step {nextStepIndex}/{recipeData.steps.length}</p> : null;
-            const progressLabel = isCompleted ? <p>Completed! ✔️</p> : stepLabel;
-            const scaleLabel = recipeData ? <p>{(activeRecipe.scalePercentage.toNumber() / 100).toFixed(2)}x</p> : null;
-            const completeStepButton = !isSelected || (isCompleted) ? null :
-                    <button onClick={() => this.props.updateRecipeStep(activeRecipe.recipe, nextStepIndex) }>Complete step</button>;
-            const removeRecipeButton = !isSelected ? null :
-                <button onClick={() => this.props.removeRecipe(activeRecipe.recipe)}>❌</button>;
-            return <div key={activeRecipe.recipe} onClick={() => this.selectActiveRecipe(index)}>
-                <div className="pure-g">
+        const selectedRecipeData = this.props.spaceData.recipes[this.props.selectedRecipeIndex];
+        const recipeViewer = selectedRecipeData ?
+            <RecipeViewer
+                provider={this.props.provider}
+                recipe={selectedRecipeData.recipe}
+                stepIndex={selectedRecipeData.status.stepIndex.toNumber()}
+                scalePercentage={selectedRecipeData.status.scalePercentage.toNumber()} /> : null;
+
+        var activeRecipeDetails = null;
+        if (this.props.spaceData) {
+            const selectedActiveRecipe =
+                this.props.selectedRecipeIndex === null ?
+                    null :
+                    this.props.spaceData.recipes[this.props.selectedRecipeIndex];
+            activeRecipeDetails = this.props.spaceData.recipes.map((activeRecipe, index) => {
+                const isSelected = index === this.props.selectedRecipeIndex;
+                const nextStepIndex = activeRecipe.status.stepIndex.toNumber() + 1;
+                const isCompleted = nextStepIndex === activeRecipe.recipe.steps.length + 1;
+                const recipeLabel = <span>{activeRecipe.recipe.name}</span>;
+                const stepLabel = <span>Step {nextStepIndex}/{activeRecipe.recipe.steps.length}</span>;
+                const progressLabel = isCompleted ? <span>Completed! ✔️</span> : stepLabel;
+                const scaleLabel = <span>{(activeRecipe.status.scalePercentage.toNumber() / 100).toFixed(2)}x</span>;
+                const completeStepButton = !isSelected || (isCompleted) ? null :
+                        <button onClick={() => this.props.updateRecipeStep(activeRecipe.recipe.recipe, nextStepIndex) }>Complete step</button>;
+                const removeRecipeButton = !isSelected ? null :
+                    <button onClick={() => this.props.removeRecipe(activeRecipe.recipe.recipe)}>❌</button>;
+                return <div className="pure-g pure-u-1-3" key={activeRecipe.recipe.recipe} onClick={() => this.props.selectRecipeIndex(index)}>
                     <div className="pure-u-1-1">{recipeLabel}</div>
-                    <div className="pure-u-1-3">{scaleLabel}</div>
-                    <div className="pure-u-1-3">{progressLabel}</div>
+                    <div className="pure-u-1-1">{scaleLabel}</div>
+                    <div className="pure-u-1-1">{progressLabel}</div>
                     <div className="pure-u-1-1">{completeStepButton}</div>
                     <div className="pure-u-1-1">{removeRecipeButton}</div>
-                </div>
-            </div>;
-        });
+                </div>;
+            });
+        }
 
+        const addRecipeButton = this.state.editing ? null : <button onClick={this.startEditingRecipe}>Add recipe</button>;
         const editingControls = this.state.editing ?
             <PreparationCreator
-                recipes={this.props.recipes}
+                recipeSet="0x12c881C1a099FA31400fCe0fba10553B134679C5"
                 startRecipe={this.startRecipe}
-                cancel={this.stopEditingRecipe} /> :
-            <button onClick={this.startEditingRecipe}>Add recipe</button>;
+                cancel={this.stopEditingRecipe}
+                accessDeployedContract={this.props.accessDeployedContract}/> : null;
 
         const removeRecipe = !this.state.editing && this.state.viewerRecipe ?
             () => this.props.removeRecipe(this.state.viewerRecipe.recipe) : null;
-        const recipeViewer =  this.state.viewerRecipe ?
-            <RecipeViewer
-                provider={this.props.provider}
-                recipe={this.state.viewerRecipe}
-                stepIndex={selectedActiveRecipe && selectedActiveRecipe.stepIndex.toNumber()}
-                scalePercentage={this.state.viewerScalePercentage} /> : null;
 
         return <div className="pure-g">
             <div className="pure-u-1-1">
+                {addRecipeButton}
+            </div>
+            <div className="pure-u-1-1">
                 {activeRecipeDetails}
+            </div>
+            <div className="pure-u-1-1">
                 {editingControls}
             </div>
             <div className="pure-u-1-1">
@@ -265,9 +246,9 @@ class RecipePreparation extends React.Component {
     constructor(props) {
         super(props);            
         this.state = {
-          hub: this.props.accessDeployedContract("0xB7b16a382e5B9EA1bA66C64608e87bA98b448b80", RecipeHub.abi),
-          spaces: [],
-          selectedSpaceIndex: 0
+          selectedRecipeIndex: 0,
+          date: new Date(),
+          hub: this.props.accessDeployedContract("0xE4d43628223646eAf3e2bCD07D2942Eac574945d", RecipeHub.abi),
         };
     }
 
@@ -275,97 +256,42 @@ class RecipePreparation extends React.Component {
         this.update();
     }
 
-    componentDidUpdate(prevProps) {
-      if (prevProps.blockNumber < this.props.blockNumber) {
-        const startBlock = prevProps.blockNumber + 1;
-        this.state.hub
-            .queryFilter("RecipeSpaceChanged", startBlock, this.props.blockNumber)
-            .then(this.onRecipeSpaceChanges);
+    componentDidUpdate(prevProps, prevState) {
+      if (prevState.date.toDateString() !== this.state.date.toDateString() ||
+        prevProps.blockNumber !== this.props.blockNumber
+      ) {
+        this.update();
       }
     }
 
-    onRecipeSpaceChanges = (changeEvents) => {
-        if (changeEvents.length === 0) {
-            return;
-        }
-
-        var updatedSpaces = this.state.spaces.slice();
-        var toUpdate = [];
-        changeEvents.forEach((event) => {
-            switch(event.args.changeType) {
-                case RecipeSpaceChangeType['created']:
-                    updatedSpaces.push({
-                        address: event.args.recipeSpace,
-                        activeRecipes: []
-                    });
-                    break;
-                case RecipeSpaceChangeType['updated']:
-                    toUpdate.push(event.args.recipeSpace);
-                    break;
-                case RecipeSpaceChangeType['removed']:
-                    updatedSpaces = updatedSpaces.filter((space) => {
-                        return space.address !== event.args.recipeSpace
-                    });
-                    break;
-                default:
-                    break;
-            }
-        });
-
-        this.setState({spaces: updatedSpaces}, () => {
-            Promise.all(toUpdate.map((space) => {
-                return this.props.accessDeployedContract(space, RecipeSpace.abi)
-                    .activeRecipes()
-                    .then((activeRecipes) => [space, activeRecipes]);
-            })).then((updates) => {
-                var updatedSpaces2 = this.state.spaces.slice();
-                updates.forEach(([space, activeRecipes]) => {
-                    const found = updatedSpaces2.findIndex((loadedSpace) => loadedSpace.address === space);
-                    if (found !== -1) {
-                        updatedSpaces2[found].activeRecipes = activeRecipes;
-                    }
-                });
-                this.setState({spaces: updatedSpaces2});
-            });
-        });
-    };
-
     update = () => {
-        this.props
-            .accessDeployedContract(
-                "0x12c881C1a099FA31400fCe0fba10553B134679C5",
-                RecipeSet.abi)
-            .contents()
-            .then((recipes) => {
-              this.setState({
-                recipes: recipes
-              });
-            });
-
-        this.state.hub
-            .activeRecipeSpaces()
-            .then((spaces) => {
-                Promise.all(
-                    spaces.map((space) => {
-                        return this.props.accessDeployedContract(space, RecipeSpace.abi)
-                            .activeRecipes()
-                            .then((activeRecipes) => {
-                                return {
-                                    address: space,
-                                    activeRecipes: activeRecipes
-                                };
-                            })
-                })).then((spaces) => {
-                    this.setState({
-                        spaces: spaces
-                    });
+        this.state.hub.recipeSpaceByName(this.state.date.toDateString())
+            .then((space) => {
+                this.props.accessDeployedContract(space, RecipeSpace.abi)
+                    .getData()
+                    .catch((error) => {
+                        this.setState({
+                            selectedSpace: null,
+                            spaceData: null
+                        })
+                    })
+                    .then((spaceData) => {
+                        this.setState({
+                            selectedSpace: space,
+                            spaceData: spaceData
+                        });
+                    })
+            }, (reason) => {
+                this.setState({
+                    selectedSpace: null,
+                    spaceData: null
                 });
             });
     };
 
-    createRecipeSpace = () => {
+    createRecipeSpace = (name) => {
         this.props.executeTransaction(
-            this.state.hub.createRecipeSpace(),
+            this.state.hub.createRecipeSpace(name),
             () => {},
             (reason) => {});
     };
@@ -399,47 +325,52 @@ class RecipePreparation extends React.Component {
             (reason) => {});
     };
 
-    selectRecipeSpace = (index) => {
+    addDays = (date, days) => {
+        var date = new Date(date.valueOf());
+        date.setDate(date.getDate() + days);
+        return date;
+    }
+
+    selectTomorrow = () => {
         this.setState({
-            selectedSpaceIndex: index
+            selectedRecipeIndex: 0,
+            date: this.addDays(this.state.date, 1)
         });
     };
 
-    render() {
-        const spacesCount = this.state.spaces.length;
-        const spaceTiles = this.state.spaces.map((space, index) => {
-            const isSelected = this.state.selectedSpaceIndex === index;
-            const label = <p>Group {index + 1}</p>;
-            const indicator = isSelected ? <b>{label}</b>: label;
-            var removeButton;
-            if (isSelected && space.activeRecipes.length === 0) {
-                removeButton = <button onClick={() => this.removeRecipeSpace(index)}>❌</button>;
-            }
-            return <div className="pure-g" key={space.address} onClick={() => this.selectRecipeSpace(index)}>
-                <div className="pure-u-3-4">{indicator}<p>{space.activeRecipes.length} recipes</p></div>
-                <div className="pure-u-1-4 center">{removeButton}</div>
-            </div>;
+    selectYesterday = () => {
+       this.setState({
+            selectedRecipeIndex: 0,
+            date: this.addDays(this.state.date, -1)
         });
-        const selectedSpace = this.state.spaces[this.state.selectedSpaceIndex];
-        const selectedSpaceDetail = this.state.spaces.length < (this.state.selectedSpaceIndex + 1) ? null :
-            <RecipeSpaceDetail
-                activeRecipes={selectedSpace.activeRecipes}
-                recipes={this.state.recipes}
-                startRecipe={(recipe, scalePercentage) => this.startRecipeInSpace(selectedSpace.address, recipe, scalePercentage)}
-                removeRecipe={(recipe) => this.removeRecipeFromSpace(selectedSpace.address, recipe)}
-                updateRecipeStep={(recipe, stepIndex) => this.updateRecipeStepInSpace(selectedSpace.address, recipe, stepIndex)}
-                provider={this.props.provider}
-                accessDeployedContract={this.props.accessDeployedContract}/>;
+    };
 
-        const allowNewSpace = this.state.spaces.filter((space) => space.activeRecipes.length === 0).length === 0;
-        const createNewSpaceButton = allowNewSpace ? <button onClick={this.createRecipeSpace}>New recipe group</button> : null;
+    selectRecipeIndex = (index) => {
+        this.setState({selectedRecipeIndex: index});
+    };
+
+    render() {
+        const currentDate = this.state.date.toDateString();
+        const selectedSpaceDetail = this.state.spaceData ?
+            <RecipeSpaceDetail
+                selectedRecipeIndex={this.state.selectedRecipeIndex}
+                selectRecipeIndex={this.selectRecipeIndex}
+                spaceData={this.state.spaceData}
+                startRecipe={(recipe, scalePercentage) => this.startRecipeInSpace(this.state.selectedSpace, recipe, scalePercentage)}
+                removeRecipe={(recipe) => this.removeRecipeFromSpace(this.state.selectedSpace, recipe)}
+                updateRecipeStep={(recipe, stepIndex) => this.updateRecipeStepInSpace(this.state.selectedSpace, recipe, stepIndex)}
+                provider={this.props.provider}
+                accessDeployedContract={this.props.accessDeployedContract}/> :
+            <button onClick={() => this.createRecipeSpace(currentDate)}>New recipe group</button>;
+
         return <div>
             <div className="pure-g">
-                <div className="pure-u-1-1">
-                    {spaceTiles}
-                    {createNewSpaceButton}
+                <div className="pure-u-1-1" style={{display: "flex", justifyContent: "space-between"}}>
+                    <button onClick={this.selectYesterday}><span>&lt;</span></button>
+                    <span>{currentDate}</span>
+                    <button onClick={this.selectTomorrow}><span>&gt;</span></button>
                 </div>
-                <div className="pure-u-1-1">
+                <div className="pure-g pure-u-1-1">
                     {selectedSpaceDetail}
                 </div>
             </div>

@@ -30,7 +30,7 @@ class RecipeViewer extends React.Component {
   };
 
   render() {
-    const scalePercentage = this.props.scalePercentage ? (this.props.scalePercentage.toNumber() / 100) : 1;
+    const scalePercentage = this.props.scalePercentage ? (this.props.scalePercentage / 100) : 1;
     const ingredients =
       this.props.recipe &&
       this.props.recipe.ingredients &&
