@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { toEthAmountString } from '../Utils';
 const ethers = require("ethers");
 
 class StatusBar extends React.Component {
@@ -66,7 +67,7 @@ class StatusBar extends React.Component {
 
     var balanceMessage = "\u{200D}";
     if (this.state.balance) {
-      balanceMessage += Number(ethers.utils.formatEther(this.state.balance)).toFixed(3) + " ETH";
+      balanceMessage += toEthAmountString(this.state.balance);
     }
 
     var addressMessage = "\u{200D}";

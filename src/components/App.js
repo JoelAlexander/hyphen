@@ -2,7 +2,6 @@ import { hot } from 'react-hot-loader';
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import React from 'react';
 import SessionFeed from './SessionFeed.js';
-import Faucet from './Faucet.js';
 import Menu from './Menu.js';
 import Splash from './Splash.js';
 import Table from './Table.js';
@@ -210,20 +209,15 @@ class Hyphen extends React.Component {
   render() {
 
     let app;
-    if (this.state.app === "faucet") {
-      app =
-        <Faucet
-          address={this.state.address}
-          accessDeployedContract={this.accessDeployedContract}
-          executeTransaction={this.executeTransaction}
-          addMessage={this.addMessage} />;
-    } else if (this.state.app === "table") {
+    if (this.state.app === "account") {
       app =
         <Table
+          address={this.state.address}
           provider={this.state.provider}
-          signer={this.state.signer}
+          accessDeployedContract={this.accessDeployedContract}
           executeTransaction={this.executeTransaction}
-          addMessage={this.addMessage} />;
+          addMessage={this.addMessage}
+          blockNumber={this.state.blockNumber} />;
     } else if (this.state.app === "recipes") {
       app =
         <Recipes

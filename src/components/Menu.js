@@ -63,11 +63,11 @@ class Menu extends React.Component {
     let loggedInMenuItems;
     if (this.props.loggedIn) {
       loggedInMenuItems = [
-        <a key="faucet" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("faucet")}>Faucet</a>,
         <a key="table" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("table")}>Table</a>,
         <a key="recipes" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("recipes")}>Recipes</a>,
         <a key="kitchen" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("kitchen")}>Kitchen</a>,
-        <a key="ens" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("ens")}>ENS</a>
+        <a key="ens" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("ens")}>ENS</a>,
+        <a key="account" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("account")}>Account</a>
       ]
     }
 

@@ -1,3 +1,4 @@
+const ethers = require("ethers");
 
 export const threeOrFewerDecimalPlaces = (number) => {
   const three = Number(number.toFixed(3));
@@ -15,3 +16,7 @@ export const threeOrFewerDecimalPlaces = (number) => {
   }
 };
 
+export const toEthAmountString = (amountWei, decimals) => {
+  const decimalsToUse = decimals ? decimals : 3;
+  return "" + Number(ethers.utils.formatEther(amountWei)).toFixed(decimalsToUse) + " ⟠";
+};
