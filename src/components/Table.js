@@ -1,12 +1,13 @@
 import React from 'react';
+import HyphenContext from './HyphenContext';
 import FaucetContract from './../contracts/Faucet.sol/Faucet.json';
 import { toEthAmountString } from '../Utils';
 const ethers = require("ethers");
 
 const faucetAddress = "0x0Ff4f87B22b795a672fC12884a09087EBdE021cB";
 
-const accountAddress = "0x7c65D04C226d47fA70ba3f1913443684547AF18F";
-const accountPrivateKey = "0xd89a25235e8ed445265fdb7d3a878abf1c7d701f628191ac62dffa8e914f6868";
+const conciergeAddress = "0x7c65D04C226d47fA70ba3f1913443684547AF18F";
+const conciergePrivateKey = "0xd89a25235e8ed445265fdb7d3a878abf1c7d701f628191ac62dffa8e914f6868";
 
 class Table extends React.Component {
 
@@ -14,82 +15,86 @@ class Table extends React.Component {
     super(props);
     const wallet =
       new ethers.Wallet(
-        accountPrivateKey,
+        conciergePrivateKey,
         new ethers.providers.JsonRpcProvider(
           { url: 'https://crypto.joelalexander.me'},
           { name: 'home', chainId: 5904 }));
     this.state = {
       wallet: wallet,
-      faucet: this.props.accessDeployedContract(faucetAddress, FaucetContract.abi),
       faucetBalance: null,
       faucetBlock: null
     };
   }
 
   componentDidMount() {
-    this.update();
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    if (prevProps.address !== this.props.address) {
-        this.update();
-    }
-  }
-
-  update = () => {
     this.state.wallet.getBalance().then((balance) => {
       this.setState({
         conciergeBalance: balance
       });
     });
 
-    this.state.faucet.balance().then((result) => {
+    this.getFaucetContract()
+      .balance().then((result) => {
       this.setState({
         faucetBalance: result
       });
     });
 
-    if (this.props.address) {
-      this.state.faucet.canUseAtBlock(this.props.address).then((result) => {
-        this.setState({
-          faucetBlock: result
-        });
+    this.getFaucetContract()
+      .canUseAtBlock(this.context.address).then((result) => {
+      this.setState({
+        faucetBlock: result
       });
-    }
+    });
+  }
+
+  getFaucetContract = () => {
+    return new ethers.Contract(faucetAddress, FaucetContract.abi, this.context.signer);
   };
 
   claimDisbursement = () => {
-    this.props.executeTransaction(
-      this.state.faucet.claim(),
+    this.context.executeTransaction(
+      this.getFaucetContract().claim(),
       (receipt) => this.update(),
       (error) => this.props.addMessage(JSON.stringify(error)));
   };
 
-  take = () => {
-    this.props.provider.getGasPrice().then((gasPrice) => {
+  take = (amount) => {
+    this.context.signer.getGasPrice().then((gasPrice) => {
       this.state.wallet.getBalance().then((balance) => {
-        this.props.executeTransaction(
-          this.state.wallet.sendTransaction({
-            to: this.props.address,
-            value: balance.sub(gasPrice.mul(21000)),
-            gasLimit: 21000,
-            gasPrice: gasPrice,
-            type: 0x0
-          }),
-          (receipt) => this.update(),
-          (error) => this.props.addMessage(JSON.stringify(error)));
+
+        const gasAmount = 21000;
+        const gasCost = gasPrice.mul(gasAmount);
+        const amountPlusGas = amount.add(gasCost);
+        if (balance.gte(amountPlusGas)) {
+          this.context.executeTransaction(
+            this.state.wallet.sendTransaction({
+              to: this.props.address,
+              value: amount,
+              gasLimit: gasAmount,
+              gasPrice: gasPrice,
+              type: 0x0
+            }),
+            (receipt) => this.update(),
+            (error) => this.props.addMessage(JSON.stringify(error)));
+        }
       });
     });
   };
 
-  put = (v) => {
-    this.props.executeTransaction(
-      this.props.provider.sendTransaction({
-        to: "0x95CB9d0e4901199aAf18703a791Ca1Cd50A3beBB",
-        value: v
-      }),
-      (receipt) => this.update(),
-      (error) => this.props.addMessage(JSON.stringify(error)));
+  put = (amount) => {
+    this.context.signer.getGasPrice().then((gasPrice) => {
+      this.context.executeTransaction(
+        this.context.signer.sendTransaction({
+          to: conciergeAddress,
+          value: amount,
+          gasLimit: 21000,
+          gasPrice: gasPrice,
+          type: 0x0
+        }),
+        (receipt) => this.update(),
+        (error) => this.props.addMessage(JSON.stringify(error)));
+    });
   };
 
   toHMSTime = (seconds) => {
@@ -128,11 +133,15 @@ class Table extends React.Component {
     if (this.state.conciergeBalance) {
       message = toEthAmountString(this.state.conciergeBalance);
     }
+
+    const amount = ethers.BigNumber.from("10000000000000000");
+    const giveMessage = "➕ " + toEthAmountString(amount, 2);
+    const takeMessage = "🤲 " + toEthAmountString(amount, 2);
     const table = <div>
       <h3>🛎️ Concierge</h3>
       <p>{message}</p>
-      <button onClick={() => this.put(ethers.BigNumber.from("10000000000000000"))}>Put 0.01 ETH on Table</button>
-      <button onClick={this.take}>Take ETH from Table</button>
+      <button onClick={() => this.put(amount)}>{giveMessage}</button>
+      <button onClick={() => this.take(amount)}>{takeMessage}</button>
     </div>;
 
     return <div>
@@ -141,5 +150,7 @@ class Table extends React.Component {
     </div>;
   }
 }
+
+Table.contextType = HyphenContext;
 
 export default Table;

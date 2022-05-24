@@ -1,5 +1,6 @@
 import React from 'react';
-import { slide as SlideMenu } from 'react-burger-menu'
+import HyphenContext from './HyphenContext';
+import { slide as SlideMenu } from 'react-burger-menu';
 
 var styles = {
   bmBurgerButton: {
@@ -50,7 +51,8 @@ class Menu extends React.Component {
 
   render() {
     let loginLogoutButton;
-    if (!this.props.loggedIn) {
+    let loggedInMenuItems;
+    if (!this.context.signer) {
       loginLogoutButton = [
         <a key="login_houseaccount" href="#" className="pure-menu-link" onClick={this.props.loginWithHouseWallet}>Use house account</a>,
         <a key="login_walletconnect" href="#" className="pure-menu-link" onClick={this.props.loginWithWalletConnect}>Connect wallet</a>,
@@ -58,10 +60,6 @@ class Menu extends React.Component {
       ]
     } else {
       loginLogoutButton = <a key="logout" href="#" className="pure-menu-link" onClick={this.props.logout}>Logout</a>
-    }
-
-    let loggedInMenuItems;
-    if (this.props.loggedIn) {
       loggedInMenuItems = [
         <a key="table" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("table")}>Table</a>,
         <a key="recipes" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("recipes")}>Recipes</a>,
@@ -75,15 +73,9 @@ class Menu extends React.Component {
       {loginLogoutButton}
       {loggedInMenuItems}
     </SlideMenu>;
-
-    // return <div className="pure-menu sidebar-restricted-width" style={{paddingRight:"1em"}}>
-    //   <span className="pure-menu-heading">Hyphen</span>
-    //   <ul className="pure-menu-list">
-    //     {loginLogoutButton}
-    //     {loggedInMenuItems}
-    //   </ul>
-    // </div>;
   }
 }
+
+Menu.contextType = HyphenContext;
 
 export default Menu;

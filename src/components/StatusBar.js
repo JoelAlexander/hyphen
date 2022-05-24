@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import HyphenContext from './HyphenContext';
 import { toEthAmountString } from '../Utils';
 const ethers = require("ethers");
 
@@ -16,32 +17,24 @@ class StatusBar extends React.Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (
-      prevProps.blockNumber != this.props.blockNumber ||
-      (prevProps.provider && !this.props.provider)
-    ) {
+    if (prevProps.blockNumber != this.props.blockNumber) {
       this.update();
     }
   }
 
   update = () => {
-    if (!this.props.signer || !this.props.provider) {
-      this.setState({
-        address: null,
-        balance: null,
-        ensName: null
-      });
+    if (!this.context.signer) {
       return;
     }
 
-    this.props.signer.getBalance().then((balance) => {
+    this.context.signer.getBalance().then((balance) => {
       this.setState({
         balance: balance
       });
     });
 
-    this.props.signer.getAddress().then((address) => {
-      this.props.provider.lookupAddress(address).then((ensName) => {
+    this.context.signer.getAddress().then((address) => {
+      this.context.provider.lookupAddress(address).then((ensName) => {
         this.setState({
           ensName: ensName
         })
@@ -151,5 +144,7 @@ class StatusBar extends React.Component {
     </div>;
   }
 }
+
+StatusBar.contextType = HyphenContext;
 
 export default StatusBar;

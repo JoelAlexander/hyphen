@@ -1,9 +1,10 @@
 import React from 'react';
+import HyphenContext from './HyphenContext';
 
 class Splash extends React.Component {
   render() {
     let message;
-    if (this.props.loggedIn) {
+    if (this.context.signer) {
       message = "Select an app from the menu"
     } else {
       message = "Log-in to get started"
@@ -16,5 +17,7 @@ class Splash extends React.Component {
     </div>;
   }
 }
+
+Splash.contextType = HyphenContext;
 
 export default Splash;

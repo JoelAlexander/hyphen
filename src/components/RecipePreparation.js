@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import HyphenContext from './HyphenContext';
 import MutableStringSet from "./MutableStringSet.js";
 import RecipeViewer from "./RecipeViewer.js";
 import RecipeHub from './../contracts/RecipeHub.sol/RecipeHub.json';
@@ -31,10 +32,7 @@ class PreparationCreator extends React.Component {
     }
 
     componentDidMount() {
-        this.props
-            .accessDeployedContract(
-                this.props.recipeSet,
-                RecipeSet.abi)
+        new ethers.Contract(this.props.recipeSet, RecipeSet.abi, this.context.signer)
             .contents()
             .then((recipes) => {
               this.setState({
@@ -103,6 +101,8 @@ class PreparationCreator extends React.Component {
     }
 }
 
+PreparationCreator.contextType = HyphenContext;
+
 class PreparationList extends React.Component {
 
     constructor(props) {
@@ -125,7 +125,7 @@ class PreparationList extends React.Component {
     update = () => {
         this.props.preparations.forEach((preparation) => {
             const recipeAddress = preparation.recipe;
-            this.props.accessDeployedContract(recipeAddress, Recipe.abi)
+            new ethers.Contract(recipeAddress, Recipe.abi, this.context.signer)
                 .getData()
                 .then((recipeData) => {
                     this.setState({
@@ -152,6 +152,8 @@ class PreparationList extends React.Component {
         </div>;
     }
 }
+
+PreparationList.contextType = HyphenContext;
 
 class RecipeSpaceDetail extends React.Component {
 
@@ -180,7 +182,6 @@ class RecipeSpaceDetail extends React.Component {
         const selectedRecipeData = this.props.spaceData.recipes[this.props.selectedRecipeIndex];
         const recipeViewer = selectedRecipeData ?
             <RecipeViewer
-                provider={this.props.provider}
                 recipe={selectedRecipeData.recipe}
                 stepIndex={selectedRecipeData.status.stepIndex.toNumber()}
                 scalePercentage={selectedRecipeData.status.scalePercentage.toNumber()} /> : null;
@@ -218,8 +219,7 @@ class RecipeSpaceDetail extends React.Component {
             <PreparationCreator
                 recipeSet="0x12c881C1a099FA31400fCe0fba10553B134679C5"
                 startRecipe={this.startRecipe}
-                cancel={this.stopEditingRecipe}
-                accessDeployedContract={this.props.accessDeployedContract}/> : null;
+                cancel={this.stopEditingRecipe}/> : null;
 
         const removeRecipe = !this.state.editing && this.state.viewerRecipe ?
             () => this.props.removeRecipe(this.state.viewerRecipe.recipe) : null;
@@ -247,8 +247,7 @@ class RecipePreparation extends React.Component {
         super(props);            
         this.state = {
           selectedRecipeIndex: 0,
-          date: new Date(),
-          hub: this.props.accessDeployedContract("0xE4d43628223646eAf3e2bCD07D2942Eac574945d", RecipeHub.abi),
+          date: new Date()
         };
     }
 
@@ -264,10 +263,18 @@ class RecipePreparation extends React.Component {
       }
     }
 
+    getHubContract = () => {
+        return new ethers.Contract(
+            "0xE4d43628223646eAf3e2bCD07D2942Eac574945d",
+            RecipeHub.abi,
+            this.context.signer);
+    };
+
     update = () => {
-        this.state.hub.recipeSpaceByName(this.state.date.toDateString())
+        this.getHubContract()
+            .recipeSpaceByName(this.state.date.toDateString())
             .then((space) => {
-                this.props.accessDeployedContract(space, RecipeSpace.abi)
+                new ethers.Contract(space, RecipeSpace.abi, this.context.signer)
                     .getData()
                     .catch((error) => {
                         this.setState({
@@ -290,37 +297,37 @@ class RecipePreparation extends React.Component {
     };
 
     createRecipeSpace = (name) => {
-        this.props.executeTransaction(
-            this.state.hub.createRecipeSpace(name),
+        this.context.executeTransaction(
+            this.getHubContract().createRecipeSpace(name),
             () => {},
             (reason) => {});
     };
 
     removeRecipeSpace = (index) => {
         const space = this.state.spaces[index];
-        this.props.executeTransaction(
-            this.state.hub.removeRecipeSpace(space.address),
+        this.context.executeTransaction(
+            this.getHubContract().removeRecipeSpace(space.address),
             () => {},
             (reason) => {});
     };
 
     startRecipeInSpace = (space, recipe, scalePercentage) => {
-        this.props.executeTransaction(
-            this.state.hub.startRecipeInSpace(space, recipe, scalePercentage),
+        this.context.executeTransaction(
+            this.getHubContract().startRecipeInSpace(space, recipe, scalePercentage),
             () => {},
             (reason) => {});
     };
 
     removeRecipeFromSpace = (space, recipe) => {
-        this.props.executeTransaction(
-            this.state.hub.endRecipeInSpace(space, recipe),
+        this.context.executeTransaction(
+            this.getHubContract().endRecipeInSpace(space, recipe),
             () => {},
             (reason) => {});
     };
 
     updateRecipeStepInSpace = (space, recipe, stepIndex) => {
-        this.props.executeTransaction(
-            this.state.hub.updateRecipeStepInSpace(space, recipe, stepIndex),
+        this.context.executeTransaction(
+            this.getHubContract().updateRecipeStepInSpace(space, recipe, stepIndex),
             () => {},
             (reason) => {});
     };
@@ -358,9 +365,7 @@ class RecipePreparation extends React.Component {
                 spaceData={this.state.spaceData}
                 startRecipe={(recipe, scalePercentage) => this.startRecipeInSpace(this.state.selectedSpace, recipe, scalePercentage)}
                 removeRecipe={(recipe) => this.removeRecipeFromSpace(this.state.selectedSpace, recipe)}
-                updateRecipeStep={(recipe, stepIndex) => this.updateRecipeStepInSpace(this.state.selectedSpace, recipe, stepIndex)}
-                provider={this.props.provider}
-                accessDeployedContract={this.props.accessDeployedContract}/> :
+                updateRecipeStep={(recipe, stepIndex) => this.updateRecipeStepInSpace(this.state.selectedSpace, recipe, stepIndex)}/> :
             <button onClick={() => this.createRecipeSpace(currentDate)}>New recipe group</button>;
 
         return <div>
@@ -377,5 +382,7 @@ class RecipePreparation extends React.Component {
         </div>;
     }
 }
+
+RecipePreparation.contextType = HyphenContext;
 
 export default RecipePreparation;

@@ -1,6 +1,7 @@
 import { hot } from 'react-hot-loader';
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import React from 'react';
+import HyphenContext from './HyphenContext';
 import SessionFeed from './SessionFeed.js';
 import Menu from './Menu.js';
 import Splash from './Splash.js';
@@ -32,8 +33,8 @@ class Hyphen extends React.Component {
   componentDidMount() {
     this.blockNumberInterval =
       setInterval(() => {
-        if (this.state.provider) {
-          this.state.provider.getBlockNumber()
+        if (this.state.context.provider) {
+          this.state.context.provider.getBlockNumber()
               .then((result) => {
                 this.setState({
                   blockNumber: result
@@ -49,10 +50,7 @@ class Hyphen extends React.Component {
 
   createInitialLoggedOutState = () => {
     return {
-      loginMethod: null,
-      provider: null,
-      signer: null,
-      address: null,
+      context: {},
       app: null,
       entries: [],
       houseWallet: houseWallet
@@ -86,9 +84,17 @@ class Hyphen extends React.Component {
     this.setState({entries: newEntries});
   };
 
-  getGasPrice = () => {
-    this.state.provider.getGasPrice()
-      .then((price) => { this.addMessage(price); });
+  makeContext = (loginMethod, provider, signer, address) => {
+    return {
+      // Account state
+      "loginMethod": loginMethod,
+      "provider": provider,
+      "signer": signer,
+      "address": address,
+
+      // Methods
+      executeTransaction: this.executeTransaction
+    };
   };
 
   loginWithWalletConnect = () => {
@@ -117,16 +123,15 @@ class Hyphen extends React.Component {
     provider.pollingInterval = 2000;
 
     const handleAccountsChanged = (accounts) => {
-      this.addMessage("Using account: " + accounts[0]);
-      const signer = provider.getSigner();
-      this.setState({
-        "loginMethod": "WalletConnect",
-        "provider": provider,
-        "signer": signer,
-        "address": null
-      });
-      signer.getAddress().then((address) => {
-        this.setState({ "address": address});
+      provider.getSigner().getAddress().then((address) => {
+        this.setState({
+          context:
+            this.makeContext(
+              "WalletConnect",
+              provider,
+              signer,
+              address)
+        });
       });
     };
 
@@ -146,17 +151,19 @@ class Hyphen extends React.Component {
 
   loginWithHouseWallet = () => {
     this.setState({
-      "loginMethod": "HouseAccount",
-      "provider": houseWalletProvider,
-      "signer": this.state.houseWallet,
-      "address": this.state.houseWallet.address
+      context:
+        this.makeContext(
+          "HouseAccount",
+          houseWalletProvider,
+          this.state.houseWallet,
+          this.state.houseWallet.address)
     });
   };
 
   disconnectWallet = () => {
     this.setState(this.createInitialLoggedOutState());
-    if (this.state.loginMethod === "WalletConnect" && this.state.provider) {
-      this.state.provider.provider.disconnect();
+    if (this.state.loginMethod === "WalletConnect" && this.state.context.provider) {
+      this.state.context.provider.provider.disconnect();
     }
   };
 
@@ -164,17 +171,6 @@ class Hyphen extends React.Component {
     this.setState({ 
       entries: []
     });
-  };
-
-  getSigner = () => {
-    return this.state.signer;
-  };
-
-  accessDeployedContract = (address, abi) => {
-    return new ethers.Contract(
-        address,
-        abi,
-        this.getSigner());
   };
 
   executeTransaction = (transactionResultPromise, onSuccess, onError) => {
@@ -212,20 +208,13 @@ class Hyphen extends React.Component {
     if (this.state.app === "account") {
       app =
         <Table
-          address={this.state.address}
-          provider={this.state.provider}
-          accessDeployedContract={this.accessDeployedContract}
-          executeTransaction={this.executeTransaction}
           addMessage={this.addMessage}
           blockNumber={this.state.blockNumber} />;
     } else if (this.state.app === "recipes") {
       app =
         <Recipes
-          provider={this.state.provider}
           contractAddress="0x12c881C1a099FA31400fCe0fba10553B134679C5"
           measuresSetAddress="0x9679BAF3E60479a31095AC6134C54b7F54b6ce4C"
-          accessDeployedContract={this.accessDeployedContract}
-          executeTransaction={this.executeTransaction}
           addMessage={this.addMessage}
           blockNumber={this.state.blockNumber} />;
     } else if (this.state.app === "kitchen") {
@@ -233,52 +222,44 @@ class Hyphen extends React.Component {
         <RecipePreparation
           serviceWorkerRegistration={this.props.serviceWorkerRegistration}
           blockNumber={this.state.blockNumber}
-          addMessage={this.addMessage}
-          provider={this.state.provider}
-          accessDeployedContract={this.accessDeployedContract}
-          executeTransaction={this.executeTransaction} />;
+          addMessage={this.addMessage} />;
     } else if (this.state.app === "ens") {
       app = <Names
           houseWallet={this.state.houseWallet}
-          address={this.state.address}
-          provider={this.state.provider}
-          addMessage={this.addMessage}
-          executeTransaction={this.executeTransaction}
-          accessDeployedContract={this.accessDeployedContract} />
+          addMessage={this.addMessage} />
     } else if (this.state.app === "faq") {
       app =
         <Faq />
     } else {
-      app = <Splash loggedIn={this.state.signer !== null} />;
+      app = <Splash />;
     }
 
-    return <div>
-      <Menu
-        loggedIn={this.state.signer !== null}
-        loginWithWalletConnect={this.loginWithWalletConnect}
-        loginWithHouseWallet={this.loginWithHouseWallet}
-        logout={this.disconnectWallet}
-        activateApp={this.activateApp} />
-      <div style={{display: "inline-block", width: "100%"}}>
-        <StatusBar
-          provider={this.state.provider}
-          signer={this.state.signer}
-          blockNumber={this.state.blockNumber}
-          entries={this.state.entries}
-          clearFeed={() => {}} />
-        <div className="pure-g" style={{width: "100%", height: "100%"}}>
-          <div
-            className="pure-u-1-1"
-            style={{
-              height: "100%",
-              marginLeft: "2em",
-              marginRight: "2em"
-            }}>
-            {app}
+    return <HyphenContext.Provider value={this.state.context}>
+      <div>
+        <Menu
+          loginWithWalletConnect={this.loginWithWalletConnect}
+          loginWithHouseWallet={this.loginWithHouseWallet}
+          logout={this.disconnectWallet}
+          activateApp={this.activateApp} />
+        <div style={{display: "inline-block", width: "100%"}}>
+          <StatusBar
+            blockNumber={this.state.blockNumber}
+            entries={this.state.entries}
+            clearFeed={() => {}} />
+          <div className="pure-g" style={{width: "100%", height: "100%"}}>
+            <div
+              className="pure-u-1-1"
+              style={{
+                height: "100%",
+                marginLeft: "2em",
+                marginRight: "2em"
+              }}>
+              {app}
+            </div>
           </div>
         </div>
       </div>
-    </div>;
+    </HyphenContext.Provider>;
   }
 }
 

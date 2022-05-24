@@ -1,4 +1,5 @@
 import React from 'react';
+import HyphenContext from './HyphenContext';
 import { threeOrFewerDecimalPlaces } from '../Utils';
 const ethers = require("ethers");
 
@@ -21,11 +22,13 @@ class RecipeViewer extends React.Component {
 
   update = () => {
     if (this.props.recipe && this.props.recipe.author) {
-      this.props.provider.lookupAddress(this.props.recipe.author).then((authorName) => {
-        this.setState({
-          authorName: authorName
-        })
-      })
+      this.context.provider
+        .lookupAddress(this.props.recipe.author)
+        .then((authorName) => {
+          this.setState({
+            authorName: authorName
+          });
+        });
     }
   };
 
@@ -89,5 +92,7 @@ class RecipeViewer extends React.Component {
     </div>;
   }
 }
+
+RecipeViewer.contextType = HyphenContext;
 
 export default RecipeViewer;

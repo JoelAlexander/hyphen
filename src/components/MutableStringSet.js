@@ -1,4 +1,5 @@
 import React from 'react';
+import HyphenContext from './HyphenContext';
 import StringSet from './../contracts/StringSet.sol/StringSet.json';
 const ethers = require("ethers");
 
@@ -6,26 +7,31 @@ class MutableStringSet extends React.Component {
 
   constructor(props) {
     super(props);
+    
     this.state = {
-      contract: this.props.accessDeployedContract(this.props.contractAddress, StringSet.abi),
       contents: [],
       newString: ""
     };
   };
 
   componentDidMount() {
-    this.update();
+    this.getContract()
+      .contents()
+      .then((result) => {
+        this.setState({contents:result});
+      });
   }
 
-  update = () => {
-    this.state.contract.contents().then((result) => {
-      this.setState({contents:result});
-    });
+  getContract = () => {
+    return new ethers.Contract(
+      props.contractAddress,
+      StringSet.abi,
+      this.context.signer);
   };
 
   addString = (str) => {
-    this.props.executeTransaction(
-      this.state.contract.add(str),
+    this.context.executeTransaction(
+      this.getContract().add(str),
       (receipt) => this.update(),
       (error) => this.props.addMessage(JSON.stringify(error)));
   };
@@ -39,7 +45,7 @@ class MutableStringSet extends React.Component {
 
   handleAddStringChange = (event) => {
     this.setState({newString: event.target.value});
-  }
+  };
 
   render() {
     const contents = this.state.contents.map((item, index) => {
@@ -55,5 +61,7 @@ class MutableStringSet extends React.Component {
     </div>;
   }
 }
+
+MutableStringSet.contextType = HyphenContext;
 
 export default MutableStringSet;

@@ -1,4 +1,5 @@
 import React from 'react';
+import HyphenContext from './HyphenContext';
 import StringSet from './../contracts/StringSet.sol/StringSet.json';
 import RecipeSet from './../contracts/RecipeSet.sol/RecipeSet.json';
 import Recipe from './../contracts/Recipe.sol/Recipe.json';
@@ -246,8 +247,6 @@ class Recipes extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      contract: this.props.accessDeployedContract(this.props.contractAddress, RecipeSet.abi),
-      measuresContract: this.props.accessDeployedContract(this.props.measuresSetAddress, StringSet.abi),
       recipes: null,
       measures: [],
       editing: false,
@@ -257,21 +256,32 @@ class Recipes extends React.Component {
   };
 
   componentDidMount() {
-    this.update();
+    const measuresContract =
+      new ethers.Contract(
+        this.props.measuresSetAddress,
+        StringSet.abi,
+        this.context.signer);
+
+    this.getContract()
+      .contents()
+      .then((recipes) => {
+        this.setState({recipes: recipes});
+      }, (err) => {
+        this.props.addMessage(JSON.stringify(err));
+      });
+
+    measuresContract.contents().then((measures) => {
+      this.setState({measures: measures});
+    }, (err) => {
+      this.props.addMessage(JSON.stringify(err));
+    });
   }
 
-  update = () => {
-    this.state.contract.contents().then((recipes) => {
-      this.setState({
-        recipes: recipes
-      });
-    }, (err) => { this.props.addMessage(JSON.stringify(err)); });
-
-    this.state.measuresContract.contents().then((measures) => {
-      this.setState({
-        measures: measures
-      });
-    }, (err) => { this.props.addMessage(JSON.stringify(err)); });
+  getContract = () => {
+    return new ethers.Contract(
+      this.props.contractAddress,
+      RecipeSet.abi,
+      this.context.signer);
   };
 
   selectRecipe = (index) => {
@@ -279,8 +289,8 @@ class Recipes extends React.Component {
   };
 
   addEditedRecipe = () => {
-    this.props.executeTransaction(
-      this.state.contract.create(
+    this.context.executeTransaction(
+      this.getContract().create(
         this.state.editedRecipe.name,
         this.state.editedRecipe.ingredients,
         this.state.editedRecipe.steps),
@@ -289,8 +299,8 @@ class Recipes extends React.Component {
   };
 
   removeRecipe = (recipeAddress) => {
-    this.props.executeTransaction(
-      this.state.contract.remove(recipeAddress),
+    this.context.executeTransaction(
+      this.getContract().remove(recipeAddress),
       () => this.setState({selectedRecipe: null, editing: false, editedRecipe: null}, this.update),
       (err) => this.props.addMessage(JSON.stringify(err)));
   };
@@ -342,12 +352,13 @@ class Recipes extends React.Component {
     return <div>
       {topContent}
       <RecipeViewer
-        provider={this.props.provider}
         recipe={displayRecipe}
         startEditing={this.startEditing}
         removeRecipe={this.removeRecipe}/>
     </div>;
   }
 }
+
+Recipes.contextType = HyphenContext;
 
 export default Recipes;

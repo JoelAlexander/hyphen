@@ -1,4 +1,5 @@
 import React from 'react';
+import HyphenContext from './HyphenContext';
 import ENS from './../contracts/ENS.sol/ENS.json';
 import ENSDeployment from './../contracts/ENSDeployment.sol/ENSDeployment.json';
 import ENSRegistry from './../contracts/ENSRegistry.sol/ENSRegistry.json';
@@ -15,62 +16,43 @@ class Names extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      contract:
-        this.props.accessDeployedContract(
-          ensDeploymentAddress,
-          ENSDeployment.abi),
       enteredLabelString: ""
     };
   };
 
   componentDidMount() {
-    this.update();
-  }
+    const contract =
+      new ethers.Contract(
+        ensDeploymentAddress,
+        ENSDeployment.abi,
+        this.context.signer);
 
-  componentDidUpdate(prevProps, prevState) {
-    if (prevProps.address != this.props.address) {
-      this.update();
-    }
+    contract.ens().then((result) => {
+      this.setState({
+        ensContract: new ethers.Contract(result, ENS.abi, this.context.signer)
+      });
+    });
+    contract.fifsRegistrar().then((result) => {
+      this.setState({
+        fifsRegistrarContract: new ethers.Contract(result, FIFSRegistrar.abi, this.context.signer)
+      });
+    });
+    contract.reverseRegistrar().then((result) => {
+      this.setState({
+        reverseRegistrarContract: new ethers.Contract(result, ReverseRegistrar.abi, this.context.signer)
+      });
+    });
+    contract.publicResolver().then((result) => {
+      this.setState({
+        resolverContract: new ethers.Contract(result, PublicResolver.abi, this.context.signer)
+      });
+    });
+    this.context.provider.lookupAddress(this.context.address).then((name) => {
+      this.setState({
+        name: name
+      });
+    });
   }
-
-  update = () => {
-    this.state.contract.ens().then((result) => {
-      this.setState({
-        ensContract: this.props.accessDeployedContract(
-          result,
-          ENS.abi)
-      });
-    });
-    this.state.contract.fifsRegistrar().then((result) => {
-      this.setState({
-        fifsRegistrarContract: this.props.accessDeployedContract(
-          result,
-          FIFSRegistrar.abi)
-      });
-    });
-    this.state.contract.reverseRegistrar().then((result) => {
-      this.setState({
-        reverseRegistrarContract: this.props.accessDeployedContract(
-          result,
-          ReverseRegistrar.abi)
-      });
-    });
-    this.state.contract.publicResolver().then((result) => {
-      this.setState({
-        resolverContract: this.props.accessDeployedContract(
-          result,
-          PublicResolver.abi)
-      });
-    });
-    if (this.props.address) {
-      this.props.addMessage(this.props.address);
-      this.props.provider.lookupAddress(this.props.address).then((name) => {
-        this.setState({
-          name: name
-        });
-      });
-    }
-  };
 
   onEnteredLabelStringChanged = (event) => {
     this.setState({
@@ -79,31 +61,28 @@ class Names extends React.Component {
   };
 
   claimName = () => {
-    if (!this.props.address) {
-      this.props.addMessage("Must have an address to claim.")
-      return;
-    }
 
     if (!this.state.enteredLabelString) {
-      this.props.addMessage("Must enter a label string to claim.")
+      this.props.addMessage("Must enter a label string to claim.");
+      return;
     }
 
     const fullname = this.state.enteredLabelString + ".eth";
     const label = ethers.utils.id(this.state.enteredLabelString);
     const node = namehash.hash(fullname);
-    this.props.executeTransaction(
-      this.state.fifsRegistrarContract.register(label, this.props.address),
+    this.context.executeTransaction(
+      this.state.fifsRegistrarContract.register(label, this.context.address),
       () => {
         this.props.addMessage("Registration succeeded");
-        this.props.executeTransaction(
-          this.state.resolverContract['setAddr(bytes32,address)'](node, this.props.address),
+        this.context.executeTransaction(
+          this.state.resolverContract['setAddr(bytes32,address)'](node, this.context.address),
           () => {
             this.props.addMessage("Address updated in resolver");
-            this.props.executeTransaction(
+            this.context.executeTransaction(
               this.state.ensContract.setResolver(node, this.state.resolverContract.address),
               () => {
                 this.props.addMessage("Resolver updated");
-                this.props.executeTransaction(
+                this.context.executeTransaction(
                   this.state.reverseRegistrarContract.setName(fullname),
                   () => {
                     this.props.addMessage("Reverse record update succeded. ");
@@ -131,11 +110,6 @@ class Names extends React.Component {
   };
 
   releaseName = () => {
-    if (!this.props.address) {
-      this.props.addMessage("Must have an address to claim.")
-      return;
-    }
-
     const suffix = ".eth";
     const suffixIndex = this.state.name.lastIndexOf(suffix);
     if (
@@ -150,15 +124,15 @@ class Names extends React.Component {
     const label = ethers.utils.id(labelString);
     const node = namehash.hash(this.state.name);
 
-    this.props.executeTransaction(
+    this.context.executeTransaction(
       this.state.resolverContract['setAddr(bytes32,address)'](node, ethers.constants.AddressZero),
       () => {
         this.props.addMessage("Cleared address");
-        this.props.executeTransaction(
+        this.context.executeTransaction(
           this.state.ensContract.setResolver(node, ethers.constants.AddressZero),
           () => {
             this.props.addMessage("Resolver cleared in registry");
-            this.props.executeTransaction(
+            this.context.executeTransaction(
               this.state.fifsRegistrarContract.register(label, ethers.constants.AddressZero),
               () => {
                 this.props.addMessage("Reclaimed node");
@@ -198,5 +172,7 @@ class Names extends React.Component {
     return action;
   }
 }
+
+Names.contextType = HyphenContext;
 
 export default Names;
