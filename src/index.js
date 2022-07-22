@@ -1,13 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import App from './components/App';
+import Hyphen from './components/Hyphen';
+const configuration = require('./../configuration.json')
 
 import 'purecss/build/pure.css';
 import './styles.css';
 
 function runApp(serviceWorkerRegistration) {
 	ReactDOM.render(
-	  <App serviceWorkerRegistration={serviceWorkerRegistration} />,
+	  <Hyphen
+			configuration={configuration}
+			serviceWorkerRegistration={serviceWorkerRegistration} />,
 	  document.getElementById('root'));
 }
 
@@ -21,6 +24,3 @@ if ('serviceWorker' in navigator) {
 		});
 	});
 }
-
-
-

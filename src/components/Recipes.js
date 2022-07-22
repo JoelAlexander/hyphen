@@ -1,8 +1,8 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import StringSet from './../contracts/StringSet.sol/StringSet.json';
-import RecipeSet from './../contracts/RecipeSet.sol/RecipeSet.json';
-import Recipe from './../contracts/Recipe.sol/Recipe.json';
+import StringSet from 'contracts/StringSet.sol/StringSet.json';
+import RecipeSet from 'contracts/RecipeSet.sol/RecipeSet.json';
+import Recipe from 'contracts/Recipe.sol/Recipe.json';
 import RecipeViewer from './RecipeViewer.js';
 import { threeOrFewerDecimalPlaces } from '../Utils';
 import Select from 'react-select';
@@ -15,7 +15,7 @@ class RecipeMenu extends React.Component {
     if (this.props.recipes) {
       recipeOptions = this.props.recipes.map((recipe, index) => {
         return {label: recipe.name, value: index};
-      });  
+      });
     }
 
     var selectedRecipeOption;
@@ -344,7 +344,7 @@ class Recipes extends React.Component {
     } else {
       topContent = <RecipeMenu
         newRecipe={() => this.startEditing(null)}
-        selectedRecipe={this.state.selectedRecipe} 
+        selectedRecipe={this.state.selectedRecipe}
         recipes={this.state.recipes}
         selectRecipe={this.selectRecipe}/>;
     }

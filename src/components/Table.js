@@ -1,6 +1,6 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import FaucetContract from './../contracts/Faucet.sol/Faucet.json';
+import FaucetContract from 'contracts/Faucet.sol/Faucet.json';
 import { toEthAmountString } from '../Utils';
 const ethers = require("ethers");
 

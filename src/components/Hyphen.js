@@ -13,15 +13,6 @@ import Faq from './Faq.js';
 import Names from './Names.js';
 
 const ethers = require("ethers");
-const ensAddress = "0x16395447324D7e75d8cdeec1DBd1FaDC0A8E7Fc4";
-const houseWalletProvider =
-  new ethers.providers.JsonRpcProvider(
-      { url: 'https://crypto.joelalexander.me'},
-      { name: 'home', chainId: 5904, ensAddress: ensAddress });
-houseWalletProvider.pollingInterval = 2000;
-const houseWallet = new ethers.Wallet(
-        "0xd89a25235e8ed445265fdb7d3a878abf1c7d701f628191ac62dffa8e914f6868",
-        houseWalletProvider);
 
 class Hyphen extends React.Component {
 
@@ -49,6 +40,19 @@ class Hyphen extends React.Component {
   }
 
   createInitialLoggedOutState = () => {
+
+    const houseWalletProvider =
+      new ethers.providers.JsonRpcProvider(
+          { url: this.props.configuration.blockchainUrl},
+          { name: "home",
+            chainId: this.props.configuration.chainId,
+            ensAddress: this.props.configuration.ensAddress });
+    houseWalletProvider.pollingInterval = 2000;
+
+    const houseWallet = new ethers.Wallet(
+            "0xd89a25235e8ed445265fdb7d3a878abf1c7d701f628191ac62dffa8e914f6868",
+            houseWalletProvider);
+
     return {
       context: {},
       app: null,
@@ -99,11 +103,14 @@ class Hyphen extends React.Component {
 
   loginWithWalletConnect = () => {
 
+    const chainId = this.props.configuration.chainId
+
+    var rpc = {}
+    rpc[chainId] = this.props.configuration.blockchainUrl
+
     const walletConnectProvider = new WalletConnectProvider({
-      chainId: 5904,
-      rpc: {
-        5904: "https://crypto.joelalexander.me"
-      },
+      chainId: chainId,
+      rpc: rpc,
       network: "home",
       qrcode: true,
       qrcodeModalOptions: {
@@ -113,13 +120,12 @@ class Hyphen extends React.Component {
       },
       pollingInterval: 2000
     });
-    walletConnectProvider.networkId = 5904;
+    walletConnectProvider.networkId = chainId;
 
     const provider =
       new ethers.providers.Web3Provider(
         walletConnectProvider,
-        { name: "home", chainId: 5904, ensAddress: ensAddress });
-
+        { name: "home", chainId: chainId, ensAddress: this.props.configuration.ensAddress });
     provider.pollingInterval = 2000;
 
     const handleAccountsChanged = (accounts) => {
@@ -168,7 +174,7 @@ class Hyphen extends React.Component {
   };
 
   clearFeed = () => {
-    this.setState({ 
+    this.setState({
       entries: []
     });
   };
@@ -263,15 +269,4 @@ class Hyphen extends React.Component {
   }
 }
 
-class App extends React.Component {
-
-  constructor(props) {
-    super(props);
-  }
-
-  render() {
-    return <Hyphen serviceWorkerRegistration={this.props.serviceWorkerRegistration} />;
-  }
-} 
-
-export default hot(module)(App);
+export default hot(module)(Hyphen);

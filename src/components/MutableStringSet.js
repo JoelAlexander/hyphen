@@ -1,13 +1,13 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import StringSet from './../contracts/StringSet.sol/StringSet.json';
+import StringSet from 'contracts/StringSet.sol/StringSet.json';
 const ethers = require("ethers");
 
 class MutableStringSet extends React.Component {
 
   constructor(props) {
     super(props);
-    
+
     this.state = {
       contents: [],
       newString: ""

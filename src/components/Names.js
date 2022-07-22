@@ -1,12 +1,8 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import ENS from './../contracts/ENS.sol/ENS.json';
-import ENSDeployment from './../contracts/ENSDeployment.sol/ENSDeployment.json';
-import ENSRegistry from './../contracts/ENSRegistry.sol/ENSRegistry.json';
-import FIFSRegistrar from './../contracts/FIFSRegistrar.sol/FIFSRegistrar.json';
-import PublicResolver from './../contracts/PublicResolver.sol/PublicResolver.json';
-import ReverseRegistrar from './../contracts/ReverseRegistrar.sol/ReverseRegistrar.json';
-const ethers = require("ethers");
+import ENSDeployment from 'contracts/ENSDeployment.sol/ENSDeployment.json';
+import { ENS, ENSRegistry, FIFSRegistrar, PublicResolver, ReverseRegistrar } from '@ensdomains/ens-contracts';
+const ethers = require("ethers")
 const namehash = require('eth-ens-namehash')
 
 const ensDeploymentAddress = "0x46E1cd6B553Dbca83bD412c6d71b3298FF7312f0";

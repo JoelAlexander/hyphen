@@ -2,10 +2,10 @@ import React, { useEffect } from 'react';
 import HyphenContext from './HyphenContext';
 import MutableStringSet from "./MutableStringSet.js";
 import RecipeViewer from "./RecipeViewer.js";
-import RecipeHub from './../contracts/RecipeHub.sol/RecipeHub.json';
-import RecipeSpace from './../contracts/RecipeSpace.sol/RecipeSpace.json';
-import RecipeSet from './../contracts/RecipeSet.sol/RecipeSet.json';
-import Recipe from './../contracts/Recipe.sol/Recipe.json';
+import RecipeHub from 'contracts/RecipeHub.sol/RecipeHub.json';
+import RecipeSpace from 'contracts/RecipeSpace.sol/RecipeSpace.json';
+import RecipeSet from 'contracts/RecipeSet.sol/RecipeSet.json';
+import Recipe from 'contracts/Recipe.sol/Recipe.json';
 import Select from 'react-select';
 import Blockies from 'react-blockies';
 const ethers = require("ethers");
@@ -244,7 +244,7 @@ class RecipeSpaceDetail extends React.Component {
 class RecipePreparation extends React.Component {
 
     constructor(props) {
-        super(props);            
+        super(props);
         this.state = {
           selectedRecipeIndex: 0,
           date: new Date()

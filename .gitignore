@@ -6,4 +6,6 @@ package-lock.json
 dist
 cache/**
 artifacts/**
+src/abi/**
 *.dbg.json
+**/configuration.json
