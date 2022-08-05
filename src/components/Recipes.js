@@ -258,7 +258,7 @@ class Recipes extends React.Component {
   componentDidMount() {
     const measuresContract =
       new ethers.Contract(
-        this.props.measuresSetAddress,
+        "measures.hyphen",
         StringSet.abi,
         this.context.signer);
 
@@ -279,7 +279,7 @@ class Recipes extends React.Component {
 
   getContract = () => {
     return new ethers.Contract(
-      this.props.contractAddress,
+      'recipes.hyphen',
       RecipeSet.abi,
       this.context.signer);
   };

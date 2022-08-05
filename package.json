@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "contracts": "hardhat compile",
+    "deploy": "node scripts/deploy.js",
     "start": "http-server dist",
     "lint": "eslint ./src",
     "test": "jest --colors -b -e --logHeapUsage",

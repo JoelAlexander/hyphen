@@ -1,0 +1,17 @@
+{
+  "name": "hyphen",
+  "configure": {
+    "houseWalletPrivateKey": "random-private-key"
+  },
+  "namespaces": [
+    "eth": "FIFSRegistrar"
+  ]
+  "expect": {
+    "facuet.public": "Faucet"
+  },
+  "deploy": {
+    "recipes": "RecipeSet",
+    "measures": "StringSet",
+    "recipehub": "RecipeHub"
+  }
+}

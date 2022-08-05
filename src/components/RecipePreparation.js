@@ -32,7 +32,7 @@ class PreparationCreator extends React.Component {
     }
 
     componentDidMount() {
-        new ethers.Contract(this.props.recipeSet, RecipeSet.abi, this.context.signer)
+        new ethers.Contract("recipes.hyphen", RecipeSet.abi, this.context.signer)
             .contents()
             .then((recipes) => {
               this.setState({
@@ -217,7 +217,6 @@ class RecipeSpaceDetail extends React.Component {
         const addRecipeButton = this.state.editing ? null : <button onClick={this.startEditingRecipe}>Add recipe</button>;
         const editingControls = this.state.editing ?
             <PreparationCreator
-                recipeSet="0x12c881C1a099FA31400fCe0fba10553B134679C5"
                 startRecipe={this.startRecipe}
                 cancel={this.stopEditingRecipe}/> : null;
 
@@ -265,7 +264,7 @@ class RecipePreparation extends React.Component {
 
     getHubContract = () => {
         return new ethers.Contract(
-            "0xE4d43628223646eAf3e2bCD07D2942Eac574945d",
+            "recipehub.hyphen",
             RecipeHub.abi,
             this.context.signer);
     };

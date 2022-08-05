@@ -3,9 +3,9 @@ require('@openzeppelin/hardhat-upgrades');
 
 // Public address for account: 0x7c65D04C226d47fA70ba3f1913443684547AF18F
 module.exports = {
-  defaultNetwork: "home",
+  defaultNetwork: "local",
   networks: {
-    home: {
+    local: {
       url: "https://crypto.joelalexander.me",
       chainId: 5904,
       accounts: ["0xd89a25235e8ed445265fdb7d3a878abf1c7d701f628191ac62dffa8e914f6868"],

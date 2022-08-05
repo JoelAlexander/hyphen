@@ -50,7 +50,7 @@ class Hyphen extends React.Component {
     houseWalletProvider.pollingInterval = 2000;
 
     const houseWallet = new ethers.Wallet(
-            "0xd89a25235e8ed445265fdb7d3a878abf1c7d701f628191ac62dffa8e914f6868",
+            this.props.configuration.houseWalletPrivateKey,
             houseWalletProvider);
 
     return {
@@ -95,6 +95,9 @@ class Hyphen extends React.Component {
       "provider": provider,
       "signer": signer,
       "address": address,
+
+      // Built-ins
+      "houseWallet": this.state.houseWallet,
 
       // Methods
       executeTransaction: this.executeTransaction
@@ -219,8 +222,6 @@ class Hyphen extends React.Component {
     } else if (this.state.app === "recipes") {
       app =
         <Recipes
-          contractAddress="0x12c881C1a099FA31400fCe0fba10553B134679C5"
-          measuresSetAddress="0x9679BAF3E60479a31095AC6134C54b7F54b6ce4C"
           addMessage={this.addMessage}
           blockNumber={this.state.blockNumber} />;
     } else if (this.state.app === "kitchen") {

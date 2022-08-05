@@ -4,30 +4,18 @@ import FaucetContract from 'contracts/Faucet.sol/Faucet.json';
 import { toEthAmountString } from '../Utils';
 const ethers = require("ethers");
 
-const faucetAddress = "0x0Ff4f87B22b795a672fC12884a09087EBdE021cB";
-
-const conciergeAddress = "0x7c65D04C226d47fA70ba3f1913443684547AF18F";
-const conciergePrivateKey = "0xd89a25235e8ed445265fdb7d3a878abf1c7d701f628191ac62dffa8e914f6868";
-
 class Table extends React.Component {
 
   constructor(props) {
     super(props);
-    const wallet =
-      new ethers.Wallet(
-        conciergePrivateKey,
-        new ethers.providers.JsonRpcProvider(
-          { url: 'https://crypto.joelalexander.me'},
-          { name: 'home', chainId: 5904 }));
     this.state = {
-      wallet: wallet,
       faucetBalance: null,
       faucetBlock: null
     };
   }
 
   componentDidMount() {
-    this.state.wallet.getBalance().then((balance) => {
+    this.context.houseWallet.getBalance().then((balance) => {
       this.setState({
         conciergeBalance: balance
       });
@@ -49,7 +37,7 @@ class Table extends React.Component {
   }
 
   getFaucetContract = () => {
-    return new ethers.Contract(faucetAddress, FaucetContract.abi, this.context.signer);
+    return new ethers.Contract("faucet.public", FaucetContract.abi, this.context.signer);
   };
 
   claimDisbursement = () => {
@@ -61,14 +49,14 @@ class Table extends React.Component {
 
   take = (amount) => {
     this.context.signer.getGasPrice().then((gasPrice) => {
-      this.state.wallet.getBalance().then((balance) => {
+      this.context.houseWallet.getBalance().then((balance) => {
 
         const gasAmount = 21000;
         const gasCost = gasPrice.mul(gasAmount);
         const amountPlusGas = amount.add(gasCost);
         if (balance.gte(amountPlusGas)) {
           this.context.executeTransaction(
-            this.state.wallet.sendTransaction({
+            this.context.houseWallet.sendTransaction({
               to: this.props.address,
               value: amount,
               gasLimit: gasAmount,
@@ -86,7 +74,7 @@ class Table extends React.Component {
     this.context.signer.getGasPrice().then((gasPrice) => {
       this.context.executeTransaction(
         this.context.signer.sendTransaction({
-          to: conciergeAddress,
+          to: this.context.houseWallet.address,
           value: amount,
           gasLimit: 21000,
           gasPrice: gasPrice,

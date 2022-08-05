@@ -5,8 +5,6 @@ import { ENS, ENSRegistry, FIFSRegistrar, PublicResolver, ReverseRegistrar } fro
 const ethers = require("ethers")
 const namehash = require('eth-ens-namehash')
 
-const ensDeploymentAddress = "0x46E1cd6B553Dbca83bD412c6d71b3298FF7312f0";
-
 class Names extends React.Component {
 
   constructor(props) {
@@ -19,7 +17,7 @@ class Names extends React.Component {
   componentDidMount() {
     const contract =
       new ethers.Contract(
-        ensDeploymentAddress,
+        'ensdeployment',
         ENSDeployment.abi,
         this.context.signer);
 
