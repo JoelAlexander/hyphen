@@ -90,6 +90,9 @@ class Hyphen extends React.Component {
 
   makeContext = (loginMethod, provider, signer, address) => {
     return {
+      // Global static state
+      "configuration": this.props.configuration,
+
       // Account state
       "loginMethod": loginMethod,
       "provider": provider,
@@ -163,7 +166,7 @@ class Hyphen extends React.Component {
       context:
         this.makeContext(
           "HouseAccount",
-          houseWalletProvider,
+          this.state.houseWallet.provider,
           this.state.houseWallet,
           this.state.houseWallet.address)
     });

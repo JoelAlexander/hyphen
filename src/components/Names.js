@@ -1,9 +1,9 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import ENSDeployment from 'contracts/ENSDeployment.sol/ENSDeployment.json';
 import { ENS, ENSRegistry, FIFSRegistrar, PublicResolver, ReverseRegistrar } from '@ensdomains/ens-contracts';
 const ethers = require("ethers")
 const namehash = require('eth-ens-namehash')
+
 
 class Names extends React.Component {
 
@@ -15,32 +15,31 @@ class Names extends React.Component {
   };
 
   componentDidMount() {
-    const contract =
-      new ethers.Contract(
-        'ensdeployment',
-        ENSDeployment.abi,
-        this.context.signer);
+    this.setState({
+      ensContract: new ethers.Contract(
+        this.context.configuration.ensAddress, ENS, this.context.signer)
+    });
 
-    contract.ens().then((result) => {
+    this.context.provider.resolveName('resolver').then((resolverAddress) => {
       this.setState({
-        ensContract: new ethers.Contract(result, ENS.abi, this.context.signer)
+        resolverContract: new ethers.Contract(resolverAddress, PublicResolver, this.context.signer)
+      });
+    })
+
+    this.context.provider.resolveName('registrar.eth').then((registrarAddress) => {
+      if (registrarAddress) {
+        this.setState({
+          fifsRegistrarContract: new ethers.Contract(registrarAddress, FIFSRegistrar, this.context.signer)
+        });
+      }
+    })
+
+    this.context.provider.resolveName('addr.reverse').then((reverseRegistrarAddress) => {
+      this.setState({
+        reverseRegistrarContract: new ethers.Contract(reverseRegistrarAddress, ReverseRegistrar, this.context.signer)
       });
     });
-    contract.fifsRegistrar().then((result) => {
-      this.setState({
-        fifsRegistrarContract: new ethers.Contract(result, FIFSRegistrar.abi, this.context.signer)
-      });
-    });
-    contract.reverseRegistrar().then((result) => {
-      this.setState({
-        reverseRegistrarContract: new ethers.Contract(result, ReverseRegistrar.abi, this.context.signer)
-      });
-    });
-    contract.publicResolver().then((result) => {
-      this.setState({
-        resolverContract: new ethers.Contract(result, PublicResolver.abi, this.context.signer)
-      });
-    });
+
     this.context.provider.lookupAddress(this.context.address).then((name) => {
       this.setState({
         name: name
@@ -152,15 +151,19 @@ class Names extends React.Component {
   render() {
 
     var action;
-    if (this.state.name) {
-      action = <div>
-        <button onClick={this.releaseName}>Release name: {this.state.name}</button>
-      </div>;
+    if (this.fifsRegistrarContract) {
+      if (this.state.name) {
+        action = <div>
+          <button onClick={this.releaseName}>Release name: {this.state.name}</button>
+        </div>;
+      } else {
+        action = <div>
+          <input type="text" value={this.state.enteredLabelString} onChange={this.onEnteredLabelStringChanged} />.eth
+          <input onClick={this.claimName} type="submit" value="Claim name" />
+        </div>;
+      }
     } else {
-      action = <div>
-        <input type="text" value={this.state.enteredLabelString} onChange={this.onEnteredLabelStringChanged} />.eth
-        <input onClick={this.claimName} type="submit" value="Claim name" />
-      </div>;
+      action = <p>No registrar.eth found!</p>
     }
 
     return action;
