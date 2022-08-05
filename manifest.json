@@ -3,9 +3,7 @@
   "configure": {
     "houseWalletPrivateKey": "random-private-key"
   },
-  "namespaces": [
-    "eth": "FIFSRegistrar"
-  ]
+  "namespaces": { "eth": "FIFSRegistrar" }
   "expect": {
     "facuet.public": "Faucet"
   },
