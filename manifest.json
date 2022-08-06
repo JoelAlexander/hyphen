@@ -5,7 +5,7 @@
   },
   "namespaces": { "eth": "FIFSRegistrar" },
   "expect": {
-    "facuet.public": "Faucet"
+    "faucet.public": "Faucet"
   },
   "deploy": {
     "recipes": "RecipeSet",
