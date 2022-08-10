@@ -40,6 +40,10 @@ class Names extends React.Component {
       });
     });
 
+    this.update()
+  }
+
+  update = () => {
     this.context.provider.lookupAddress(this.context.address).then((name) => {
       this.setState({
         name: name
@@ -79,26 +83,22 @@ class Names extends React.Component {
                   this.state.reverseRegistrarContract.setName(fullname),
                   () => {
                     this.props.addMessage("Reverse record update succeded. ");
-                    this.update();
+                    this.update()
                   },
                   (reason) => {
                     this.props.addMessage(JSON.stringify(reason));
-                    this.update();
                   });
               },
               (reason) => {
                 this.props.addMessage(JSON.stringify(reason));
-                this.update();
               });
           },
           (reason) => {
             this.props.addMessage(JSON.stringify(reason));
-            this.update();
           });
       },
       (reason) => {
         this.props.addMessage(JSON.stringify(reason));
-        this.update();
       });
   };
 
@@ -121,6 +121,7 @@ class Names extends React.Component {
       this.state.resolverContract['setAddr(bytes32,address)'](node, ethers.constants.AddressZero),
       () => {
         this.props.addMessage("Cleared address");
+        this.update();
         this.context.executeTransaction(
           this.state.ensContract.setResolver(node, ethers.constants.AddressZero),
           () => {
@@ -129,21 +130,17 @@ class Names extends React.Component {
               this.state.fifsRegistrarContract.register(label, ethers.constants.AddressZero),
               () => {
                 this.props.addMessage("Reclaimed node");
-                this.update();
               },
               (reason) => {
                 this.props.addMessage(JSON.stringify(reason));
-                this.update();
               });
           },
           (reason) => {
             this.props.addMessage(JSON.stringify(reason));
-            this.update();
           });
       },
       (reason) => {
         this.props.addMessage(JSON.stringify(reason));
-        this.update();
       }
     );
   };
@@ -151,7 +148,7 @@ class Names extends React.Component {
   render() {
 
     var action;
-    if (this.fifsRegistrarContract) {
+    if (this.state.fifsRegistrarContract) {
       if (this.state.name) {
         action = <div>
           <button onClick={this.releaseName}>Release name: {this.state.name}</button>
@@ -163,7 +160,7 @@ class Names extends React.Component {
         </div>;
       }
     } else {
-      action = <p>No registrar.eth found!</p>
+      action = <p>No registrar.eth found! {this.context.provider.network.ensAddress} </p>
     }
 
     return action;
