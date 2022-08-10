@@ -135,7 +135,8 @@ class Hyphen extends React.Component {
     provider.pollingInterval = 2000;
 
     const handleAccountsChanged = (accounts) => {
-      provider.getSigner().getAddress().then((address) => {
+      const signer = provider.getSigner()
+      signer.getAddress().then((address) => {
         this.setState({
           context:
             this.makeContext(

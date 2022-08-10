@@ -15,6 +15,10 @@ class Table extends React.Component {
   }
 
   componentDidMount() {
+    this.update()
+  }
+
+  update = () => {
     this.context.houseWallet.getBalance().then((balance) => {
       this.setState({
         conciergeBalance: balance
