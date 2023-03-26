@@ -1,6 +1,6 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import StringSet from 'contracts/StringSet.sol/StringSet.json';
+import { StringSet } from '@local-blockchain-toolbox/contract-primitives';
 const ethers = require("ethers");
 
 class MutableStringSet extends React.Component {

@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "./AddressSet.sol";
+import '@local-blockchain-toolbox/contract-primitives/contracts/AddressSet.sol';
 import "./Recipe.sol";
 
 struct RecipeStatus {

@@ -1,15 +1,34 @@
 {
   "name": "hyphen",
-  "configure": {
-    "houseWalletPrivateKey": "random-private-key"
+  "resources": {
+    "houseWallet": {
+      "type": "PrivateKey",
+      "options": {
+        "random": true
+      }
+    }
   },
-  "namespaces": { "eth": "FIFSRegistrar" },
-  "expect": {
-    "faucet.public": "Faucet"
+  "namespaces": {
+    "eth": {
+      "type": "FIFSRegistrar"
+    }
   },
   "deploy": {
-    "recipes": "RecipeSet",
-    "measures": "StringSet",
-    "recipehub": "RecipeHub"
+    "faucetauthorizer": {
+      "source": "@local-blockchain-toolbox/contract-primitives/SingleAccountAuthorizer"
+    },
+    "faucet": {
+      "source": "@local-blockchain-toolbox/contract-primitives/AuthorizedFaucet",
+      "args": [ "{faucetauthorizer}" ]
+    },
+    "recipehub": {
+      "source": "RecipeHub"
+    },
+    "recipes": {
+      "source": "RecipeSet"
+    },
+    "measures": {
+      "source": "@local-blockchain-toolbox/contract-primitives/StringSet"
+    }
   }
 }

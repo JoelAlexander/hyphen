@@ -1,6 +1,6 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import StringSet from 'contracts/StringSet.sol/StringSet.json';
+import { StringSet } from '@local-blockchain-toolbox/contract-primitives';
 import RecipeSet from 'contracts/RecipeSet.sol/RecipeSet.json';
 import Recipe from 'contracts/Recipe.sol/Recipe.json';
 import RecipeViewer from './RecipeViewer.js';

@@ -1,6 +1,6 @@
 import React from 'react';
 import HyphenContext from './HyphenContext';
-import FaucetContract from 'contracts/Faucet.sol/Faucet.json';
+import { AuthorizedFaucet } from '@local-blockchain-toolbox/contract-primitives';
 import { toEthAmountString } from '../Utils';
 const ethers = require("ethers");
 
@@ -41,7 +41,7 @@ class Table extends React.Component {
   }
 
   getFaucetContract = () => {
-    return new ethers.Contract("faucet.public", FaucetContract.abi, this.context.signer);
+    return new ethers.Contract("faucet.hyphen", FaucetContract.abi, this.context.signer);
   };
 
   claimDisbursement = () => {

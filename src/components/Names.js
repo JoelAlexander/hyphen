@@ -17,7 +17,7 @@ class Names extends React.Component {
   componentDidMount() {
     this.setState({
       ensContract: new ethers.Contract(
-        this.context.configuration.ensAddress, ENS, this.context.signer)
+        this.context.configuration.ens, ENS, this.context.signer)
     });
 
     this.context.provider.resolveName('resolver').then((resolverAddress) => {

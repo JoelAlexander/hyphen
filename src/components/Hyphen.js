@@ -43,10 +43,10 @@ class Hyphen extends React.Component {
 
     const houseWalletProvider =
       new ethers.providers.JsonRpcProvider(
-          { url: this.props.configuration.blockchainUrl},
+          { url: this.props.configuration.url},
           { name: "home",
             chainId: this.props.configuration.chainId,
-            ensAddress: this.props.configuration.ensAddress });
+            ensAddress: this.props.configuration.ens });
     houseWalletProvider.pollingInterval = 2000;
 
     const houseWallet = new ethers.Wallet(
@@ -112,7 +112,7 @@ class Hyphen extends React.Component {
     const chainId = this.props.configuration.chainId
 
     var rpc = {}
-    rpc[chainId] = this.props.configuration.blockchainUrl
+    rpc[chainId] = this.props.configuration.url
 
     const walletConnectProvider = new WalletConnectProvider({
       chainId: chainId,
@@ -131,7 +131,7 @@ class Hyphen extends React.Component {
     const provider =
       new ethers.providers.Web3Provider(
         walletConnectProvider,
-        { name: "home", chainId: chainId, ensAddress: this.props.configuration.ensAddress });
+        { name: "home", chainId: chainId, ensAddress: this.props.configuration.ens });
     provider.pollingInterval = 2000;
 
     const handleAccountsChanged = (accounts) => {
