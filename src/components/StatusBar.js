@@ -1,7 +1,14 @@
+import { CopyToClipboard } from 'react-copy-to-clipboard';
 import React, { useEffect } from 'react';
 import HyphenContext from './HyphenContext';
 import { toEthAmountString } from '../Utils';
 const ethers = require("ethers");
+
+const Toast = () => {
+  return (
+    <div className="toast">Copied to clipboard!</div>
+  );
+};
 
 class StatusBar extends React.Component {
 
@@ -48,7 +55,8 @@ class StatusBar extends React.Component {
   enableNotifications = () => {
     Notification.requestPermission().then((permission) => {
       this.setState({
-        notificationPermission: permission
+        notificationPermission: permission,
+        toastVisible: false
       });
     });
   };
@@ -80,19 +88,19 @@ class StatusBar extends React.Component {
     //   enableNotificationsButton = <button onClick={this.enableNotifications}>🔔</button>;
     // } 
 
-    const accountStatusBlock = <div style={{
-      display: "inline-flex",
-      height: "100%",
-      flexFlow: "column",
-      justifyContent: "center",
-      whiteSpace: "nowrap",
-      marginRight: "2em",
-      paddingTop: "1em",
-      paddingBottom: "1em"
-    }}>
-      <p style={{margin: ".5em"}}>{addressMessage}</p>
-      <p style={{margin: ".5em"}}>{balanceMessage}</p>
-    </div>;
+    const accountStatusBlock =
+      <CopyToClipboard
+        text={this.state.address || ''}
+        onCopy={() => {
+          this.setState({toastVisible: true});
+          setTimeout(() => this.setState({toastVisible: false}), 3000);
+        }}
+      >
+        <div className="account-status-block">
+        <p style={{margin: ".5em"}}>{addressMessage}</p>
+        <p style={{margin: ".5em"}}>{balanceMessage}</p>
+        {this.state.copied ? <span style={{color: 'green'}}>Copied.</span> : null}
+    </div></CopyToClipboard>;
 
     const transactions = this.props.entries && this.props.entries.filter((entry) => {
       return entry.type === "transaction";
@@ -109,38 +117,18 @@ class StatusBar extends React.Component {
       }
 
       const transactionHash = shortenHex(transaction.key);
-      return <div key={transaction.key} style={{
-        display: "inline-flex",
-        height: "100%",
-        flexFlow: "column",
-        justifyContent: "center",
-        paddingTop: "1em",
-        paddingBottom: "1em"
-      }}>
+      return <div className="transaction" key={transaction.key}>
         <p style={{margin: ".5em"}}>{transactionHash}</p>
         <p style={{margin: ".5em"}}>{status}</p>
       </div>
     });
 
-    return <div style={{
-      display: "flex",
-      flexDirection: "row-reverse",
-      textAlign: "right",
-      position: "sticky",
-      top: "0em",
-      background: "white",
-      borderBottom: "1px dotted"
-    }}>
+    return <div className="status-bar">
       {accountStatusBlock}
-      <div style={{
-        height: "100%",
-        display: "inline-flex",
-        overflowX: "scroll",
-        flexDirection: "row-reverse",
-        marginLeft: "6em"
-      }}>
+      <div className="transactions">
         {transactions}
       </div>
+      {this.state.toastVisible && <Toast />}
     </div>;
   }
 }

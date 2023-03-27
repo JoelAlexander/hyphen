@@ -1,3 +1,4 @@
+import Cookies from "js-cookie";
 import { hot } from 'react-hot-loader';
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import React from 'react';
@@ -173,10 +174,49 @@ class Hyphen extends React.Component {
     });
   };
 
+  getFingerprint = () => {
+    let fingerprint = Cookies.get("fingerprint");
+    if (!fingerprint) {
+      fingerprint = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+      Cookies.set("fingerprint", fingerprint);
+    }
+    return fingerprint;
+  }
+
+  createDeterministicWallet = (userString) => {
+    const fingerprint = this.getFingerprint();
+    const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(fingerprint + userString));
+    const provider = new ethers.providers.JsonRpcProvider(
+      { url: this.props.configuration.url },
+      { name: "home", chainId: this.props.configuration.chainId, ensAddress: this.props.configuration.ens }
+    );
+    provider.pollingInterval = 2000;
+    return new ethers.Wallet(privateKey, provider);
+  };
+
+  loginWithDeterministicWallet = (userString) => {
+    const wallet = this.createDeterministicWallet(userString);
+    this.setState({
+      context: this.makeContext(
+        "DeterministicWallet",
+        wallet.provider,
+        wallet,
+        wallet.address
+      ),
+    });
+  };
+
   disconnectWallet = () => {
     this.setState(this.createInitialLoggedOutState());
     if (this.state.loginMethod === "WalletConnect" && this.state.context.provider) {
       this.state.context.provider.provider.disconnect();
+    }
+  };
+
+  promptForUserString = () => {
+    const userString = prompt("Enter your user string:");
+    if (userString) {
+      this.loginWithDeterministicWallet(userString);
     }
   };
 
@@ -250,6 +290,7 @@ class Hyphen extends React.Component {
         <Menu
           loginWithWalletConnect={this.loginWithWalletConnect}
           loginWithHouseWallet={this.loginWithHouseWallet}
+          promptForUserString={this.promptForUserString}
           logout={this.disconnectWallet}
           activateApp={this.activateApp} />
         <div style={{display: "inline-block", width: "100%"}}>

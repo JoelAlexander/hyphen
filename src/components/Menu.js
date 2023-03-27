@@ -56,6 +56,7 @@ class Menu extends React.Component {
       loginLogoutButton = [
         <a key="login_houseaccount" href="#" className="pure-menu-link" onClick={this.props.loginWithHouseWallet}>Use house account</a>,
         <a key="login_walletconnect" href="#" className="pure-menu-link" onClick={this.props.loginWithWalletConnect}>Connect wallet</a>,
+        <a key="login_userstring" href="#" className="pure-menu-link" onClick={this.props.promptForUserString}>Login with user string</a>,
         <a key="login_about" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("faq")}>FAQ</a>
       ]
     } else {

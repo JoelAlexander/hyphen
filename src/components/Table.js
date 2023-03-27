@@ -126,9 +126,9 @@ class Table extends React.Component {
       message = toEthAmountString(this.state.conciergeBalance);
     }
 
-    const amount = ethers.BigNumber.from("10000000000000000");
+    const amount = ethers.BigNumber.from("1000000000000000");
     const giveMessage = "➕ " + toEthAmountString(amount, 2);
-    const takeMessage = "🤲 " + toEthAmountString(amount, 2);
+    const takeMessage = "🤲 " + toEthAmountString(amount, 3);
     const table = <div>
       <h3>🛎️ Concierge</h3>
       <p>{message}</p>
