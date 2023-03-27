@@ -50,7 +50,7 @@ class Hyphen extends React.Component {
     houseWalletProvider.pollingInterval = 2000;
 
     const houseWallet = new ethers.Wallet(
-            this.props.configuration.houseWalletPrivateKey,
+            this.props.configuration.houseWallet,
             houseWalletProvider);
 
     return {

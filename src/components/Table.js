@@ -41,12 +41,12 @@ class Table extends React.Component {
   }
 
   getFaucetContract = () => {
-    return new ethers.Contract("faucet.hyphen", FaucetContract.abi, this.context.signer);
+    return new ethers.Contract("faucet.hyphen", AuthorizedFaucet.abi, this.context.signer);
   };
 
   claimDisbursement = () => {
     this.context.executeTransaction(
-      this.getFaucetContract().claim(),
+      this.getFaucetContract().use(),
       (receipt) => this.update(),
       (error) => this.props.addMessage(JSON.stringify(error)));
   };

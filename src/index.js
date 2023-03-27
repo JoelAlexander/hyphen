@@ -14,7 +14,7 @@ function runApp(serviceWorkerRegistration) {
 	  document.getElementById('root'));
 }
 
-if ('serviceWorker' in navigator) {
+if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
 	window.addEventListener('load', () => {
 		navigator.serviceWorker.register('/service-worker.js').then(registration => {
 			runApp(registration);
@@ -23,4 +23,6 @@ if ('serviceWorker' in navigator) {
 			console.log('SW registration failed: ', registrationError);
 		});
 	});
+} else {
+	runApp(null);
 }
