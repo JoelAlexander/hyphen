@@ -61,7 +61,7 @@ class Table extends React.Component {
         if (balance.gte(amountPlusGas)) {
           this.context.executeTransaction(
             this.context.houseWallet.sendTransaction({
-              to: this.props.address,
+              to: this.context.signer.address,
               value: amount,
               gasLimit: gasAmount,
               gasPrice: gasPrice,
@@ -81,7 +81,7 @@ class Table extends React.Component {
           to: this.context.houseWallet.address,
           value: amount,
           gasLimit: 21000,
-          gasPrice: gasPrice,
+          gasPrice: overpayGasPrice,
           type: 0x0
         }),
         (receipt) => this.update(),

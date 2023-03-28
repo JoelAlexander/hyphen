@@ -24,13 +24,19 @@ class StatusBar extends React.Component {
   }
 
   componentDidUpdate(prevProps, prevState) {
-    if (prevProps.blockNumber != this.props.blockNumber) {
+    if (prevProps.blockNumber != this.props.blockNumber ||
+        prevProps.address != this.props.address) {
       this.update();
     }
   }
 
   update = () => {
     if (!this.context.signer) {
+      this.setState({
+        balance: null,
+        ensName: null,
+        address: null
+      })
       return;
     }
 

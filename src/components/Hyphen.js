@@ -206,11 +206,11 @@ class Hyphen extends React.Component {
     });
   };
 
-  disconnectWallet = () => {
-    this.setState(this.createInitialLoggedOutState());
+  logout = () => {
     if (this.state.loginMethod === "WalletConnect" && this.state.context.provider) {
       this.state.context.provider.provider.disconnect();
     }
+    this.setState(this.createInitialLoggedOutState());
   };
 
   promptForUserString = () => {
@@ -218,12 +218,6 @@ class Hyphen extends React.Component {
     if (userString) {
       this.loginWithDeterministicWallet(userString);
     }
-  };
-
-  clearFeed = () => {
-    this.setState({
-      entries: []
-    });
   };
 
   executeTransaction = (transactionResultPromise, onSuccess, onError) => {
@@ -291,13 +285,13 @@ class Hyphen extends React.Component {
           loginWithWalletConnect={this.loginWithWalletConnect}
           loginWithHouseWallet={this.loginWithHouseWallet}
           promptForUserString={this.promptForUserString}
-          logout={this.disconnectWallet}
+          logout={this.logout}
           activateApp={this.activateApp} />
         <div style={{display: "inline-block", width: "100%"}}>
           <StatusBar
+            address={this.state.context.address || 'logged-out'}
             blockNumber={this.state.blockNumber}
-            entries={this.state.entries}
-            clearFeed={() => {}} />
+            entries={this.state.entries} />
           <div className="pure-g" style={{width: "100%", height: "100%"}}>
             <div
               className="pure-u-1-1"

@@ -62,7 +62,6 @@ class Menu extends React.Component {
     } else {
       loginLogoutButton = <a key="logout" href="#" className="pure-menu-link" onClick={this.props.logout}>Logout</a>
       loggedInMenuItems = [
-        <a key="table" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("table")}>Table</a>,
         <a key="recipes" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("recipes")}>Recipes</a>,
         <a key="kitchen" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("kitchen")}>Kitchen</a>,
         <a key="ens" href="#" className="pure-menu-link" onClick={() => this.props.activateApp("ens")}>ENS</a>,
