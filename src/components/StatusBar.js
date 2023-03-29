@@ -1,144 +1,113 @@
 import { CopyToClipboard } from 'react-copy-to-clipboard';
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import { toEthAmountString } from '../Utils';
+import TransactionFeed from './TransactionFeed';
+import Transaction from './Transaction';
 const ethers = require("ethers");
 
-const Toast = () => {
+const Address = ({ address, ensName, onCopy }) => {
+  const [state, setState] = useState({ toastVisible: false });
+  const shortenedAddress = address ? shortenHex(address) : '';
+  const displayValue = ensName ? ensName : shortenedAddress;
+  const handleCopy = () => {
+    setState(prevState => ({ ...prevState, toastVisible: true }));
+    setTimeout(() => setState(prevState => ({ ...prevState, toastVisible: false })), 3000);
+  };
   return (
-    <div className="toast">Copied to clipboard!</div>
+    <div style={{ cursor: "pointer" }} >
+      <CopyToClipboard text={address} onCopy={handleCopy}>
+        <p style={{ margin: ".5em" }}>{displayValue}</p>
+      </CopyToClipboard>
+      {state.toastVisible && <Toast />}
+    </div>
   );
 };
 
-class StatusBar extends React.Component {
+const Balance = ({ balance }) => {
+  const balanceMessage = balance ? `\u{200D}${toEthAmountString(balance)}` : "\u{200D}";
+  return (
+    <p style={{ margin: ".5em" }}>{balanceMessage}</p>
+  );
+};
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      notificationPermission: Notification.permission
-    };
-  }
+const AccountStatus = ({ address, ensName, balance }) => {
+  return (
+    <div className="account-status-block">
+      <Address address={address} ensName={ensName} />
+      <Balance balance={balance} />
+    </div>
+  );
+};
 
-  componentDidMount() {
-    this.update();
-  }
+const Toast = () => (
+  <div className="toast">Copied to clipboard!</div>
+);
 
-  componentDidUpdate(prevProps, prevState) {
-    if (prevProps.blockNumber != this.props.blockNumber ||
-        prevProps.address != this.props.address) {
-      this.update();
-    }
-  }
+const shortenHex = (raw) => raw.slice(0, 5) + "..." + raw.slice(raw.length - 3);
 
-  update = () => {
-    if (!this.context.signer) {
-      this.setState({
-        balance: null,
-        ensName: null,
-        address: null
-      })
+const StatusBar = ({ blockNumber, entries }) => {
+  const [state, setState] = useState({
+    notificationPermission: Notification.permission,
+    balance: null,
+    ensName: null,
+    address: null
+  });
+
+  const context = useContext(HyphenContext);
+
+  useEffect(() => {
+    update();
+  }, [blockNumber, context.signer]);
+
+  const update = () => {
+    if (!context.signer) {
+      setState(prevState => ({ ...prevState, balance: null, ensName: null, address: null }));
       return;
     }
 
-    this.context.signer.getBalance().then((balance) => {
-      this.setState({
-        balance: balance
-      });
+    context.signer.getBalance().then((balance) => {
+      setState(prevState => ({ ...prevState, balance }));
     });
 
-    this.context.signer.getAddress().then((address) => {
-      this.context.provider.lookupAddress(address).then((ensName) => {
-        this.setState({
-          ensName: ensName
-        })
+    context.signer.getAddress().then((address) => {
+      context.provider.lookupAddress(address).then((ensName) => {
+        setState(prevState => ({ ...prevState, ensName }));
       });
-      this.setState({
-        address: address
-      });
+      setState(prevState => ({ ...prevState, address }));
     });
+
   };
 
-  enableNotifications = () => {
+  const enableNotifications = () => {
     Notification.requestPermission().then((permission) => {
-      this.setState({
+      setState(prevState => ({
+        ...prevState,
         notificationPermission: permission,
         toastVisible: false
-      });
+      }));
     });
   };
 
-  render() {
-    const shortenHex = (raw) => {
-      return raw.slice(0, 5) + "..." + raw.slice(raw.length - 3);
-    };
+  const balanceMessage = state.balance ? `\u{200D}${toEthAmountString(state.balance)}` : "\u{200D}";
+  const addressMessage = state.ensName ? `\u{200D}${state.ensName}` : state.address ? `\u{200D}${shortenHex(state.address)}` : "\u{200D}";
+  const blockNumberMessage = blockNumber ? `\u{200D}Current Block: ${blockNumber}` : "\u{200D}";
 
-    var balanceMessage = "\u{200D}";
-    if (this.state.balance) {
-      balanceMessage += toEthAmountString(this.state.balance);
-    }
+  const transactions = entries
+    ? entries
+        .filter((entry) => entry.type === "transaction")
+        .map((transaction) => <Transaction key={transaction.key} transaction={transaction} />)
+    : [];
 
-    var addressMessage = "\u{200D}";
-    if (this.state.ensName) {
-      addressMessage += this.state.ensName;
-    } else if (this.state.address) {
-      addressMessage += shortenHex(this.state.address);
-    }
-
-    var blockNumberMessage = "\u{200D}";
-    if (this.props.blockNumber) {
-      blockNumberMessage += "Current Block: " + this.props.blockNumber;
-    }
-
-    // var enableNotificationsButton;
-    // if (this.state.notificationPermission !== 'granted') {
-    //   enableNotificationsButton = <button onClick={this.enableNotifications}>🔔</button>;
-    // } 
-
-    const accountStatusBlock =
-      <CopyToClipboard
-        text={this.state.address || ''}
-        onCopy={() => {
-          this.setState({toastVisible: true});
-          setTimeout(() => this.setState({toastVisible: false}), 3000);
-        }}
-      >
-        <div className="account-status-block">
-        <p style={{margin: ".5em"}}>{addressMessage}</p>
-        <p style={{margin: ".5em"}}>{balanceMessage}</p>
-        {this.state.copied ? <span style={{color: 'green'}}>Copied.</span> : null}
-    </div></CopyToClipboard>;
-
-    const transactions = this.props.entries && this.props.entries.filter((entry) => {
-      return entry.type === "transaction";
-    })
-    .map((transaction) => {
-
-      let status = "\u{200D}";
-      if (transaction.transactionReceipt) {
-        if (transaction.transactionReceipt.status) {
-          status += "Confirmed!";
-        } else {
-          status += "Unsucessful.";
-        }
-      }
-
-      const transactionHash = shortenHex(transaction.key);
-      return <div className="transaction" key={transaction.key}>
-        <p style={{margin: ".5em"}}>{transactionHash}</p>
-        <p style={{margin: ".5em"}}>{status}</p>
-      </div>
-    });
-
-    return <div className="status-bar">
-      {accountStatusBlock}
-      <div className="transactions">
-        {transactions}
-      </div>
-      {this.state.toastVisible && <Toast />}
-    </div>;
-  }
-}
-
-StatusBar.contextType = HyphenContext;
+  return (
+    <div className="status-bar">
+      <AccountStatus
+        address={state.address}
+        ensName={state.ensName}
+        balance={state.balance} />
+      <TransactionFeed transactions={transactions} />
+    </div>
+  );
+};
 
 export default StatusBar;

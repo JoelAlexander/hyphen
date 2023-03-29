@@ -1,119 +1,198 @@
 import Cookies from "js-cookie";
 import { hot } from 'react-hot-loader';
 import WalletConnectProvider from '@walletconnect/web3-provider';
-import React from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import SessionFeed from './SessionFeed.js';
 import Menu from './Menu.js';
 import Splash from './Splash.js';
-import Table from './Table.js';
+import Account from './Account.js';
 import Recipes from './Recipes.js';
 import RecipePreparation from './RecipePreparation.js';
 import StatusBar from './StatusBar.js';
 import Faq from './Faq.js';
-import Names from './Names.js';
-
 const ethers = require("ethers");
 
-class Hyphen extends React.Component {
+const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
 
-  constructor(props) {
-    super(props);
-    this.state = this.createInitialLoggedOutState();
-  }
-
-  componentDidMount() {
-    this.blockNumberInterval =
-      setInterval(() => {
-        if (this.state.context.provider) {
-          this.state.context.provider.getBlockNumber()
-              .then((result) => {
-                this.setState({
-                  blockNumber: result
-                });
-              });
-          }
-        }, 2000);
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.blockNumberInterval);
-  }
-
-  createInitialLoggedOutState = () => {
-
+  const createInitialLoggedOutState = () => {
     const houseWalletProvider =
       new ethers.providers.JsonRpcProvider(
-          { url: this.props.configuration.url},
+          { url: configuration.url},
           { name: "home",
-            chainId: this.props.configuration.chainId,
-            ensAddress: this.props.configuration.ens });
+            chainId: configuration.chainId,
+            ensAddress: configuration.ens });
     houseWalletProvider.pollingInterval = 2000;
 
     const houseWallet = new ethers.Wallet(
-            this.props.configuration.houseWallet,
+            configuration.houseWallet,
             houseWalletProvider);
 
     return {
       context: {},
       app: null,
       entries: [],
-      houseWallet: houseWallet
+      houseWallet: houseWallet,
+      blockNumber: null
     };
   };
 
-  activateApp = (appName) => {
-    this.setState({app: appName});
+  const [state, setState] = useState(createInitialLoggedOutState());
+  const [blockNumber, setBlockNumber] = useState(null);
+
+  useEffect(() => {
+    const blockNumberInterval = setInterval(() => {
+      if (state.context.provider) {
+        state.context.provider
+          .getBlockNumber()
+          .then((result) => {
+            setState(prevState => ({ ...prevState, blockNumber: result }));
+          });
+      }
+    }, 2000);
+
+    return () => {
+      clearInterval(blockNumberInterval);
+    };
+  }, [state.context.provider]);
+
+  const activateApp = (appName) => {
+    setState(prevState => ({...prevState, app: appName}));
   };
 
-  addMessage = (message) => {
-    const newEntries = this.state.entries.slice();
-    newEntries.unshift({type: "message", key: newEntries.length, message: message});
-    this.setState({entries: newEntries});
+  const addMessage = (message) => {
+    setState(prevState => {
+      const newEntries = prevState.entries.slice();
+      newEntries.unshift({type: "message", key: newEntries.length, message: message});      
+      return {...prevState, entries: newEntries};
+    });
   };
 
-  onTransactionResponse = (transactionResponse) => {
-    const newEntries = this.state.entries.slice();
-    newEntries.unshift({type: "transaction", key: transactionResponse.hash, transactionResponse: transactionResponse});
-    this.setState({entries: newEntries});
+  const onTransactionResponse = (transactionResponse) => {
+    setState(prevState => {
+      const newEntries = prevState.entries.slice();
+      newEntries.unshift({type: "transaction", key: transactionResponse.hash, transactionResponse: transactionResponse});
+      return {...prevState, entries: newEntries};
+    });
   };
 
-  onTransactionReceipt = (transactionReceipt) => {
-    const newEntries = this.state.entries.slice();
-    const updateIndex = newEntries.findIndex((entry) => entry.key === transactionReceipt.transactionHash);
-    if (updateIndex != -1) {
-      const modified = newEntries[updateIndex];
-      modified.transactionReceipt = transactionReceipt;
-      newEntries[updateIndex] = modified;
-    }
-    this.setState({entries: newEntries});
+  const onTransactionReceipt = (transactionReceipt) => {
+    setState(prevState => {
+      const newEntries = prevState.entries.slice();
+      const updateIndex = newEntries.findIndex((entry) => entry.key === transactionReceipt.transactionHash);
+      if (updateIndex != -1) {
+        const modified = newEntries[updateIndex];
+        modified.transactionReceipt = transactionReceipt;
+        newEntries[updateIndex] = modified;
+      }
+      return {...prevState, entries: newEntries};
+    });
   };
 
-  makeContext = (loginMethod, provider, signer, address) => {
+  const makeContext = (loginMethod, provider, signer, address) => {
     return {
-      // Global static state
-      "configuration": this.props.configuration,
-
-      // Account state
+      "configuration": configuration,
       "loginMethod": loginMethod,
       "provider": provider,
       "signer": signer,
       "address": address,
-
-      // Built-ins
-      "houseWallet": this.state.houseWallet,
-
-      // Methods
-      executeTransaction: this.executeTransaction
+      "houseWallet": state.houseWallet,
+      executeTransaction: executeTransaction,
+      addMessage: addMessage
     };
   };
 
-  loginWithWalletConnect = () => {
+  const loginWithHouseWallet = () => {
+    setState(prevState => ({...prevState, 
+      context:
+        makeContext(
+          "HouseAccount",
+          state.houseWallet.provider,
+          state.houseWallet,
+          state.houseWallet.address)
+    }));
+  };
 
-    const chainId = this.props.configuration.chainId
+  const getFingerprint = () => {
+    let fingerprint = Cookies.get("fingerprint");
+    if (!fingerprint) {
+      fingerprint = ethers.utils.hexlify(ethers.utils.randomBytes(32));
+      Cookies.set("fingerprint", fingerprint);
+    }
+    return fingerprint;
+  }
+
+  const createDeterministicWallet = (userString) => {
+    const fingerprint = getFingerprint();
+    const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(fingerprint + userString));
+    const provider = new ethers.providers.JsonRpcProvider(
+      { url: configuration.url },
+      { name: "home", chainId: configuration.chainId, ensAddress: configuration.ens }
+    );
+    provider.pollingInterval = 2000;
+    return new ethers.Wallet(privateKey, provider);
+  };
+
+  const loginWithDeterministicWallet = (userString) => {
+    const wallet = createDeterministicWallet(userString);
+    setState(prevState => ({...prevState, 
+      context: makeContext(
+        "DeterministicWallet",
+        wallet.provider,
+        wallet,
+        wallet.address)
+    }));
+  };
+
+  const logout = () => {
+    if (state.loginMethod === "WalletConnect" && state.context.provider) {
+      state.context.provider.provider.disconnect();
+    }
+    setState(createInitialLoggedOutState());
+  };
+
+  const promptForUserString = () => {
+    const userString = prompt("Enter your user string:");
+    if (userString) {
+      loginWithDeterministicWallet(userString);
+    }
+  };
+
+  const executeTransaction = (transactionResultPromise, onSuccess, onError) => {
+    transactionResultPromise.then((transactionResponse) => {
+      onTransactionResponse(transactionResponse);
+      transactionResponse.wait().then((receipt) => {
+        onTransactionReceipt(receipt);
+        if (receipt.status) {
+          onSuccess(receipt);
+        } else {
+          onError("Transaction not successful.");
+        }
+      });
+    }, (error) => {
+      addMessage("Error: " + JSON.stringify(error));
+      onError(error);
+    });
+  };
+
+  const watchAsset = () => {
+    state.walletConnectProvider.send("wallet_watchAsset", {
+      type: 'ERC20',
+      options: {
+        address: "",
+        symbol: "LEOJ",
+        decimals: 18,
+        image: ""
+      }
+    });
+  };
+
+  const loginWithWalletConnect = () => {
+
+    const chainId = configuration.chainId
 
     var rpc = {}
-    rpc[chainId] = this.props.configuration.url
+    rpc[chainId] = configuration.url
 
     const walletConnectProvider = new WalletConnectProvider({
       chainId: chainId,
@@ -132,181 +211,86 @@ class Hyphen extends React.Component {
     const provider =
       new ethers.providers.Web3Provider(
         walletConnectProvider,
-        { name: "home", chainId: chainId, ensAddress: this.props.configuration.ens });
+        { name: "home", chainId: chainId, ensAddress: configuration.ens });
     provider.pollingInterval = 2000;
 
     const handleAccountsChanged = (accounts) => {
       const signer = provider.getSigner()
       signer.getAddress().then((address) => {
-        this.setState({
+        setState(prevState => ({...prevState, 
           context:
-            this.makeContext(
+            makeContext(
               "WalletConnect",
               provider,
               signer,
               address)
-        });
+        }));
       });
     };
 
     walletConnectProvider.on("accountsChanged", handleAccountsChanged);
     walletConnectProvider.on("chainChanged", handleAccountsChanged);
-    walletConnectProvider.on("disconnect", () => { this.setState(this.createInitialLoggedOutState()); });
+    walletConnectProvider.on("disconnect", () => { setState(createInitialLoggedOutState()); });
     walletConnectProvider.enable()
       .then(
         value => {
-          this.addMessage("WalletConnect suceeded: " + JSON.stringify(value));
+          addMessage("WalletConnect suceeded: " + JSON.stringify(value));
         },
         reason => {
-          this.addMessage("Enable failed: " + JSON.stringify(reason));
-          this.setState(this.createInitialLoggedOutState());
+          addMessage("Enable failed: " + JSON.stringify(reason));
+          setState(createInitialLoggedOutState());
     });
   };
 
-  loginWithHouseWallet = () => {
-    this.setState({
-      context:
-        this.makeContext(
-          "HouseAccount",
-          this.state.houseWallet.provider,
-          this.state.houseWallet,
-          this.state.houseWallet.address)
-    });
-  };
-
-  getFingerprint = () => {
-    let fingerprint = Cookies.get("fingerprint");
-    if (!fingerprint) {
-      fingerprint = ethers.utils.hexlify(ethers.utils.randomBytes(32));
-      Cookies.set("fingerprint", fingerprint);
-    }
-    return fingerprint;
+  let app;
+  if (state.app === "account") {
+    app =
+      <Account
+        addMessage={addMessage}
+        blockNumber={state.blockNumber} />;
+  } else if (state.app === "recipes") {
+    app =
+      <Recipes
+        addMessage={addMessage}
+        blockNumber={state.blockNumber} />;
+  } else if (state.app === "kitchen") {
+    app = <RecipePreparation
+        serviceWorkerRegistration={serviceWorkerRegistration}
+        blockNumber={state.blockNumber}
+        addMessage={addMessage} />;
+  } else if (state.app === "faq") {
+    app = <Faq />
+  } else {
+    app = <Splash />;
   }
 
-  createDeterministicWallet = (userString) => {
-    const fingerprint = this.getFingerprint();
-    const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(fingerprint + userString));
-    const provider = new ethers.providers.JsonRpcProvider(
-      { url: this.props.configuration.url },
-      { name: "home", chainId: this.props.configuration.chainId, ensAddress: this.props.configuration.ens }
-    );
-    provider.pollingInterval = 2000;
-    return new ethers.Wallet(privateKey, provider);
-  };
-
-  loginWithDeterministicWallet = (userString) => {
-    const wallet = this.createDeterministicWallet(userString);
-    this.setState({
-      context: this.makeContext(
-        "DeterministicWallet",
-        wallet.provider,
-        wallet,
-        wallet.address
-      ),
-    });
-  };
-
-  logout = () => {
-    if (this.state.loginMethod === "WalletConnect" && this.state.context.provider) {
-      this.state.context.provider.provider.disconnect();
-    }
-    this.setState(this.createInitialLoggedOutState());
-  };
-
-  promptForUserString = () => {
-    const userString = prompt("Enter your user string:");
-    if (userString) {
-      this.loginWithDeterministicWallet(userString);
-    }
-  };
-
-  executeTransaction = (transactionResultPromise, onSuccess, onError) => {
-    transactionResultPromise.then((transactionResponse) => {
-      this.onTransactionResponse(transactionResponse);
-      transactionResponse.wait().then((receipt) => {
-        this.onTransactionReceipt(receipt);
-        if (receipt.status) {
-          onSuccess(receipt);
-        } else {
-          onError("Transaction not successful.");
-        }
-      });
-    }, (error) => {
-      this.addMessage("Error: " + JSON.stringify(error));
-      onError(error);
-    });
-  };
-
-  watchAsset = () => {
-    this.state.walletConnectProvider.send("wallet_watchAsset", {
-      type: 'ERC20',
-      options: {
-        address: "",
-        symbol: "LEOJ",
-        decimals: 18,
-        image: ""
-      }
-    });
-  };
-
-  render() {
-
-    let app;
-    if (this.state.app === "account") {
-      app =
-        <Table
-          addMessage={this.addMessage}
-          blockNumber={this.state.blockNumber} />;
-    } else if (this.state.app === "recipes") {
-      app =
-        <Recipes
-          addMessage={this.addMessage}
-          blockNumber={this.state.blockNumber} />;
-    } else if (this.state.app === "kitchen") {
-      app =
-        <RecipePreparation
-          serviceWorkerRegistration={this.props.serviceWorkerRegistration}
-          blockNumber={this.state.blockNumber}
-          addMessage={this.addMessage} />;
-    } else if (this.state.app === "ens") {
-      app = <Names
-          houseWallet={this.state.houseWallet}
-          addMessage={this.addMessage} />
-    } else if (this.state.app === "faq") {
-      app =
-        <Faq />
-    } else {
-      app = <Splash />;
-    }
-
-    return <HyphenContext.Provider value={this.state.context}>
-      <div>
-        <Menu
-          loginWithWalletConnect={this.loginWithWalletConnect}
-          loginWithHouseWallet={this.loginWithHouseWallet}
-          promptForUserString={this.promptForUserString}
-          logout={this.logout}
-          activateApp={this.activateApp} />
-        <div style={{display: "inline-block", width: "100%"}}>
-          <StatusBar
-            address={this.state.context.address || 'logged-out'}
-            blockNumber={this.state.blockNumber}
-            entries={this.state.entries} />
-          <div className="pure-g" style={{width: "100%", height: "100%"}}>
-            <div
-              className="pure-u-1-1"
-              style={{
-                height: "100%",
-                marginLeft: "2em",
-                marginRight: "2em"
-              }}>
-              {app}
-            </div>
+  return <HyphenContext.Provider value={state.context}>
+    <div>
+      <Menu
+        loginWithWalletConnect={loginWithWalletConnect}
+        loginWithHouseWallet={loginWithHouseWallet}
+        promptForUserString={promptForUserString}
+        logout={logout}
+        activateApp={activateApp} />
+      <div style={{display: "inline-block", width: "100%"}}>
+        <StatusBar
+          address={state.context.address || 'logged-out'}
+          blockNumber={state.blockNumber}
+          entries={state.entries} />
+        <div className="pure-g" style={{width: "100%", height: "100%"}}>
+          <div
+            className="pure-u-1-1"
+            style={{
+              height: "100%",
+              marginLeft: "2em",
+              marginRight: "2em"
+            }}>
+            {app}
           </div>
         </div>
       </div>
-    </HyphenContext.Provider>;
-  }
-}
+    </div>
+  </HyphenContext.Provider>;
+};
 
 export default hot(module)(Hyphen);
