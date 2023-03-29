@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import { StringSet } from '@local-blockchain-toolbox/contract-primitives';
 import RecipeSet from 'contracts/RecipeSet.sol/RecipeSet.json';
@@ -8,221 +8,156 @@ import { threeOrFewerDecimalPlaces } from '../Utils';
 import Select from 'react-select';
 const ethers = require("ethers");
 
-class RecipeMenu extends React.Component {
+const RecipeMenu = ({ recipes, selectedRecipe, selectRecipe, newRecipe }) => {
+  const recipeOptions = recipes
+    ? recipes.map((recipe, index) => {
+        return { label: recipe.name, value: index };
+      })
+    : null;
 
-  render() {
-    var recipeOptions;
-    if (this.props.recipes) {
-      recipeOptions = this.props.recipes.map((recipe, index) => {
-        return {label: recipe.name, value: index};
-      });
-    }
+  const selectedRecipeOption = selectedRecipe !== null ? recipeOptions[selectedRecipe] : null;
 
-    var selectedRecipeOption;
-    if (this.props.selectedRecipe !== null) {
-      selectedRecipeOption = recipeOptions[this.props.selectedRecipe];
-    }
+  const onSelectRecipe = (recipeOption) => {
+    selectRecipe(recipeOption.value);
+  };
 
-    const onSelectRecipe = (recipeOption) => {
-      this.props.selectRecipe(recipeOption.value);
-    };
+  const recipeSelect = recipeOptions ? (
+    <Select value={selectedRecipeOption} options={recipeOptions} onChange={onSelectRecipe} />
+  ) : null;
 
-    var recipeSelect;
-    if (recipeOptions) {
-      recipeSelect = <Select
-        value={selectedRecipeOption}
-        options={recipeOptions}
-        onChange={onSelectRecipe}/>;
-    }
-
-    return <div style={{marginBottom: "2em"}}>
+  return (
+    <div style={{ marginBottom: '2em' }}>
       {recipeSelect}
-      <button onClick={this.props.newRecipe}>New Recipe</button>
-    </div>;
-  }
-}
+      <button onClick={newRecipe}>New Recipe</button>
+    </div>
+  );
+};
 
+const RecipeEditor = ({
+  recipe,
+  onRecipeChanged,
+  measures,
+  commit,
+  stopEditing,
+}) => {
+  const [name, setName] = useState(recipe ? recipe.name : '');
+  const [ingredients, setIngredients] = useState(
+    recipe ? recipe.ingredients : [['', '', 0], ['', '', 0]],
+  );
+  const [steps, setSteps] = useState(recipe ? recipe.steps : ['']);
 
-class RecipeEditor extends React.Component {
+  useEffect(() => {
+    onRecipeChanged(getRecipe());
+    const updateParent = setInterval(() => onRecipeChanged(getRecipe()), 1000);
+    return () => clearInterval(updateParent);
+  }, [name, ingredients, steps]);
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      name: props.recipe ? props.recipe.name : '',
-      ingredients: props.recipe ? props.recipe.ingredients : [['', '', 0], ['', '', 0]],
-      steps: props.recipe ? props.recipe.steps : ['']
-    };
-  }
-
-  componentDidMount() {
-    this.props.onRecipeChanged(this.getRecipe());
-    this.updateParent = setInterval(() => this.props.onRecipeChanged(this.getRecipe()), 1000);
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.updateParent);
-  }
-
-  handleNameChange = (event) => {
-    this.setState({
-      name: event.target.value
-    });
+  const handleNameChange = (event) => {
+    setName(event.target.value);
   };
 
-  handleIngredientNameChange = (index, value) => {
-    var newIngredients = this.state.ingredients.slice();
-    newIngredients[index][0] = value;
-
-    if (index === this.state.ingredients.length - 1 && value !== "") {
-      newIngredients.push(['', '', 0]);
-    } else {
-      var shrinkBy = 0;
-      for (var i = newIngredients.length - 1; i >= 1 && newIngredients[i][0].length === 0 && newIngredients[i - 1][0].length === 0; i--) {
-        shrinkBy++;
-      }
-      newIngredients = newIngredients.slice(0, newIngredients.length - Math.min(shrinkBy, newIngredients.length - 2));
-    }
-
-    this.setState({
-        ingredients: newIngredients
-    });
+  const handleIngredientChange = (index, field, value) => {
+    const newIngredients = [...ingredients];
+    newIngredients[index][field] = value;
+    setIngredients(newIngredients);
   };
 
-  handleIngredientUnitChange = (index, value) => {
-    const newIngredients = this.state.ingredients.slice();
-    newIngredients[index][1] = value;
-    this.setState({
-      ingredients: newIngredients
-    });
-  };
-
-  handleIngredientAmountChange = (index, value) => {
-    const newIngredients = this.state.ingredients.slice();
-    newIngredients[index][2] = value === "" ? value : Math.floor(value * 1000);
-    this.setState({
-      ingredients: newIngredients
-    });
-  };
-
-  handleStepChange = (index, value) => {
-    var newSteps = this.state.steps.slice();
+  const handleStepChange = (index, value) => {
+    const newSteps = steps.slice();
     newSteps[index] = value;
-
-    if (index === this.state.steps.length - 1 && value !== "") {
-      newSteps.push("");
-    } else {
-      var shrinkBy = 0;
-      for (var i = newSteps.length - 1; i >= 1 && newSteps[i].length === 0 && newSteps[i - 1].length === 0; i--) {
-        shrinkBy++;
-      }
-      newSteps = newSteps.slice(0, newSteps.length - Math.min(shrinkBy, newSteps.length - 1));
-    }
-
-    this.setState({
-      steps: newSteps
-    });
+    setSteps(newSteps);
   };
 
-  addStep = () => {
-    const newSteps = this.state.steps.slice();
-    newSteps.push('');
-    this.setState({
-      steps: newSteps
-    });
-  };
-
-  removeStep = (index) => {
-    if (this.state.pendingInputs.steps.length > 1) {
-      const newSteps = this.state.steps.slice();
-      newSteps.remove(index);
-      this.setState({
-        steps: newSteps
-      });
-    }
-  };
-
-  getRecipe = () => {
+  const getRecipe = () => {
     return {
-      name: this.state.name,
-      ingredients: this.state.ingredients
-                    .filter((ingredient) => ingredient[0].length > 0)
-                    .map(([name, unit, amount]) => [name, unit, amount === "" ? 0 : amount]),
-      steps: this.state.steps.filter((step) => step.length > 0)
+      name,
+      ingredients: ingredients
+        .filter((ingredient) => ingredient[0].length > 0)
+        .map(([name, unit, amount]) => [
+          name,
+          unit,
+          amount === '' ? 0 : amount,
+        ]),
+      steps: steps.filter((step) => step.length > 0),
     };
   };
 
-  isValidRecipe = (recipe) => {
-    return recipe.name.length > 0 && recipe.ingredients.length > 1 && recipe.steps.length > 0;
+  const isValidRecipe = (recipe) => {
+    return (
+      recipe.name.length > 0 &&
+      recipe.ingredients.length > 1 &&
+      recipe.steps.length > 0
+    );
   };
 
-  render() {
-    const ingredientInputs =
-      this.state.ingredients.map((ingredient, index) => {
-        const name = 'Ingredient ' + (index + 1);
-        const units = [''].concat(this.props.measures);
-        const unitOptions = units.map((unit) => {
-          const label = unit.length == 0 ? 'None' : unit;
-          return {value:unit, label:label}
-        });
+  const ingredientInputs = ingredients.map((ingredient, index) => {
+    const unitOptions = [{ value: '', label: 'None' }, ...measures.map(unit => ({ value: unit, label: unit }))];
 
-        const selectedUnitOption = unitOptions.find((option) => {
-          return option.value === this.state.ingredients[index][1];
-        });
+    const selectedUnitOption = unitOptions.find(
+      (option) => option.value === ingredients[index][1],
+    );
 
-        const amount =
-          this.state.ingredients[index][2] === "" ?
-          this.state.ingredients[index][2] : threeOrFewerDecimalPlaces(this.state.ingredients[index][2] / 1000);
+    const amount = ingredients[index][2] === '' ? '' : threeOrFewerDecimalPlaces(ingredients[index][2] / 1000);
 
-        return <div key={name} className="pure-g">
-            <div className="pure-u-1-3"><label>
-              <input
-                type="text"
-                value={this.state.ingredients[index][0]}
-                onChange={(event) => this.handleIngredientNameChange(index, event.target.value)}
-                onFocus={() => this.handleIngredientNameChange(index, this.state.ingredients[index][0]) } /></label>
-            </div>
-            <div className="pure-u-1-3"><label>
-              <input
-                type="number"
-                step="0.001"
-                value={amount}
-                min="0"
-                onChange={(event) => this.handleIngredientAmountChange(index, event.target.value)}/></label>
-            </div>
-            <div className="pure-u-1-3"><label>
-              <Select
-                value={selectedUnitOption}
-                options={unitOptions}
-                onChange={(event) => this.handleIngredientUnitChange(index, event.value)}/></label>
-            </div>
-          </div>;
-      });
+    return (
+      <div key={`Ingredient ${index}`} className="pure-g">
+        <div className="pure-u-1-3">
+          <label>
+            <input
+              type="text"
+              value={ingredients[index][0]}
+              onChange={(event) =>
+                handleIngredientChange(index, 0, event.target.value)
+              }
+            />
+          </label>
+        </div>
+        <div className="pure-u-1-3">
+          <label>
+            <input
+              type="number"
+              step="0.001"
+              value={amount}
+              min="0"
+              onChange={(event) =>
+                handleIngredientChange(index, 2, event.target.value)
+              }
+            />
+          </label>
+        </div>
+        <div className="pure-u-1-3">
+          <label>
+            <Select
+              value={selectedUnitOption}
+              options={unitOptions}
+              onChange={(event) =>
+                handleIngredientChange(index, 1, event.value)
+              }
+            />
+          </label>
+        </div>
+      </div>
+    );
+  });
 
-    const stepInputs =
-      this.state.steps.map((step, index) => {
-        const name = 'Step ' + (index + 1);
-        const label = (index + 1).toString() + '.';
-        return <label key={name}>
-          {label}
-          <input
-            type="text"
-            name={name}
-            value={this.state.steps[index]}
-            onChange={(event) => this.handleStepChange(index, event.target.value)}
-            onFocus={() => this.handleStepChange(index, this.state.steps[index])} />
-        </label>
-      });
+  const stepInputs = steps.map((step,index) => {
+    const label = (index + 1).toString() + '.';
+    return (
+      <label key={`Step ${index}`}>
+        {label}
+        <input type="text" name={`Step ${index}`} value={steps[index]}
+          onChange={(event) => handleStepChange(index, event.target.value)} />
+      </label>
+    );
+  });
 
-    var submitButton = null;
-    if (this.isValidRecipe(this.getRecipe())) {
-      submitButton = <input onClick={this.props.commit} type="submit" value="Submit Recipe" />;
-    }
-
-    return <div style={{marginBottom: "2em"}}>
-        <h3>New recipe</h3>
-        <form className="recipe-form">
+  return (
+    <div style={{ marginBottom: '2em' }}>
+      <h3>New recipe</h3>
+      <form className="recipe-form">
         <label>Recipe Name
-          <input type="text" name="name" value={this.state.name} onChange={this.handleNameChange} />
+          <input type="text" name="name" value={name}
+            onChange={handleNameChange} />
         </label>
         <label>Ingredients
           <div className="pure-g">
@@ -233,132 +168,152 @@ class RecipeEditor extends React.Component {
           {ingredientInputs}
         </label>
         <label>Steps
-          {stepInputs}
+        {stepInputs}
         </label>
       </form>
-      {submitButton}
-      <button onClick={this.props.stopEditing}>Cancel</button>
-    </div>;
-  }
-}
+      {isValidRecipe(getRecipe()) && (
+        <input onClick={commit} type="submit" value="Submit Recipe" />
+      )}
+      <button onClick={stopEditing}>Cancel</button>
+    </div>
+  );
+};
 
-class Recipes extends React.Component {
+const Recipes = (props) => {
+  const [recipes, setRecipes] = useState(null);
+  const [measures, setMeasures] = useState([]);
+  const [editing, setEditing] = useState(false);
+  const [editedRecipe, setEditedRecipe] = useState(null);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const context = useContext(HyphenContext);
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      recipes: null,
-      measures: [],
-      editing: false,
-      editedRecipe: null,
-      selectedRecipe: null
-    };
-  };
+  useEffect(() => {
+    const measuresContract = new ethers.Contract(
+      "measures.hyphen",
+      StringSet.abi,
+      context.signer
+    );
 
-  componentDidMount() {
-    const measuresContract =
-      new ethers.Contract(
-        "measures.hyphen",
-        StringSet.abi,
-        this.context.signer);
-
-    this.getContract()
+    getContract()
       .contents()
       .then((recipes) => {
-        this.setState({recipes: recipes});
+        setRecipes(recipes);
       }, (err) => {
-        this.props.addMessage(JSON.stringify(err));
+        context.addMessage(JSON.stringify(err));
       });
 
     measuresContract.contents().then((measures) => {
-      this.setState({measures: measures});
+      setMeasures(measures);
     }, (err) => {
-      this.props.addMessage(JSON.stringify(err));
+      context.addMessage(JSON.stringify(err));
     });
-  }
+  }, []);
 
-  getContract = () => {
+  const getContract = () => {
     return new ethers.Contract(
-      'recipes.hyphen',
+      "recipes.hyphen",
       RecipeSet.abi,
-      this.context.signer);
+      context.signer
+    );
   };
 
-  selectRecipe = (index) => {
-    this.setState({selectedRecipe:index});
+  const selectRecipe = (index) => {
+    setSelectedRecipe(index);
   };
 
-  addEditedRecipe = () => {
-    this.context.executeTransaction(
-      this.getContract().create(
-        this.state.editedRecipe.name,
-        this.state.editedRecipe.ingredients,
-        this.state.editedRecipe.steps),
-      () => this.setState({selectedRecipe: null, editing: false, editedRecipe: null}, this.update),
-      (err) => this.props.addMessage(JSON.stringify(err)));
+  const addEditedRecipe = () => {
+    context.executeTransaction(
+      getContract().create(
+        editedRecipe.name,
+        editedRecipe.ingredients,
+        editedRecipe.steps
+      ),
+      () => {
+        setSelectedRecipe(null);
+        setEditing(false);
+        setEditedRecipe(null);
+        update();
+      },
+      (err) => context.addMessage(JSON.stringify(err))
+    );
   };
 
-  removeRecipe = (recipeAddress) => {
-    this.context.executeTransaction(
-      this.getContract().remove(recipeAddress),
-      () => this.setState({selectedRecipe: null, editing: false, editedRecipe: null}, this.update),
-      (err) => this.props.addMessage(JSON.stringify(err)));
+  const removeRecipe = (recipeAddress) => {
+    context.executeTransaction(
+      getContract().remove(recipeAddress),
+      () => {
+        setSelectedRecipe(null);
+        setEditing(false);
+        setEditedRecipe(null);
+        update();
+      },
+      (err) => context.addMessage(JSON.stringify(err))
+    );
   };
 
-  updateEditedRecipe = (recipe) => {
-    this.setState({editedRecipe: recipe});
+  const updateEditedRecipe = (recipe) => {
+    setEditedRecipe(recipe);
   };
 
-  startEditing = (existingRecipe) => {
-    var editedRecipe = null;
+  const startEditing = (existingRecipe) => {
+    let editedRecipe = null;
     if (existingRecipe) {
       editedRecipe = {
         name: existingRecipe.name,
         ingredients: existingRecipe.ingredients.map(([name, unit, amount]) => {
           return [name, unit, amount.toNumber()];
         }),
-        steps: existingRecipe.steps
-      }
+        steps: existingRecipe.steps,
+      };
     }
-    this.setState({editing: true, editedRecipe: editedRecipe});
+    setEditing(true);
+    setEditedRecipe(editedRecipe);
   };
 
-  stopEditing = () => {
-    this.setState({editing: false, editedRecipe: null});
+  const stopEditing = () => {
+    setEditing(false);
+    setEditedRecipe(null);
   };
 
-  render() {
-    const displayRecipe =
-      this.state.editing && this.state.editedRecipe ||
-      (this.state.recipes && this.state.selectedRecipe !== null && this.state.recipes[this.state.selectedRecipe]);
+  const update = () => {
+    getContract()
+      .contents()
+      .then((recipes) => {
+        setRecipes(recipes);
+      }, (err) => {
+        context.addMessage(JSON.stringify(err));
+      });
+  };
 
-    var topContent;
-    if (this.state.editing) {
-      topContent = <RecipeEditor
-        recipe={this.state.editedRecipe}
-        measures={this.state.measures}
-        onRecipeChanged={this.updateEditedRecipe}
-        stopEditing={this.stopEditing}
-        addMessage={this.props.addMessage}
-        commit={this.addEditedRecipe}/>;
-    } else {
-      topContent = <RecipeMenu
-        newRecipe={() => this.startEditing(null)}
-        selectedRecipe={this.state.selectedRecipe}
-        recipes={this.state.recipes}
-        selectRecipe={this.selectRecipe}/>;
-    }
+  const displayRecipe =
+    editing && editedRecipe ||
+    (recipes && selectedRecipe !== null && recipes[selectedRecipe]);
 
-    return <div>
+  let topContent;
+  if (editing) {
+    topContent = <RecipeEditor
+      recipe={editedRecipe}
+      measures={measures}
+      onRecipeChanged={updateEditedRecipe}
+      stopEditing={stopEditing}
+      commit={addEditedRecipe} />;
+  } else {
+    topContent = <RecipeMenu
+      newRecipe={() => startEditing(null)}
+      selectedRecipe={selectedRecipe}
+      recipes={recipes}
+      selectRecipe={selectRecipe} />;
+  }
+
+  return (
+    <div>
       {topContent}
       <RecipeViewer
         recipe={displayRecipe}
-        startEditing={this.startEditing}
-        removeRecipe={this.removeRecipe}/>
-    </div>;
-  }
+        startEditing={startEditing}
+        removeRecipe={removeRecipe} />
+    </div>
+  );
 }
-
-Recipes.contextType = HyphenContext;
 
 export default Recipes;
