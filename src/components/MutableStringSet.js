@@ -1,67 +1,69 @@
-import React from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import { StringSet } from '@local-blockchain-toolbox/contract-primitives';
 const ethers = require("ethers");
 
-class MutableStringSet extends React.Component {
+const MutableStringSet = (props) => {
+  const [contents, setContents] = useState([]);
+  const [newString, setNewString] = useState("");
+  const context = useContext(HyphenContext);
 
-  constructor(props) {
-    super(props);
-
-    this.state = {
-      contents: [],
-      newString: ""
+  useEffect(() => {
+    const getContract = () => {
+      return new ethers.Contract(
+        props.contractAddress,
+        StringSet.abi,
+        context.signer);
     };
-  };
 
-  componentDidMount() {
-    this.getContract()
+    getContract()
       .contents()
       .then((result) => {
-        this.setState({contents:result});
+        setContents(result);
       });
-  }
+  }, [context.signer, props.contractAddress]);
 
-  getContract = () => {
-    return new ethers.Contract(
-      props.contractAddress,
-      StringSet.abi,
-      this.context.signer);
+  const addString = (str) => {
+    const getContract = () => {
+      return new ethers.Contract(
+        props.contractAddress,
+        StringSet.abi,
+        context.signer);
+    };
+
+    context.executeTransaction(
+      getContract().add(str),
+      (receipt) => setContents(prevContents => [...prevContents, str]),
+      (error) => props.addMessage(JSON.stringify(error)));
   };
 
-  addString = (str) => {
-    this.context.executeTransaction(
-      this.getContract().add(str),
-      (receipt) => this.update(),
-      (error) => this.props.addMessage(JSON.stringify(error)));
-  };
-
-  handleAddString = () => {
-    if (this.state.newString && this.state.newString.length > 0) {
-      this.addString(this.state.newString);
-      this.setState({newString: ""})
+  const handleAddString = (event) => {
+    event.preventDefault();
+    if (newString && newString.length > 0) {
+      addString(newString);
+      setNewString("");
     }
   };
 
-  handleAddStringChange = (event) => {
-    this.setState({newString: event.target.value});
+  const handleAddStringChange = (event) => {
+    setNewString(event.target.value);
   };
 
-  render() {
-    const contents = this.state.contents.map((item, index) => {
-      return <p key={index}>{item}</p>;
-    });
+  const contentsList = contents.map((item, index) => {
+    return <p key={index}>{item}</p>;
+  });
 
-    return <div>
-      {contents}
-      <form onSubmit={this.handleAddString}>
-      <label><input type="text" value={this.state.newString} onChange={this.handleAddStringChange} /></label>
+  return (
+    <div>
+      {contentsList}
+      <form onSubmit={handleAddString}>
+        <label>
+          <input type="text" value={newString} onChange={handleAddStringChange} />
+        </label>
         <input type="submit" value="Add" />
       </form>
-    </div>;
-  }
-}
-
-MutableStringSet.contextType = HyphenContext;
+    </div>
+  );
+};
 
 export default MutableStringSet;

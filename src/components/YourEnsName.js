@@ -52,7 +52,7 @@ const YourEnsName = (props) => {
 
   const claimName = () => {
     if (!state.enteredLabelString) {
-      props.addMessage("Must enter a label string to claim.");
+      context.addMessage("Must enter a label string to claim.");
       return;
     }
 
@@ -62,31 +62,31 @@ const YourEnsName = (props) => {
     context.executeTransaction(
       state.fifsRegistrarContract.register(label, context.address),
       () => {
-        props.addMessage("Registration succeeded");
+        context.addMessage("Registration succeeded");
         context.executeTransaction(
           state.resolverContract['setAddr(bytes32,address)'](node, context.address),
           () => {
-            props.addMessage("Address updated in resolver");
+            context.addMessage("Address updated in resolver");
             context.executeTransaction(
               state.ensContract.setResolver(node, state.resolverContract.address),
               () => {
-                props.addMessage("Resolver updated");
+                context.addMessage("Resolver updated");
                 context.executeTransaction(
                   state.reverseRegistrarContract.setName(fullname),
                   () => {
-                    props.addMessage("Reverse record update succeeded.");
+                    context.addMessage("Reverse record update succeeded.");
                     update();
                   },
-                  (reason) => { props.addMessage(JSON.stringify(reason)); }
+                  (reason) => { context.addMessage(JSON.stringify(reason)); }
                 );
               },
-              (reason) => { props.addMessage(JSON.stringify(reason)); }
+              (reason) => { context.addMessage(JSON.stringify(reason)); }
             );
           },
-          (reason) => { props.addMessage(JSON.stringify(reason)); }
+          (reason) => { context.addMessage(JSON.stringify(reason)); }
         );
       },
-      (reason) => { props.addMessage(JSON.stringify(reason)); }
+      (reason) => { context.addMessage(JSON.stringify(reason)); }
     );
   };
 
@@ -97,7 +97,7 @@ const YourEnsName = (props) => {
       suffixIndex === -1 ||
       (suffix.length + suffixIndex) !== state.name.length
     ) {
-      props.addMessage("Name must end in .eth");
+      context.addMessage("Name must end in .eth");
       return;
     }
 
@@ -108,24 +108,24 @@ const YourEnsName = (props) => {
     context.executeTransaction(
       state.resolverContract['setAddr(bytes32,address)'](node, ethers.constants.AddressZero),
       () => {
-        props.addMessage("Cleared address");
+        context.addMessage("Cleared address");
         update();
         context.executeTransaction(
           state.ensContract.setResolver(node, ethers.constants.AddressZero),
           () => {
-            props.addMessage("Resolver cleared in registry");
+            context.addMessage("Resolver cleared in registry");
             context.executeTransaction(
               state.fifsRegistrarContract.register(label, ethers.constants.AddressZero),
               () => {
-                props.addMessage("Reclaimed node");
+                context.addMessage("Reclaimed node");
               },
-              (reason) => { props.addMessage(JSON.stringify(reason)); }
+              (reason) => { context.addMessage(JSON.stringify(reason)); }
             );
           },
-          (reason) => { props.addMessage(JSON.stringify(reason)); }
+          (reason) => { context.addMessage(JSON.stringify(reason)); }
         );
       },
-      (reason) => { props.addMessage(JSON.stringify(reason)); }
+      (reason) => { context.addMessage(JSON.stringify(reason)); }
     );
   };
 

@@ -42,7 +42,7 @@ const Account = (props) => {
     context.executeTransaction(
       getFaucetContract().use(),
       (receipt) => update(),
-      (error) => props.addMessage(JSON.stringify(error))
+      (error) => context.addMessage(JSON.stringify(error))
     );
   };
 
@@ -63,7 +63,7 @@ const Account = (props) => {
           type: 0x0
         }),
         (receipt) => update(),
-        (error) => props.addMessage(JSON.stringify(error))
+        (error) => context.addMessage(JSON.stringify(error))
       );
     }
   };
@@ -79,7 +79,7 @@ const Account = (props) => {
         type: 0x0
       }),
       (receipt) => update(),
-      (error) => props.addMessage(JSON.stringify(error))
+      (error) => context.addMessage(JSON.stringify(error))
     );
   };
 
@@ -130,8 +130,7 @@ const Account = (props) => {
       {concierge}
       {faucet}
       <YourEnsName
-        houseWallet={context.houseWallet}
-        addMessage={context.addMessage} />
+        houseWallet={context.houseWallet} />
     </div>
   );
 };
