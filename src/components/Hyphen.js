@@ -3,7 +3,6 @@ import { hot } from 'react-hot-loader';
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import HyphenContext from './HyphenContext';
-import SessionFeed from './SessionFeed.js';
 import Menu from './Menu.js';
 import Splash from './Splash.js';
 import Account from './Account.js';
