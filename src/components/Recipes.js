@@ -9,6 +9,8 @@ import RecipeEditor from "./RecipeEditor";
 import MutableStringSet from "./MutableStringSet";
 const ethers = require("ethers");
 
+import './Recipes.css';
+
 const Recipes = (props) => {
   const [recipes, setRecipes] = useState(null);
   const [measures, setMeasures] = useState([]);

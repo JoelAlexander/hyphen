@@ -1,43 +1,35 @@
 import Cookies from "js-cookie";
 import { hot } from 'react-hot-loader';
 import WalletConnectProvider from '@walletconnect/web3-provider';
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
-import Menu from './Menu.js';
 import Splash from './Splash.js';
 import Account from './Account.js';
 import Recipes from './Recipes.js';
 import RecipePreparation from './RecipePreparation.js';
 import StatusBar from './StatusBar.js';
+import Onboarding from './Onboarding';
 import Faq from './Faq.js';
+import Toast from './Toast';
 const ethers = require("ethers");
+
+import './Hyphen.css';
 
 const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
 
   const createInitialLoggedOutState = () => {
-    const houseWalletProvider =
-      new ethers.providers.JsonRpcProvider(
-          { url: configuration.url},
-          { name: "home",
-            chainId: configuration.chainId,
-            ensAddress: configuration.ens });
-    houseWalletProvider.pollingInterval = 2000;
-
-    const houseWallet = new ethers.Wallet(
-            configuration.houseWallet,
-            houseWalletProvider);
 
     return {
       context: {},
       app: null,
       entries: [],
-      houseWallet: houseWallet,
+      blockNumber: null,
+      toastVisible: false,
       blockNumber: null
     };
   };
 
   const [state, setState] = useState(createInitialLoggedOutState());
-  const [blockNumber, setBlockNumber] = useState(null);
 
   useEffect(() => {
     const blockNumberInterval = setInterval(() => {
@@ -53,7 +45,7 @@ const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
     return () => {
       clearInterval(blockNumberInterval);
     };
-  }, [state.context.provider]);
+  }, [state.context]);
 
   const activateApp = (appName) => {
     setState(prevState => ({...prevState, app: appName}));
@@ -88,63 +80,22 @@ const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
     });
   };
 
-  const makeContext = (loginMethod, provider, signer, address) => {
-    return {
-      "configuration": configuration,
-      "loginMethod": loginMethod,
-      "provider": provider,
-      "signer": signer,
-      "address": address,
-      "houseWallet": state.houseWallet,
-      executeTransaction: executeTransaction,
-      addMessage: addMessage
-    };
-  };
-
-  const loginWithHouseWallet = () => {
-    setState(prevState => ({...prevState, 
-      context:
-        makeContext(
-          "HouseAccount",
-          state.houseWallet.provider,
-          state.houseWallet,
-          state.houseWallet.address)
-    }));
-  };
-
-  const getFingerprint = () => {
-    let fingerprint = Cookies.get("fingerprint");
-    if (!fingerprint) {
-      fingerprint = ethers.utils.hexlify(ethers.utils.randomBytes(32));
-      Cookies.set("fingerprint", fingerprint);
-    }
-    return fingerprint;
+  const setContext = (context) => {
+    if (!context) return;
+    setState(prevState => {
+      return {
+        ...prevState,
+        context: context,
+        executeTransaction: executeTransaction,
+        addMessage: addMessage,
+        showToast: showToast}
+    });
   }
 
-  const createDeterministicWallet = (userString) => {
-    const fingerprint = getFingerprint();
-    const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(fingerprint + userString));
-    const provider = new ethers.providers.JsonRpcProvider(
-      { url: configuration.url },
-      { name: "home", chainId: configuration.chainId, ensAddress: configuration.ens }
-    );
-    provider.pollingInterval = 2000;
-    return new ethers.Wallet(privateKey, provider);
-  };
-
-  const loginWithDeterministicWallet = (userString) => {
-    const wallet = createDeterministicWallet(userString);
-    setState(prevState => ({...prevState, 
-      context: makeContext(
-        "DeterministicWallet",
-        wallet.provider,
-        wallet,
-        wallet.address)
-    }));
-  };
-
   const logout = () => {
-    if (state.loginMethod === "WalletConnect" && state.context.provider) {
+    if (state.loginMethod === "WalletConnect" &&
+      state.context && state.context.provider
+    ) {
       state.context.provider.provider.disconnect();
     }
     setState(createInitialLoggedOutState());
@@ -186,61 +137,6 @@ const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
     });
   };
 
-  const loginWithWalletConnect = () => {
-
-    const chainId = configuration.chainId
-
-    var rpc = {}
-    rpc[chainId] = configuration.url
-
-    const walletConnectProvider = new WalletConnectProvider({
-      chainId: chainId,
-      rpc: rpc,
-      network: "home",
-      qrcode: true,
-      qrcodeModalOptions: {
-        mobileLinks: [
-          "metamask"
-        ]
-      },
-      pollingInterval: 2000
-    });
-    walletConnectProvider.networkId = chainId;
-
-    const provider =
-      new ethers.providers.Web3Provider(
-        walletConnectProvider,
-        { name: "home", chainId: chainId, ensAddress: configuration.ens });
-    provider.pollingInterval = 2000;
-
-    const handleAccountsChanged = (accounts) => {
-      const signer = provider.getSigner()
-      signer.getAddress().then((address) => {
-        setState(prevState => ({...prevState, 
-          context:
-            makeContext(
-              "WalletConnect",
-              provider,
-              signer,
-              address)
-        }));
-      });
-    };
-
-    walletConnectProvider.on("accountsChanged", handleAccountsChanged);
-    walletConnectProvider.on("chainChanged", handleAccountsChanged);
-    walletConnectProvider.on("disconnect", () => { setState(createInitialLoggedOutState()); });
-    walletConnectProvider.enable()
-      .then(
-        value => {
-          addMessage("WalletConnect suceeded: " + JSON.stringify(value));
-        },
-        reason => {
-          addMessage("Enable failed: " + JSON.stringify(reason));
-          setState(createInitialLoggedOutState());
-    });
-  };
-
   let app;
   if (state.app === "account") {
     app =
@@ -263,31 +159,45 @@ const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
     app = <Splash />;
   }
 
+  const showToast = () => {
+    setState(prevState => ({ ...prevState, toastVisible: true }));
+    setTimeout(() => setState(prevState => ({ ...prevState, toastVisible: false })), 3000);
+  };
+
+  const loggedInMenuItems = state.context && state.context.signer && (
+    <>
+      <button onClick={() => activateApp("recipes")}>Recipes</button>
+      <button onClick={() => activateApp("kitchen")}>Kitchen</button>
+      <button onClick={() => activateApp("account")}>Account</button>
+    </>
+  );
+
   return <HyphenContext.Provider value={state.context}>
     <div>
-      <Menu
-        loginWithWalletConnect={loginWithWalletConnect}
-        loginWithHouseWallet={loginWithHouseWallet}
-        promptForUserString={promptForUserString}
-        logout={logout}
-        activateApp={activateApp} />
-      <div style={{display: "inline-block", width: "100%"}}>
-        <StatusBar
+      <div style={{ display: 'inline-block', width: '100%' }}>
+        { state.context ? <StatusBar
+          logout={logout}
           address={state.context.address || 'logged-out'}
           blockNumber={state.blockNumber}
-          entries={state.entries} />
-        <div className="pure-g" style={{width: "100%", height: "100%"}}>
+          entries={state.entries}
+        /> : {}}
+        <div className="pure-g" style={{ width: '100%', height: '100%' }}>
           <div
             className="pure-u-1-1"
             style={{
-              height: "100%",
-              marginLeft: "2em",
-              marginRight: "2em"
-            }}>
-            {app}
+              height: '100%',
+              marginLeft: '2em',
+              marginRight: '2em',
+            }}
+          >
+            {loggedInMenuItems}
+            { state.context ? app : 
+              <Onboarding configuration={configuration} setContext={setContext} />
+            }
           </div>
         </div>
       </div>
+      {state.toastVisible && <Toast />}
     </div>
   </HyphenContext.Provider>;
 };

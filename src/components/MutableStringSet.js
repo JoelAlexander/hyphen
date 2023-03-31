@@ -34,7 +34,7 @@ const MutableStringSet = (props) => {
     context.executeTransaction(
       getContract().add(str),
       (receipt) => setContents(prevContents => [...prevContents, str]),
-      (error) => props.addMessage(JSON.stringify(error)));
+      (error) => context.addMessage(JSON.stringify(error)));
   };
 
   const handleAddString = (event) => {

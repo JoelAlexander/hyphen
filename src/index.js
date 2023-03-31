@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import Hyphen from './components/Hyphen';
 const configuration = require('./../configuration.json')
 
+import 'bootstrap/dist/css/bootstrap.min.css';
 import 'purecss/build/pure.css';
 import './styles.css';
 

@@ -1,0 +1,83 @@
+.hyphen.toast {
+  position: fixed;
+  bottom: 1em;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 5px;
+  padding: 0.5em 1em;
+  z-index: 999;
+  opacity: 1 !important; /* Overrides bootstrap toast styles. */
+}
+
+.status-bar {
+  display: flex;
+  flex-direction: row-reverse;
+  text-align: right;
+  position: sticky;
+  top: 0em;
+  background: var(--background-color);
+  border-bottom: 1px dotted var(--border-color);
+}
+
+.account-status-block {
+  display: inline-flex;
+  height: 100%;
+  flex-flow: column;
+  justify-content: center;
+  white-space: nowrap;
+  margin-right: 2em;
+  padding-top: 1em;
+  padding-bottom: 1em;
+}
+
+.account-status-block p {
+  margin: .5em;
+}
+
+.transaction-feed-container {
+  max-height: 400px;
+  overflow-y: scroll;
+  width: 100%;
+}
+
+.empty-message {
+  text-align: center;
+  margin: 1em 0;
+}
+
+.transactions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 0;
+}
+
+.transaction {
+  display: flex;
+  flex-flow: column;
+  justify-content: center;
+  padding-top: 1em;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+  width: 100%;
+}
+
+.transaction p {
+  margin: .5em;
+}
+
+.custom-popover.popover {
+  margin: 0.5em;
+}
+
+.address-heading,
+.transaction-feed-heading {
+  font-size: 1.25rem;
+  margin-bottom: 0.5em;
+}
+
+.address p {
+  margin: 0;
+  font-size: 1.25rem;
+}

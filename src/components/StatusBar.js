@@ -3,14 +3,25 @@ import HyphenContext from './HyphenContext';
 import TransactionFeed from './TransactionFeed';
 import Transaction from './Transaction';
 import AccountStatus from './AccountStatus';
+import Overlay from 'react-bootstrap/Overlay';
+import Popover from 'react-bootstrap/Popover';
+import Address from './Address';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
 const ethers = require("ethers");
 
-const StatusBar = ({ blockNumber, entries }) => {
+const StatusBar = ({ logout, blockNumber, entries }) => {
+  const handleCloseModal = () => setShowModal(false);
+  const handleOpenModal = (e) => {
+    setShowModal(true);
+    setState(prevState => ({ ...prevState, target: e.target }));
+  };
+  const [showModal, setShowModal] = useState(false);
   const [state, setState] = useState({
     notificationPermission: Notification.permission,
     balance: null,
     ensName: null,
-    address: null
+    address: null,
+    toastVisible: false
   });
 
   const context = useContext(HyphenContext);
@@ -38,16 +49,6 @@ const StatusBar = ({ blockNumber, entries }) => {
 
   };
 
-  const enableNotifications = () => {
-    Notification.requestPermission().then((permission) => {
-      setState(prevState => ({
-        ...prevState,
-        notificationPermission: permission,
-        toastVisible: false
-      }));
-    });
-  };
-
   const transactions = entries
     ? entries
         .filter((entry) => entry.type === "transaction")
@@ -59,8 +60,24 @@ const StatusBar = ({ blockNumber, entries }) => {
       <AccountStatus
         address={state.address}
         ensName={state.ensName}
-        balance={state.balance} />
-      <TransactionFeed transactions={transactions} />
+        balance={state.balance}
+        onClick={handleOpenModal} />
+      <Overlay show={showModal} target={state.target} placement="bottom" onHide={handleCloseModal} rootClose>
+        <Popover id="transaction-feed-popover" title="Account Details" className="custom-popover">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <h4 className="address-heading">Your Account</h4>
+          </div>
+          <div className="d-flex align-items-center">
+            <Address address={state.address} ensName={state.ensName} />
+            <CopyToClipboard text={state.address} onCopy={context.showToast}>
+              <span className="clipboard-icon" style={{ cursor: "pointer" }}>📋</span>
+            </CopyToClipboard>
+          </div>
+          <h5 className="transaction-feed-heading">Transaction Feed</h5>
+          <TransactionFeed transactions={transactions} />
+          <button onClick={logout}>Logout</button>
+        </Popover>
+      </Overlay>
     </div>
   );
 };
