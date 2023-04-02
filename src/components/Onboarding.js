@@ -11,7 +11,8 @@ const Onboarding = ({ configuration, setContext }) => {
       { name: "home",
         chainId: configuration.chainId,
         ensAddress: configuration.ens });
-    houseWalletProvider.pollingInterval = 2000;
+
+    houseWalletProvider.pollingInterval = 12000;
   const houseWallet = new ethers.Wallet(
     configuration.houseWallet,
     houseWalletProvider);

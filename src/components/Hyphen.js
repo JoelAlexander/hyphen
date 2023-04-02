@@ -11,21 +11,64 @@ import StatusBar from './StatusBar.js';
 import Onboarding from './Onboarding';
 import Faq from './Faq.js';
 import Toast from './Toast';
+import './Hyphen.css';
 const ethers = require("ethers");
 
-import './Hyphen.css';
+const menuItems = [
+  {
+    label: 'Account',
+    component: Account,
+  },
+  {
+    label: 'Food',
+    submenu: [
+      {
+        label: 'Meal planning',
+        component: RecipePreparation,
+      },
+      {
+        label: 'Recipes',
+        component: Recipes,
+      }
+    ],
+  },
+  {
+    label: 'Help',
+    component: Faq
+  }
+];
 
-const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
+const NavMenu = ({ items, onSelectComponent, onSelectSubmenu }) => (
+  <ul>
+    {items.map((item, index) => (
+      <li key={index}>
+        {item.component ? (
+          <button onClick={() => onSelectComponent(item.component)}>
+            {item.label}
+          </button>
+        ) : (
+          <button onClick={() => onSelectSubmenu(item.submenu)}>
+            {item.label}
+          </button>
+        )}
+      </li>
+    ))}
+  </ul>
+);
+
+const Hyphen = ({ configuration }) => {
 
   const createInitialLoggedOutState = () => {
-
     return {
-      context: {},
-      app: null,
+      context: null,
+      menuStack: [menuItems],
+      activeComponent: null,
       entries: [],
       blockNumber: null,
       toastVisible: false,
-      blockNumber: null
+      blockNumber: null,
+      menu: [],
+      menuHistory: []
     };
   };
 
@@ -33,22 +76,57 @@ const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
 
   useEffect(() => {
     const blockNumberInterval = setInterval(() => {
-      if (state.context.provider) {
+      if (state.context && state.context.provider) {
         state.context.provider
           .getBlockNumber()
           .then((result) => {
+            console.log(`blockNumber update ${performance.now()}`)
             setState(prevState => ({ ...prevState, blockNumber: result }));
           });
       }
-    }, 2000);
+    }, 12000);
 
     return () => {
       clearInterval(blockNumberInterval);
     };
   }, [state.context]);
 
-  const activateApp = (appName) => {
-    setState(prevState => ({...prevState, app: appName}));
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (canGoBack()) {
+        handleBack();
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  });
+
+  const handleSelectComponent = (component) => {
+    window.history.pushState({}, '');
+    setState(prevState => ({...prevState, component: component}));
+  };
+
+  const handleSelectSubmenu = (submenu) => {
+    window.history.pushState({}, '');
+    setState(prevState => ({...prevState, menuStack: [...prevState.menuStack, submenu]}));
+  };
+
+  const canGoBack = () => {
+    return state.component || (state.menuStack.length > 1);
+  }
+
+  const handleBack = () => {
+    setState(prevState => {
+      const menuStack = prevState.menuStack
+      if (!prevState.component && menuStack.length > 1) {
+        menuStack.pop()
+      }
+      return {...prevState, menuStack: menuStack, component: null}
+    });
   };
 
   const addMessage = (message) => {
@@ -85,10 +163,13 @@ const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
     setState(prevState => {
       return {
         ...prevState,
-        context: context,
-        executeTransaction: executeTransaction,
-        addMessage: addMessage,
-        showToast: showToast}
+        context: {
+          ...context,
+          executeTransaction: executeTransaction,
+          addMessage: addMessage,
+          showToast: showToast 
+        }
+      };
     });
   }
 
@@ -137,69 +218,50 @@ const Hyphen = ({ configuration, serviceWorkerRegistration }) => {
     });
   };
 
-  let app;
-  if (state.app === "account") {
-    app =
-      <Account
-        addMessage={addMessage}
-        blockNumber={state.blockNumber} />;
-  } else if (state.app === "recipes") {
-    app =
-      <Recipes
-        addMessage={addMessage}
-        blockNumber={state.blockNumber} />;
-  } else if (state.app === "kitchen") {
-    app = <RecipePreparation
-        serviceWorkerRegistration={serviceWorkerRegistration}
-        blockNumber={state.blockNumber}
-        addMessage={addMessage} />;
-  } else if (state.app === "faq") {
-    app = <Faq />
-  } else {
-    app = <Splash />;
-  }
-
   const showToast = () => {
     setState(prevState => ({ ...prevState, toastVisible: true }));
     setTimeout(() => setState(prevState => ({ ...prevState, toastVisible: false })), 3000);
   };
 
-  const loggedInMenuItems = state.context && state.context.signer && (
-    <>
-      <button onClick={() => activateApp("recipes")}>Recipes</button>
-      <button onClick={() => activateApp("kitchen")}>Kitchen</button>
-      <button onClick={() => activateApp("account")}>Account</button>
-    </>
-  );
+  const navOrApp = <>
+    {(state.component && <state.component blockNumber={state.blockNumber} />) ||
+    <NavMenu
+      items={state.menuStack[state.menuStack.length - 1]}
+      onSelectComponent={handleSelectComponent}
+      onSelectSubmenu={handleSelectSubmenu} />}
+  </>;
 
-  return <HyphenContext.Provider value={state.context}>
-    <div>
-      <div style={{ display: 'inline-block', width: '100%' }}>
-        { state.context ? <StatusBar
-          logout={logout}
-          address={state.context.address || 'logged-out'}
-          blockNumber={state.blockNumber}
-          entries={state.entries}
-        /> : {}}
-        <div className="pure-g" style={{ width: '100%', height: '100%' }}>
-          <div
-            className="pure-u-1-1"
-            style={{
+  const onboardingOrNavAndApp = <>
+    {(!state.context && <Onboarding configuration={configuration} setContext={setContext} />) || navOrApp}
+  </>
+
+  const statusBar = state.context ?
+    <StatusBar
+      logout={logout}
+      address={state.context.address || 'logged-out'}
+      blockNumber={state.blockNumber}
+      entries={state.entries} /> : null
+
+  return (
+    <HyphenContext.Provider value={state.context}>
+      <div>
+        <div style={{ display: 'inline-block', width: '100%' }}>
+          {statusBar}
+          <div className="pure-g" style={{ width: '100%', height: '100%' }}>
+            <div
+              className="pure-u-1-1"
+              style={{
               height: '100%',
               marginLeft: '2em',
               marginRight: '2em',
-            }}
-          >
-            {loggedInMenuItems}
-            { state.context ? app : 
-              <Onboarding configuration={configuration} setContext={setContext} />
-            }
+              }}>
+                {onboardingOrNavAndApp}
+            </div>
           </div>
         </div>
-      </div>
-      {state.toastVisible && <Toast />}
+        {state.toastVisible && <Toast />}
     </div>
-  </HyphenContext.Provider>;
+  </HyphenContext.Provider>);
 };
 
 export default hot(module)(Hyphen);

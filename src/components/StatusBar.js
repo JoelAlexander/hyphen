@@ -9,7 +9,11 @@ import Address from './Address';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 const ethers = require("ethers");
 
-const StatusBar = ({ logout, blockNumber, entries }) => {
+const StatusBar = ({
+  logout,
+  blockNumber,
+  entries
+}) => {
   const handleCloseModal = () => setShowModal(false);
   const handleOpenModal = (e) => {
     setShowModal(true);

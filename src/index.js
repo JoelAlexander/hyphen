@@ -9,9 +9,7 @@ import './styles.css';
 
 function runApp(serviceWorkerRegistration) {
 	ReactDOM.render(
-	  <Hyphen
-			configuration={configuration}
-			serviceWorkerRegistration={serviceWorkerRegistration} />,
+	  <Hyphen configuration={({...configuration, serviceWorkerRegistration: serviceWorkerRegistration })} />,
 	  document.getElementById('root'));
 }
 

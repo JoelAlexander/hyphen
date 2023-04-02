@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import RecipeViewer from './RecipeViewer';
 import { threeOrFewerDecimalPlaces } from '../Utils';
+import Select from 'react-select';
+import NumericInput from 'react-numeric-input';
+
+import './Recipes.css';
 
 const RecipeEditor = ({
   recipe,
@@ -66,7 +70,9 @@ const RecipeEditor = ({
       (option) => option.value === ingredients[index][1],
     );
 
-    const amount = ingredients[index][2] === '' ? '' : threeOrFewerDecimalPlaces(ingredients[index][2] / 1000);
+    const formatAmount = (value) => {
+      return parseFloat(value) === 0 ? '' : value;
+    };
 
     return (
       <div key={`Ingredient ${index}`} className="pure-g">
@@ -83,14 +89,15 @@ const RecipeEditor = ({
         </div>
         <div className="pure-u-1-3">
           <label>
-            <input
-              type="number"
-              step="0.001"
-              value={amount}
-              min="0"
-              onChange={(event) =>
-                handleIngredientChange(index, 2, event.target.value)
-              }
+            <NumericInput
+              format={formatAmount}
+              min={0}
+              max={1000}
+              precision={3}
+              value={ingredients[index][2] / 1000}
+              onChange={(valueAsNumber, valueAsString) => handleIngredientChange(index, 2, Math.floor(valueAsNumber * 1000))}
+              placeholder="Enter a number"
+              strict
             />
           </label>
         </div>
@@ -148,4 +155,4 @@ const RecipeEditor = ({
   );
 };
 
-export default RecipeViewer;
+export default RecipeEditor;
