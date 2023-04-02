@@ -231,9 +231,9 @@ const Hyphen = ({ configuration }) => {
       onSelectSubmenu={handleSelectSubmenu} />}
   </>;
 
-  const onboardingOrNavAndApp = <>
+  const onboardingOrNavAndApp = <div className="main-content">
     {(!state.context && <Onboarding configuration={configuration} setContext={setContext} />) || navOrApp}
-  </>
+  </div>
 
   const statusBar = state.context ?
     <StatusBar
@@ -244,23 +244,23 @@ const Hyphen = ({ configuration }) => {
 
   return (
     <HyphenContext.Provider value={state.context}>
-      <div>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'inline-block', width: '100%' }}>
           {statusBar}
-          <div className="pure-g" style={{ width: '100%', height: '100%' }}>
-            <div
-              className="pure-u-1-1"
-              style={{
-              height: '100%',
-              marginLeft: '2em',
-              marginRight: '2em',
-              }}>
-                {onboardingOrNavAndApp}
-            </div>
+        </div>
+        <div style={{ display: 'inline-block', flex: '1', width: '100%', height: '100%' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+            paddingLeft: '2em',
+            paddingRight: '2em' }}>
+            {onboardingOrNavAndApp}
           </div>
         </div>
         {state.toastVisible && <Toast />}
-    </div>
+      </div>
   </HyphenContext.Provider>);
 };
 

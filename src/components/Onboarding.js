@@ -103,15 +103,7 @@ const Onboarding = ({ configuration, setContext }) => {
     walletConnectProvider.on("accountsChanged", handleAccountsChanged);
     walletConnectProvider.on("chainChanged", handleAccountsChanged);
     walletConnectProvider.on("disconnect", () => { setState(createInitialLoggedOutState()); });
-    walletConnectProvider.enable()
-      .then(
-        value => {
-          // addMessage("WalletConnect suceeded: " + JSON.stringify(value));
-        },
-        reason => {
-          // addMessage("Enable failed: " + JSON.stringify(reason));
-          // setContext(null);
-    });
+    walletConnectProvider.enable();
   };
 
   const promptForUserString = () => {

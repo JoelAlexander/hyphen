@@ -19,6 +19,7 @@
   top: 0em;
   background: var(--background-color);
   border-bottom: 1px dotted var(--border-color);
+  z-index: 100;
 }
 
 .account-status-block {
@@ -80,4 +81,20 @@
 .address p {
   margin: 0;
   font-size: 1.25rem;
+}
+
+.main-content {
+  height: 100%;
+}
+
+@media screen and (orientation: portrait) {
+  .main-content {
+    width: 100%;
+  }
+}
+
+@media screen and (orientation: landscape) {
+  .main-content {
+    width: 61.8%;
+  }
 }
