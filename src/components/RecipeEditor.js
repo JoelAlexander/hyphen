@@ -30,13 +30,15 @@ const RecipeEditor = ({
   };
 
   const handleIngredientChange = (index, field, value) => {
-    const newIngredients = [...ingredients];
+    const newIngredients =
+      index === (ingredients.length - 1) ?
+      [...ingredients, ['', '', 0]] : [...ingredients];
     newIngredients[index][field] = value;
     setIngredients(newIngredients);
   };
 
   const handleStepChange = (index, value) => {
-    const newSteps = steps.slice();
+    const newSteps = index === (steps.length - 1) ? [...steps, ''] : [...steps];
     newSteps[index] = value;
     setSteps(newSteps);
   };
@@ -116,7 +118,7 @@ const RecipeEditor = ({
     );
   });
 
-  const stepInputs = steps.map((step,index) => {
+  const stepInputs = steps.map((step, index) => {
     const label = (index + 1).toString() + '.';
     return (
       <label key={`Step ${index}`}>
