@@ -2,6 +2,7 @@ import React from 'react';
 import Cookies from 'js-cookie';
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import { ethers } from 'ethers';
+import './Onboarding.css';
 
 const Onboarding = ({ configuration, setContext }) => {
 
@@ -115,9 +116,28 @@ const Onboarding = ({ configuration, setContext }) => {
 
   return (
     <div className="onboarding-container">
-      <button onClick={() => loginWithHouseWallet()}>Use house account</button>
-      <button onClick={() => loginWithWalletConnect()}>Connect wallet</button>
-      <button onClick={() => promptForUserString()}>Login with user string</button>
+      <div className="tiles-container">
+        <div className="tile" onClick={() => loginWithHouseWallet()}>
+          <span role="img" aria-label="house">
+            🏠
+          </span>
+          <p>Use house account</p>
+        </div>
+        <div className="tile" onClick={() => loginWithWalletConnect()}>
+          <span role="img" aria-label="connect">
+            🔗
+          </span>
+          <p>Connect wallet</p>
+        </div>
+      </div>
+      <div className="tiles-container">
+        <div className="tile" onClick={() => promptForUserString()}>
+          <span role="img" aria-label="user">
+            📝
+          </span>
+          <p>Login with user string</p>
+        </div>
+      </div>
     </div>
   );
 };

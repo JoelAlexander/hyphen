@@ -37,6 +37,21 @@ const MutableStringSet = (props) => {
       (error) => context.addMessage(JSON.stringify(error)));
   };
 
+  const removeString = (str) => {
+    const getContract = () => {
+      return new ethers.Contract(
+        props.contractAddress,
+        StringSet.abi,
+        context.signer);
+    };
+
+    context.executeTransaction(
+      getContract().remove(str),
+      (receipt) => setContents(prevContents => prevContents.filter(item => item !== str)),
+      (error) => context.addMessage(JSON.stringify(error)));
+  };
+
+
   const handleAddString = (event) => {
     event.preventDefault();
     if (newString && newString.length > 0) {
@@ -50,7 +65,10 @@ const MutableStringSet = (props) => {
   };
 
   const contentsList = contents.map((item, index) => {
-    return <p key={index}>{item}</p>;
+    return <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+        <p style={{ marginRight: '5px' }}>{item}</p>
+        <button onClick={() => removeString(item)}>x</button>
+    </div>
   });
 
   return (

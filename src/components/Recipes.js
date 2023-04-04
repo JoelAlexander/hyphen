@@ -144,9 +144,6 @@ const Recipes = (props) => {
         recipe={displayRecipe}
         startEditing={startEditing}
         removeRecipe={removeRecipe} />
-      <MutableStringSet
-        contractAddress="measures.hyphen"
-        addMessage={context.addMessage} />
     </div>
   );
 }

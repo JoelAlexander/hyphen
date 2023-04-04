@@ -1,0 +1,37 @@
+.onboarding-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.tiles-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 20px;
+  margin: 10px;
+  cursor: pointer;
+  width: 150px;
+  height: 150px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.tile:hover {
+  background-color: #e0e0e0;
+}
+
+.tile p {
+  margin-top: 10px;
+  text-align: center;
+}

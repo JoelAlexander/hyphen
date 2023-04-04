@@ -3,6 +3,7 @@ import HyphenContext from './HyphenContext';
 import { AuthorizedFaucet, IAuthorizer } from '@local-blockchain-toolbox/contract-primitives';
 import { toEthAmountString } from '../Utils';
 import YourEnsName from './YourEnsName.js';
+import CreateInvitationCode from './CreateInvitationCode';
 
 const ethers = require("ethers");
 
@@ -129,8 +130,8 @@ const Account = (props) => {
     <div>
       {concierge}
       {faucet}
-      <YourEnsName
-        houseWallet={context.houseWallet} />
+      <YourEnsName houseWallet={context.houseWallet} />
+      <CreateInvitationCode />
     </div>
   );
 };

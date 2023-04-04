@@ -6,54 +6,69 @@ import HyphenContext from './HyphenContext';
 import Splash from './Splash.js';
 import Account from './Account.js';
 import Recipes from './Recipes.js';
+import RecipeSettings from './RecipeSettings.js';
 import RecipePreparation from './RecipePreparation.js';
 import StatusBar from './StatusBar.js';
 import Onboarding from './Onboarding';
 import Faq from './Faq.js';
 import Toast from './Toast';
 import './Hyphen.css';
+import './NavMenu.css'
 const ethers = require("ethers");
 
 const menuItems = [
   {
     label: 'Account',
+    emoji: '👤',
     component: Account,
   },
   {
     label: 'Food',
+    emoji: '🍽️',
     submenu: [
       {
         label: 'Meal planning',
+        emoji: '📅',
         component: RecipePreparation,
       },
       {
         label: 'Recipes',
+        emoji: '📚',
         component: Recipes,
+      },
+      {
+        label: 'Settings',
+        emoji: '⚙️',
+        component: RecipeSettings,
       }
     ],
   },
   {
     label: 'Help',
+    emoji: '❓',
     component: Faq
   }
 ];
 
 const NavMenu = ({ items, onSelectComponent, onSelectSubmenu }) => (
-  <ul>
+  <div className="nav-menu">
     {items.map((item, index) => (
-      <li key={index}>
-        {item.component ? (
-          <button onClick={() => onSelectComponent(item.component)}>
-            {item.label}
-          </button>
-        ) : (
-          <button onClick={() => onSelectSubmenu(item.submenu)}>
-            {item.label}
-          </button>
-        )}
-      </li>
+      <div
+        key={index}
+        className="nav-menu-item"
+        onClick={
+          item.component
+            ? () => onSelectComponent(item.component)
+            : () => onSelectSubmenu(item.submenu)
+        }
+      >
+        <span role="img" aria-label={item.label}>
+          {item.emoji}
+        </span>
+        <p>{item.label}</p>
+      </div>
     ))}
-  </ul>
+  </div>
 );
 
 const Hyphen = ({ configuration }) => {
