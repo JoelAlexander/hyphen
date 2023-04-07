@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import Cookies from 'js-cookie';
+import Toast from './Toast';
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import { ethers } from 'ethers';
+import Blockies from 'react-blockies';
+import { CopyToClipboard } from 'react-copy-to-clipboard';
+import './Hyphen.css';
 import './Onboarding.css';
 
 const getProvider = (configuration) => {
@@ -54,12 +58,13 @@ const InviteCode = ({ configuration, goToUniquePassphrase }) => {
   );
 };
 
-const UniquePassphrase = ({ configuration, loginWithWallet }) => {
+const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, loginWithWallet }) => {
   const [passphrase, setPassphrase] = useState('');
   const [isInProgress, setIsInProgress] = useState(false);
+  const [inviteCode, setInviteCode] = useState(sessionStorage.getItem('inviteCode'));
 
+  const fingerprint = getFingerprint();
   const setupAccount = async () => {
-    const inviteCode = sessionStorage.getItem('inviteCode');
     if (inviteCode) {
       setIsInProgress(true);
       const inviteWallet = new ethers.Wallet(inviteCode, getProvider(configuration));
@@ -69,6 +74,13 @@ const UniquePassphrase = ({ configuration, loginWithWallet }) => {
       const gasLimit = 21000;
       const gasPrice = await inviteWallet.provider.getGasPrice();
       const amountMinusGas = amount.sub(gasPrice.mul(gasLimit))
+      if (!amountMinusGas.gt(0)) {
+        sessionStorage.removeItem('inviteCode');
+        setInviteCode(null);
+        alert('Invite code has already been used, sorry.');
+        return;
+      }
+
       try {
         const transaction = await inviteWallet.sendTransaction({
           to: userWallet.address,
@@ -80,6 +92,7 @@ const UniquePassphrase = ({ configuration, loginWithWallet }) => {
 
         const receipt = await transaction.wait();
         if (receipt.status === 1) {
+          sessionStorage.removeItem('inviteCode');
           loginWithWallet(userWallet, configuration);
         } else {
           setIsInProgress(false);
@@ -95,12 +108,15 @@ const UniquePassphrase = ({ configuration, loginWithWallet }) => {
     }
   };
 
+  const buttonText = inviteCode ? "Set up your account" : "Log in"
+
   return (
     <div>
+      <div>
       <h3>Enter unique passphrase</h3>
       <p>
         Your account is accessed by a passphrase, that's tied to the fingerprint in your browser. You will only be able
-        to access the account on a browser that has the fingerprint. You can forget, export, and import fingerprints.
+        to access the account on a browser that has the fingerprint.
       </p>
       <input
         type="text"
@@ -110,24 +126,42 @@ const UniquePassphrase = ({ configuration, loginWithWallet }) => {
       />
       {passphrase && (
         <button onClick={setupAccount} disabled={isInProgress}>
-          Set up account
+          {buttonText}
         </button>
       )}
+      <p>
+        Current fingerprint:
+      </p>
+      <CopyToClipboard text={fingerprint} onCopy={showToast}>
+        <span><Blockies seed={fingerprint} /></span>
+      </CopyToClipboard>
       {isInProgress && <p>Setting up your account...</p>}
+      </div>
+      <div>
+      <button
+        style={{
+          backgroundColor: 'red',
+          color: 'white',
+          borderRadius: '4px',
+          marginTop: '1rem',
+          padding: '0.5rem 1rem',
+          cursor: 'pointer',
+          border: 'none',
+        }}
+        onClick={forgetFingerprint}>
+        Forget fingerprint
+      </button>
+      </div>
     </div>
   );
 };
 
-const ImportFingerprint = ({ configuration, setContext }) => {
+const ImportFingerprint = ({ showToast, goToLogin, configuration, setContext }) => {
   const [fingerprint, setFingerprint] = useState('');
 
   const importAccount = () => {
     Cookies.set('fingerprint', fingerprint);
-    const wallet = createDeterministicWallet(fingerprint);
-    setContext({
-      ...createContext(wallet, configuration),
-      loginMethod: 'FingerprintImport',
-    });
+    goToLogin()
   };
 
   return (
@@ -144,6 +178,14 @@ const ImportFingerprint = ({ configuration, setContext }) => {
           Import
         </button>
       )}
+      {fingerprint && (
+        <div>
+          <p>Current input fingerprint:</p>
+          <CopyToClipboard text={fingerprint} onCopy={showToast}>
+            <span><Blockies seed={fingerprint} /></span>
+          </CopyToClipboard>
+        </div>
+      )}
     </div>
   );
 };
@@ -151,18 +193,47 @@ const ImportFingerprint = ({ configuration, setContext }) => {
 
 const Onboarding = ({ configuration, setContext }) => {
 
-  const loginWithWallet = (wallet) => {
-    setContext({
-      configuration: configuration,
-      "houseWallet": createDeterministicWallet(configuration, ''),
-      "loginMethod": "DeterministicWallet",
-      "provider": wallet.provider,
-      "signer": wallet,
-      "address": wallet.address
-    });
+  const loginWithWallet = async (wallet) => {
+    try {
+      const balance = await wallet.getBalance();
+
+      if (balance.gt(0)) {
+        setContext({
+          configuration: configuration,
+          "houseWallet": createDeterministicWallet(configuration, ''),
+          "loginMethod": "DeterministicWallet",
+          "provider": wallet.provider,
+          "signer": wallet,
+          "address": wallet.address
+        });
+      } else {
+        alert(`Account not recognized on the network: ${wallet.address}`);
+      }
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+    }
   };
 
-  const [step, setStep] = useState('splash');
+  const [toastVisible, setToastVisible] = useState(false);
+
+  const showToast = () => {
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 3000);
+  };
+
+  const [step, setStep] = useState(() => {
+    const fingerprintExists = !!Cookies.get('fingerprint');
+    return fingerprintExists ? 'uniquePassphrase' : 'splash';
+  });
+
+  const [fingerprint, setFingerprint] = useState(Cookies.get('fingerprint'));
+  const forgetFingerprint = () => {
+    if (window.confirm('Are you sure you want to forget this fingerprint?  Make sure you\'ve copied it to a safe place if you want to import it later.')) {
+      Cookies.remove("fingerprint");
+      setFingerprint(Cookies.get('fingerprint'));
+      setStep('splash');
+    }
+  };
 
   const goToInviteCode = () => setStep('inviteCode');
   const goToImportFingerprint = () => setStep('importFingerprint');
@@ -178,11 +249,14 @@ const Onboarding = ({ configuration, setContext }) => {
           <button onClick={goToUniquePassphrase}>➡️ Continue without an invite code</button>
         </div>
       )}
-      <div className="onboarding-content">
-        {step === 'inviteCode' && <InviteCode configuration={configuration} goToUniquePassphrase={goToUniquePassphrase} />}
-        {step === 'uniquePassphrase' && <UniquePassphrase configuration={configuration} loginWithWallet={loginWithWallet} />}
-        {step === 'importFingerprint' && <ImportFingerprint configuration={configuration} setContext={setContext} />}
-      </div>
+      {step !== 'splash' &&
+        <div className="onboarding-content">
+          {step === 'inviteCode' && <InviteCode configuration={configuration} goToUniquePassphrase={goToUniquePassphrase} />}
+          {step === 'uniquePassphrase' && <UniquePassphrase showToast={showToast} forgetFingerprint={forgetFingerprint} configuration={configuration} loginWithWallet={loginWithWallet} />}
+          {step === 'importFingerprint' && <ImportFingerprint showToast={showToast} goToLogin={goToUniquePassphrase} configuration={configuration} setContext={setContext} />}
+        </div>
+      }
+      {toastVisible && <Toast />}
     </div>
   );
 };
