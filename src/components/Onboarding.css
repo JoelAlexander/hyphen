@@ -3,6 +3,8 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  height: 100vh;
+  background-color: #f0f0f0;
 }
 
 .tiles-container {
@@ -34,4 +36,51 @@
 .tile p {
   margin-top: 10px;
   text-align: center;
+}
+
+.onboarding-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 50%;
+  padding: 2em;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.onboarding-content h1,
+.onboarding-content h3 {
+  color: #373a47;
+  margin-bottom: 1em;
+}
+
+.onboarding-content button {
+  margin-top: 1em;
+  padding: 0.5em 1em;
+  font-size: 1em;
+  color: white;
+  background-color: #373a47;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.onboarding-content button:hover {
+  background-color: #a90000;
+}
+
+.onboarding-content input {
+  width: 100%;
+  padding: 0.5em;
+  margin-bottom: 1em;
+  font-size: 1em;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+}
+
+.onboarding-content p {
+  color: #0077cc;
 }
