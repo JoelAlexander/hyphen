@@ -20,6 +20,7 @@ if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
 		})
 		.catch(registrationError => {
 			console.log('SW registration failed: ', registrationError);
+			runApp(null);
 		});
 	});
 } else {

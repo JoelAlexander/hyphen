@@ -9,3 +9,4 @@ artifacts/**
 src/abi/**
 *.dbg.json
 **/configuration.json
+stats.json
