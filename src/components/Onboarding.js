@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
 import Toast from './Toast';
 import WalletConnectProvider from '@walletconnect/web3-provider';
@@ -36,12 +36,18 @@ const InviteCode = ({ configuration, goToUniquePassphrase }) => {
   const [inviteCode, setInviteCode] = useState('');
   const [isValid, setIsValid] = useState(null);
 
+  useEffect(() => {
+    if (isValid) {
+      goToUniquePassphrase();
+    }
+  }, [isValid]);
+
   const validateInviteCode = async () => {
     try {
       const wallet = new ethers.Wallet(inviteCode, getProvider(configuration));
       const balance = await wallet.getBalance();
-      setIsValid(ethers.utils.formatEther(balance) > 0);
       sessionStorage.setItem('inviteCode', inviteCode);
+      setIsValid(ethers.utils.formatEther(balance) > 0);
     } catch (error) {
       setIsValid(false);
     }
@@ -53,7 +59,6 @@ const InviteCode = ({ configuration, goToUniquePassphrase }) => {
       <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} />
       <button onClick={validateInviteCode}>Validate</button>
       {isValid === false && <p>Not a valid invite code.</p>}
-      {isValid === true && <button onClick={goToUniquePassphrase}>Get Started</button>}
     </div>
   );
 };
@@ -112,46 +117,55 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, loginWi
 
   return (
     <div>
-      <div>
       <h3>Enter unique passphrase</h3>
-      <p>
-        Your account is accessed by a passphrase, that's tied to the fingerprint in your browser. You will only be able
-        to access the account on a browser that has the fingerprint.
-      </p>
-      <input
-        type="text"
-        value={passphrase}
-        onChange={(e) => setPassphrase(e.target.value)}
-        disabled={isInProgress}
-      />
-      {passphrase && (
-        <button onClick={setupAccount} disabled={isInProgress}>
-          {buttonText}
-        </button>
-      )}
-      <p>
-        Current fingerprint:
-      </p>
-      <CopyToClipboard text={fingerprint} onCopy={showToast}>
-        <span><Blockies seed={fingerprint} /></span>
-      </CopyToClipboard>
-      {isInProgress && <p>Setting up your account...</p>}
-      </div>
+      {!isInProgress && (<>
+        <p>
+          Your account is accessed by a passphrase, that's tied to the fingerprint in your browser. You will only be able
+          to access the account on a browser that has the fingerprint.
+        </p>
+        <input
+          type="text"
+          value={passphrase}
+          onChange={(e) => setPassphrase(e.target.value)}
+          disabled={isInProgress}
+          autoCapitalize="none"
+        />
+        {passphrase && (
+          <button onClick={setupAccount} style={{marginBottom: '1em'}} >
+            {buttonText}
+          </button>
+        )}
+        <CopyToClipboard text={fingerprint} onCopy={showToast}>
+          <div style={{display: 'flex', alignItems: 'center'}} >
+            <Blockies seed={fingerprint} />
+            <span style={{ marginLeft: '0.5rem' }}>Copy fingerprint</span>
+          </div>
+        </CopyToClipboard>
+        <div>
+          <button
+            style={{
+              backgroundColor: 'red',
+              color: 'white',
+              borderRadius: '4px',
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              cursor: 'pointer',
+              border: 'none',
+            }}
+            onClick={forgetFingerprint}>
+            Forget fingerprint
+          </button>
+        </div>
+      </>
+    )}
+
+    {isInProgress && (
       <div>
-      <button
-        style={{
-          backgroundColor: 'red',
-          color: 'white',
-          borderRadius: '4px',
-          marginTop: '1rem',
-          padding: '0.5rem 1rem',
-          cursor: 'pointer',
-          border: 'none',
-        }}
-        onClick={forgetFingerprint}>
-        Forget fingerprint
-      </button>
+        <div className="spinner" />
+        <p>Setting up your account...</p>
       </div>
+    )}
+      
     </div>
   );
 };
@@ -182,7 +196,10 @@ const ImportFingerprint = ({ showToast, goToLogin, configuration, setContext }) 
         <div>
           <p>Current input fingerprint:</p>
           <CopyToClipboard text={fingerprint} onCopy={showToast}>
-            <span><Blockies seed={fingerprint} /></span>
+            <span>
+              <Blockies seed={fingerprint} />
+              <span style={{ marginLeft: '0.5rem' }}>Click to copy</span>
+            </span>
           </CopyToClipboard>
         </div>
       )}
