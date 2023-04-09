@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
-import { ENS, ENSRegistry, FIFSRegistrar, PublicResolver, ReverseRegistrar } from '@ensdomains/ens-contracts';
 import { ethers } from 'ethers';
 import namehash from 'eth-ens-namehash';
 
@@ -8,37 +7,19 @@ const YourEnsName = (props) => {
   const context = useContext(HyphenContext);
   const [state, setState] = useState({
     enteredLabelString: '',
-    ensContract: null,
-    resolverContract: null,
-    fifsRegistrarContract: null,
-    reverseRegistrarContract: null,
+    ensContract: context.getContract(context.configuration.ens),
+    resolverContract: context.getContract('resolver'),
+    fifsRegistrarContract: context.getContract('registrar.eth'),
+    reverseRegistrarContract: context.getContract('addr.reverse'),
     name: null,
   });
 
   useEffect(() => {
-    const ensContract = new ethers.Contract(
-      context.configuration.ens, ENS, context.signer);
-    setState(prevState => ({ ...prevState, ensContract }));
-
-    const resolveContracts = async () => {
-      const resolverAddress = await context.provider.resolveName('resolver');
-      const registrarAddress = await context.provider.resolveName('registrar.eth');
-      const reverseRegistrarAddress = await context.provider.resolveName('addr.reverse');
-
-      setState(prevState => ({
-        ...prevState,
-        resolverContract: new ethers.Contract(resolverAddress, PublicResolver, context.signer),
-        fifsRegistrarContract: registrarAddress ? new ethers.Contract(registrarAddress, FIFSRegistrar, context.signer) : null,
-        reverseRegistrarContract: new ethers.Contract(reverseRegistrarAddress, ReverseRegistrar, context.signer),
-      }));
-    };
-
-    resolveContracts();
     update();
   }, []);
 
   const update = () => {
-    context.provider.lookupAddress(context.address).then((name) => {
+    context.lookupAddress(context.address).then((name) => {
       setState(prevState => ({ ...prevState, name }));
     });
   };

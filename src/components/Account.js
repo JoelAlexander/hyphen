@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
-import { AuthorizedFaucet, IAuthorizer } from '@local-blockchain-toolbox/contract-primitives';
 import { toEthAmountString } from '../Utils';
 import YourEnsName from './YourEnsName.js';
 import CreateInvitationCode from './CreateInvitationCode';
@@ -9,6 +8,7 @@ const ethers = require("ethers");
 
 const Account = (props) => {
   const context = useContext(HyphenContext);
+  const faucetContract = context.getContract('faucet.hyphen');
   const [faucetBalance, setFaucetBalance] = useState(null);
   const [faucetBlock, setFaucetBlock] = useState(null);
   const [conciergeBalance, setConciergeBalance] = useState(null);
@@ -22,7 +22,6 @@ const Account = (props) => {
     const balance = await context.houseWallet.getBalance();
     setConciergeBalance(balance);
 
-    const faucetContract = getFaucetContract();
     const faucetResult = await faucetContract.balance();
     setFaucetBalance(faucetResult);
 
@@ -30,18 +29,20 @@ const Account = (props) => {
     setFaucetBlock(canUseResult);
 
     const authorizerAddress = await faucetContract.authorizer();
-    const authorizerContract = new ethers.Contract(authorizerAddress, IAuthorizer.abi, context.signer);
+    const authorizerContract = context.getContract('faucetauthorizer.hyphen')
+    authorizerContract.resolvedAddress.then((resolvedAddress) => {
+      if (authorizerAddress !== resolvedAddress) {
+        console.error('Authorizer address does not match ens')
+      }
+    })
+
     const isUserAuthorized = await authorizerContract.isAuthorized(context.address);
     setIsAuthorized(isUserAuthorized);
   };
 
-  const getFaucetContract = () => {
-    return new ethers.Contract("faucet.hyphen", AuthorizedFaucet.abi, context.signer);
-  };
-
   const claimDisbursement = () => {
     context.executeTransaction(
-      getFaucetContract().use(),
+      faucetContract.use(),
       (receipt) => update(),
       (error) => context.addMessage(JSON.stringify(error))
     );

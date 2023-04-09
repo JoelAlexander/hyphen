@@ -18,15 +18,12 @@ const Recipes = (props) => {
   const [editedRecipe, setEditedRecipe] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const context = useContext(HyphenContext);
+  const recipesContract = context.getContract('recipes.hyphen')
+  const measuresContract = context.getContract('measures.hyphen');
 
   useEffect(() => {
-    const measuresContract = new ethers.Contract(
-      "measures.hyphen",
-      StringSet.abi,
-      context.signer
-    );
 
-    getContract()
+    recipesContract
       .contents()
       .then((recipes) => {
         setRecipes(recipes);
@@ -41,21 +38,13 @@ const Recipes = (props) => {
     });
   }, []);
 
-  const getContract = () => {
-    return new ethers.Contract(
-      "recipes.hyphen",
-      RecipeSet.abi,
-      context.signer
-    );
-  };
-
   const selectRecipe = (index) => {
     setSelectedRecipe(index);
   };
 
   const addEditedRecipe = () => {
     context.executeTransaction(
-      getContract().create(
+      recipesContract.create(
         editedRecipe.name,
         editedRecipe.ingredients,
         editedRecipe.steps
@@ -72,7 +61,7 @@ const Recipes = (props) => {
 
   const removeRecipe = (recipeAddress) => {
     context.executeTransaction(
-      getContract().remove(recipeAddress),
+      recipesContract.remove(recipeAddress),
       () => {
         setSelectedRecipe(null);
         setEditing(false);
@@ -108,7 +97,7 @@ const Recipes = (props) => {
   };
 
   const update = () => {
-    getContract()
+    recipesContract
       .contents()
       .then((recipes) => {
         setRecipes(recipes);

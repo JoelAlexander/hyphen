@@ -13,7 +13,8 @@ import Onboarding from './Onboarding';
 import Faq from './Faq.js';
 import Toast from './Toast';
 import './Hyphen.css';
-import './NavMenu.css'
+import './NavMenu.css';
+const ensContracts = require('@ensdomains/ens-contracts')
 const ethers = require("ethers");
 
 const menuItems = [
@@ -83,7 +84,8 @@ const Hyphen = ({ configuration }) => {
       toastVisible: false,
       blockNumber: null,
       menu: [],
-      menuHistory: []
+      menuHistory: [],
+      transactionStatus: null
     };
   };
 
@@ -173,13 +175,22 @@ const Hyphen = ({ configuration }) => {
     });
   };
 
+  const getContract = (signer, address) => {
+    return new ethers.Contract(address, configuration.contracts[address], signer);
+  }
+
+  const lookupAddress = (provider, address) => {
+    return provider.lookupAddress(address)
+  }
+
   const setContext = (context) => {
-    if (!context) return;
     setState(prevState => {
       return {
         ...prevState,
         context: {
           ...context,
+          lookupAddress: ((address) => lookupAddress(context.provider, address)),
+          getContract: ((address) => getContract(context.signer, address)),
           executeTransaction: executeTransaction,
           addMessage: addMessage,
           showToast: showToast 

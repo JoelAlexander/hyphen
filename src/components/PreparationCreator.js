@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import Select from 'react-select';
-import RecipeSet from 'contracts/RecipeSet.sol/RecipeSet.json';
 const ethers = require("ethers");
 
 const PreparationCreator = (props) => {
@@ -11,7 +10,7 @@ const PreparationCreator = (props) => {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
   useEffect(() => {
-    new ethers.Contract("recipes.hyphen", RecipeSet.abi, context.signer)
+    contract.getContract("recipes.hyphen")
         .contents()
         .then((recipes) => {
             setRecipes(recipes);

@@ -7,16 +7,10 @@ const MutableStringSet = (props) => {
   const [contents, setContents] = useState([]);
   const [newString, setNewString] = useState("");
   const context = useContext(HyphenContext);
+  const contract = context.getContract(props.contractAddress);
 
   useEffect(() => {
-    const getContract = () => {
-      return new ethers.Contract(
-        props.contractAddress,
-        StringSet.abi,
-        context.signer);
-    };
-
-    getContract()
+    contract
       .contents()
       .then((result) => {
         setContents(result);
@@ -24,29 +18,15 @@ const MutableStringSet = (props) => {
   }, [context.signer, props.contractAddress]);
 
   const addString = (str) => {
-    const getContract = () => {
-      return new ethers.Contract(
-        props.contractAddress,
-        StringSet.abi,
-        context.signer);
-    };
-
     context.executeTransaction(
-      getContract().add(str),
+      contract.add(str),
       (receipt) => setContents(prevContents => [...prevContents, str]),
       (error) => context.addMessage(JSON.stringify(error)));
   };
 
   const removeString = (str) => {
-    const getContract = () => {
-      return new ethers.Contract(
-        props.contractAddress,
-        StringSet.abi,
-        context.signer);
-    };
-
     context.executeTransaction(
-      getContract().remove(str),
+      contract.remove(str),
       (receipt) => setContents(prevContents => prevContents.filter(item => item !== str)),
       (error) => context.addMessage(JSON.stringify(error)));
   };
