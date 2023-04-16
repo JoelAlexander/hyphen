@@ -23,12 +23,11 @@ const StatusBar = ({
   const [state, setState] = useState({
     notificationPermission: Notification.permission,
     balance: null,
-    ensName: null,
-    address: null,
     toastVisible: false
   });
 
   const context = useContext(HyphenContext);
+  const address = context.address
 
   useEffect(() => {
     update();
@@ -36,21 +35,13 @@ const StatusBar = ({
 
   const update = () => {
     if (!context.signer) {
-      setState(prevState => ({ ...prevState, balance: null, ensName: null, address: null }));
+      setState(prevState => ({ ...prevState, balance: null }));
       return;
     }
 
     context.signer.getBalance().then((balance) => {
       setState(prevState => ({ ...prevState, balance }));
     });
-
-    context.signer.getAddress().then((address) => {
-      context.provider.lookupAddress(address).then((ensName) => {
-        setState(prevState => ({ ...prevState, ensName }));
-      });
-      setState(prevState => ({ ...prevState, address }));
-    });
-
   };
 
   const transactions = entries
@@ -62,8 +53,7 @@ const StatusBar = ({
   return (
     <div className="status-bar">
       <AccountStatus
-        address={state.address}
-        ensName={state.ensName}
+        address={address}
         balance={state.balance}
         onClick={handleOpenModal} />
       <Overlay show={showModal} target={state.target} placement="bottom" onHide={handleCloseModal} rootClose>
@@ -72,8 +62,8 @@ const StatusBar = ({
             <h4 className="address-heading">Your Account</h4>
           </div>
           <div className="d-flex align-items-center">
-            <Address address={state.address} ensName={state.ensName} />
-            <CopyToClipboard text={state.address} onCopy={context.showToast}>
+            <Address address={address} />
+            <CopyToClipboard text={address} onCopy={context.showToast}>
               <span className="clipboard-icon" style={{ cursor: "pointer" }}>📋</span>
             </CopyToClipboard>
           </div>

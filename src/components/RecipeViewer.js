@@ -1,26 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
+import Address from './Address'
 import { threeOrFewerDecimalPlaces } from '../Utils';
 
 const ethers = require("ethers");
 
 const RecipeViewer = (props) => {
-  const [authorName, setAuthorName] = useState(null);
   const context = useContext(HyphenContext);
-
-  useEffect(() => {
-    update();
-  }, [props.recipe]);
-
-  const update = () => {
-    if (props.recipe && props.recipe.author) {
-      context.provider
-        .lookupAddress(props.recipe.author)
-        .then((authorName) => {
-          setAuthorName(authorName);
-        });
-    }
-  };
 
   const scalePercentage = props.scalePercentage ? (props.scalePercentage / 100) : 1;
   const ingredients =
@@ -60,7 +46,7 @@ const RecipeViewer = (props) => {
   var deleteButton;
   var authorship;
   if (props.recipe && props.recipe.author) {
-    authorship = <h4>Added by {authorName || props.recipe.author}</h4>;
+    authorship = <h4>Added by {<Address address={props.recipe.author} style={{ display: 'inline-block' }}/>}</h4>;
     editButton = props.startEditing ? <button onClick={() => props.startEditing(props.recipe)}>Edit</button> : null;
     deleteButton = props.removeRecipe ? <button onClick={() => props.removeRecipe(props.recipe.recipe)}>Delete</button> : null;
   }

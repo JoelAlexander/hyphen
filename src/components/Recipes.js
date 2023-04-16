@@ -7,6 +7,7 @@ import RecipeViewer from './RecipeViewer';
 import RecipeMenu from "./RecipeMenu";
 import RecipeEditor from "./RecipeEditor";
 import MutableStringSet from "./MutableStringSet";
+import Address from "./Address";
 const ethers = require("ethers");
 
 import './Recipes.css';
