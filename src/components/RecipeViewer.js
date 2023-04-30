@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import Address from './Address'
+import AddressCuration from './AddressCuration'
 import { threeOrFewerDecimalPlaces } from '../Utils';
 
 const ethers = require("ethers");
@@ -58,13 +59,12 @@ const RecipeViewer = (props) => {
           <h3>{props.recipe && props.recipe.name}</h3>
           {authorship}
         </div>
-        <div className="pure-u-1-3">
-          {editButton}
-          {deleteButton}
-        </div>
       </div>
       {ingredientsSection}
       {stepsSection}
+      {props.recipe && props.recipe.recipe && <AddressCuration address={props.recipe.recipe} />}
+      {editButton}
+      {deleteButton}
     </div>
   );
 };

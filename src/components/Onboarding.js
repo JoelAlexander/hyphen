@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Cookies from 'js-cookie';
 import Toast from './Toast';
 import WalletConnectProvider from '@walletconnect/web3-provider';
-import { ethers } from 'ethers';
 import Blockies from 'react-blockies';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
+import HyphenContext from './HyphenContext';
+import YourEnsName from './YourEnsName';
 import './Hyphen.css';
 import './Onboarding.css';
+const ethers = require("ethers");
 
 const getProvider = (configuration) => {
   const provider = new ethers.providers.JsonRpcProvider(
@@ -29,7 +31,9 @@ const getFingerprint = () => {
 const createDeterministicWallet = (configuration, userString) => {
   const fingerprint = getFingerprint();
   const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(fingerprint + userString));
-  return new ethers.Wallet(privateKey, getProvider(configuration));
+  const provider = getProvider(configuration);
+  const wallet =  new ethers.Wallet(privateKey, provider);
+  return wallet;
 };
 
 const InviteCode = ({ configuration, goToUniquePassphrase }) => {
@@ -63,7 +67,7 @@ const InviteCode = ({ configuration, goToUniquePassphrase }) => {
   );
 };
 
-const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, loginWithWallet }) => {
+const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, setWallet }) => {
   const [passphrase, setPassphrase] = useState('');
   const [isInProgress, setIsInProgress] = useState(false);
   const [inviteCode, setInviteCode] = useState(sessionStorage.getItem('inviteCode'));
@@ -98,7 +102,7 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, loginWi
         const receipt = await transaction.wait();
         if (receipt.status === 1) {
           sessionStorage.removeItem('inviteCode');
-          loginWithWallet(userWallet, configuration);
+          setWallet(userWallet, configuration);
         } else {
           setIsInProgress(false);
           alert('Failed to set up your account. Please try again.');
@@ -108,8 +112,7 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, loginWi
         alert(`Error: ${error.message}`);
       }
     } else {
-      const userWallet = createDeterministicWallet(configuration, passphrase);
-      loginWithWallet(userWallet, configuration);
+      setWallet(createDeterministicWallet(configuration, passphrase));
     }
   };
 
@@ -127,6 +130,11 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, loginWi
           type="text"
           value={passphrase}
           onChange={(e) => setPassphrase(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.keyCode === 13 && passphrase) {
+              setupAccount();
+            }
+          }}
           disabled={isInProgress}
           autoCapitalize="none"
         />
@@ -185,6 +193,11 @@ const ImportFingerprint = ({ showToast, goToLogin, configuration, setContext }) 
         type="text"
         value={fingerprint}
         onChange={(e) => setFingerprint(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.keyCode === 13 && fingerprint) {
+            importAccount();
+          }
+        }}
         placeholder="Enter fingerprint"
       />
       {fingerprint && (
@@ -207,43 +220,78 @@ const ImportFingerprint = ({ showToast, goToLogin, configuration, setContext }) 
   );
 };
 
+const ClaimName = ({ setName }) => {
+  return (
+    <div>
+      <h3>Claim your ENS name</h3>
+      <YourEnsName onNameSet={setName} />
+    </div>
+  );
+};
+
 
 const Onboarding = ({ configuration, setContext }) => {
 
-  const loginWithWallet = async (wallet) => {
-    try {
-      const balance = await wallet.getBalance();
+  const [toastVisible, setToastVisible] = useState(false);
+  const [fingerprint, setFingerprint] = useState(Cookies.get('fingerprint'));
+  const [wallet, setWallet] = useState(null);
+  // const [balance, setBalance] = useState(null);
+  const [[balance, name], setBalanceAndName] = useState([null, null]);
+  const [step, setStep] = useState(() => {
+    const fingerprintExists = !!Cookies.get('fingerprint');
+    return fingerprintExists ? 'uniquePassphrase' : 'splash';
+  });
 
-      if (balance.gt(0)) {
+  useEffect(() => {
+    if (wallet != null) {
+      wallet.getBalance()
+        .then((balance) => {
+          return wallet.provider
+            .lookupAddress(wallet.address)
+            .then((name) => {
+              setBalanceAndName([balance, name])
+            })
+        })
+    }
+  }, [wallet])
+
+  useEffect(() => {
+    if (wallet && balance && balance.gt(0)) {
+      const walletContext = {
+        lookupAddress: ((address) => lookupAddress(wallet.provider, address)),
+        getContract: ((address) => getContract(wallet, address)),
+        configuration: configuration,
+        houseWallet: createDeterministicWallet(configuration, ''),
+        loginMethod: "DeterministicWallet",
+        provider: wallet.provider,
+        signer: wallet,
+        address: wallet.address
+      }
+      if (name != null) {
         setContext({
-          configuration: configuration,
-          "houseWallet": createDeterministicWallet(configuration, ''),
-          "loginMethod": "DeterministicWallet",
-          "provider": wallet.provider,
-          "signer": wallet,
-          "address": wallet.address
+          ...walletContext,
+          "name": name
         });
       } else {
-        alert(`Account not recognized on the network: ${wallet.address}`);
+        setContext(walletContext);
+        setStep("claimName");
       }
-    } catch (error) {
-      alert(`Error: ${error.message}`);
     }
-  };
-
-  const [toastVisible, setToastVisible] = useState(false);
+  }, [balance, name]);
 
   const showToast = () => {
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 3000);
   };
 
-  const [step, setStep] = useState(() => {
-    const fingerprintExists = !!Cookies.get('fingerprint');
-    return fingerprintExists ? 'uniquePassphrase' : 'splash';
-  });
+  const getContract = (signer, address) => {
+    return new ethers.Contract(address, configuration.contracts[address], signer);
+  };
 
-  const [fingerprint, setFingerprint] = useState(Cookies.get('fingerprint'));
+  const lookupAddress = (provider, address) => {
+    return provider.lookupAddress(address)
+  };
+
   const forgetFingerprint = () => {
     if (window.confirm('Are you sure you want to forget this fingerprint?  Make sure you\'ve copied it to a safe place if you want to import it later.')) {
       Cookies.remove("fingerprint");
@@ -269,8 +317,9 @@ const Onboarding = ({ configuration, setContext }) => {
       {step !== 'splash' &&
         <div className="onboarding-content">
           {step === 'inviteCode' && <InviteCode configuration={configuration} goToUniquePassphrase={goToUniquePassphrase} />}
-          {step === 'uniquePassphrase' && <UniquePassphrase showToast={showToast} forgetFingerprint={forgetFingerprint} configuration={configuration} loginWithWallet={loginWithWallet} />}
+          {step === 'uniquePassphrase' && <UniquePassphrase showToast={showToast} forgetFingerprint={forgetFingerprint} configuration={configuration} setWallet={setWallet} />}
           {step === 'importFingerprint' && <ImportFingerprint showToast={showToast} goToLogin={goToUniquePassphrase} configuration={configuration} setContext={setContext} />}
+          {step === 'claimName' && <ClaimName setName={(name) => setBalanceAndName([balance, name])} />}
         </div>
       }
       {toastVisible && <Toast />}

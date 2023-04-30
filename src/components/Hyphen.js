@@ -75,8 +75,9 @@ const NavMenu = ({ items, onSelectComponent, onSelectSubmenu }) => (
 const Hyphen = ({ configuration }) => {
 
   const createInitialLoggedOutState = () => {
+
     return {
-      context: null,
+      context: {},
       menuStack: [menuItems],
       activeComponent: null,
       entries: [],
@@ -175,25 +176,16 @@ const Hyphen = ({ configuration }) => {
     });
   };
 
-  const getContract = (signer, address) => {
-    return new ethers.Contract(address, configuration.contracts[address], signer);
-  }
-
-  const lookupAddress = (provider, address) => {
-    return provider.lookupAddress(address)
-  }
-
   const setContext = (context) => {
     setState(prevState => {
       return {
         ...prevState,
         context: {
-          ...context,
-          lookupAddress: ((address) => lookupAddress(context.provider, address)),
-          getContract: ((address) => getContract(context.signer, address)),
           executeTransaction: executeTransaction,
+          executeTransaction2: executeTransaction2,
           addMessage: addMessage,
-          showToast: showToast 
+          showToast: showToast,
+          ...context
         }
       };
     });
@@ -232,6 +224,22 @@ const Hyphen = ({ configuration }) => {
     });
   };
 
+  const executeTransaction2 = (transactionResultPromise) => {
+    return transactionResultPromise.then((transactionResponse) => {
+      onTransactionResponse(transactionResponse);
+      return transactionResponse.wait().then((receipt) => {
+        onTransactionReceipt(receipt);
+        if (receipt.status) {
+          return receipt;
+        } else {
+          return Promise.reject("Transaction not successful.");
+        }
+      });
+    }).catch((reason) => {
+      addMessage("Error: " + JSON.stringify(reason));
+    });
+  };
+
   const watchAsset = () => {
     state.walletConnectProvider.send("wallet_watchAsset", {
       type: 'ERC20',
@@ -258,10 +266,10 @@ const Hyphen = ({ configuration }) => {
   </>;
 
   const onboardingOrNavAndApp = <div className="main-content">
-    {(!state.context && <Onboarding configuration={configuration} setContext={setContext} />) || navOrApp}
+    {(!state.context.signer || !state.context.name) && <Onboarding configuration={configuration} setContext={setContext} /> || navOrApp}
   </div>
 
-  const statusBar = state.context ?
+  const statusBar = state.context.signer && state.context.name ?
     <StatusBar
       logout={logout}
       address={state.context.address || 'logged-out'}

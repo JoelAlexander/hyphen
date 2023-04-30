@@ -29,6 +29,9 @@
     },
     "measures": {
       "source": "@local-blockchain-toolbox/contract-primitives/StringSet"
+    },
+    "curation": {
+      "source": "Curation"
     }
   }
 }

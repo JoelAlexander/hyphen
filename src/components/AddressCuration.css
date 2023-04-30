@@ -1,0 +1,31 @@
+.address-curation {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  background-color: #ccc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: 4px;
+}
+
+.tag input {
+  margin-left: 4px;
+}
+
+.tag button {
+  margin-left: 4px;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.add-tag-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  margin: 4px;
+}

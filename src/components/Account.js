@@ -131,7 +131,7 @@ const Account = (props) => {
     <div>
       {concierge}
       {faucet}
-      <YourEnsName houseWallet={context.houseWallet} />
+      <YourEnsName />
       <CreateInvitationCode />
     </div>
   );
