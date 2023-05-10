@@ -91,21 +91,24 @@ const Hyphen = ({ provider, configuration }) => {
 
   const getContract = (address) => {
     const abi = configuration.contracts[address];
-    const contractInteface = new ethers.utils.Interface(abi);
+    const contractInterface = new ethers.utils.Interface(abi);
     const contract = new ethers.Contract(address, abi, signer);
     return new Proxy({}, {
       get: (target, prop) => {
-        const functionFragment = contractInteface.getFunction(prop);
-        if (functionFragment.stateMutability === 'view' ) {
-          return (...args) => {
-            return contract.callStatic[prop](...args);
-          };
-        } else {
-          return async (...args) => {
-            return contract.populateTransaction[prop](...args).then(executeTransaction);
-          };
+        try {
+          const functionFragment = contractInterface.getFunction(prop);
+          if (functionFragment.stateMutability === 'view' ) {
+            return (...args) => {
+              return contract.callStatic[prop](...args);
+            };
+          } else {
+            return async (...args) => {
+              return contract.populateTransaction[prop](...args).then(executeTransaction);
+            };
+          }
+        } catch {
+          return contract[prop];
         }
-        return contract[prop];
       },
     });
   }

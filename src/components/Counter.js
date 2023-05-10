@@ -10,14 +10,22 @@ const Counter = () => {
 
   const fetchCount = () => {
     counterContract.count().then(setCount);
-  }
+  };
+
+  const incrementListener = (incrementer) => {
+    fetchCount();
+  };
 
   useEffect(() => {
+    counterContract.on('Incremented', incrementListener);
     fetchCount();
+    return () => {
+      counterContract.off('Incremented', incrementListener);
+    };
   }, []);
 
   const handleIncrement = () => {
-    counterContract.increment().then(fetchCount);
+    counterContract.increment();
   };
 
   return (
