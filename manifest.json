@@ -32,6 +32,9 @@
     },
     "curation": {
       "source": "Curation"
+    },
+    "counter": {
+      "source": "Counter"
     }
   }
 }

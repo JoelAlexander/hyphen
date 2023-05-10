@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import { ethers } from 'ethers';
 import namehash from 'eth-ens-namehash';
+import './Hyphen.css';
 
 const YourEnsName = ({onNameSet}) => {
   const context = useContext(HyphenContext);
@@ -11,14 +12,15 @@ const YourEnsName = ({onNameSet}) => {
   const reverseRegistrarContract = context.getContract('addr.reverse')
   const [name, setName] = useState(null);
   const [enteredLabelString, setEnteredLabelString] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState('');
 
   useEffect(() => {
     update();
   }, []);
 
   const update = () => {
-    return context.lookupAddress(context.address)
-      .then(setName);
+    return context.lookupAddress(context.address).then(setName);
   };
 
   const onEnteredLabelStringChanged = (event) => {
@@ -34,35 +36,27 @@ const YourEnsName = ({onNameSet}) => {
     const fullname = enteredLabelString + ".eth";
     const label = ethers.utils.id(enteredLabelString);
     const node = namehash.hash(fullname);
-    context.executeTransaction(
-      fifsRegistrarContract.register(label, context.address),
-      () => {
-        context.addMessage("Registration succeeded");
-        context.executeTransaction(
-          resolverContract['setAddr(bytes32,address)'](node, context.address),
-          () => {
-            context.addMessage("Address updated in resolver");
-            context.executeTransaction(
-              ensContract.setResolver(node, resolverContract.address),
-              () => {
-                context.addMessage("Resolver updated");
-                context.executeTransaction(
-                  reverseRegistrarContract.setName(fullname),
-                  () => {
-                    context.addMessage("Reverse record update succeeded.");
-                    update().then(() => onNameSet(fullname));
-                  },
-                  (reason) => { context.addMessage(JSON.stringify(reason)); }
-                );
-              },
-              (reason) => { context.addMessage(JSON.stringify(reason)); }
-            );
-          },
-          (reason) => { context.addMessage(JSON.stringify(reason)); }
-        );
-      },
-      (reason) => { context.addMessage(JSON.stringify(reason)); }
-    );
+    setCurrentStep('Registering name');
+    setIsLoading(true);
+    fifsRegistrarContract.register(label, context.address)
+      .then(() => {
+        setCurrentStep('Setting address');
+        return resolverContract['setAddr(bytes32,address)'](node, context.address)
+          .then(() => {
+            setCurrentStep('Setting resolver');
+            return ensContract.setResolver(node, resolverContract.address)
+              .then(() => {
+                setCurrentStep('Setting reverse record');
+                return reverseRegistrarContract.setName(fullname)
+                  .then(() => {
+                    return update().then(() => {
+                      onNameSet(fullname);
+                      setIsLoading(false);
+                    });
+                  })
+              });
+          });
+      }).catch((reason) => setIsLoading(false));
   };
 
   const releaseName = () => {
@@ -79,29 +73,20 @@ const YourEnsName = ({onNameSet}) => {
     const labelString = name.substring(0, suffixIndex);
     const label = ethers.utils.id(labelString);
     const node = namehash.hash(name);
-
-    context.executeTransaction(
-      resolverContract['setAddr(bytes32,address)'](node, ethers.constants.AddressZero),
-      () => {
-        context.addMessage("Cleared address");
+    setCurrentStep('Removing address');
+    setIsLoading(true);
+    resolverContract['setAddr(bytes32,address)'](node, ethers.constants.AddressZero)
+      .then(() => {
+        setCurrentStep('Removing resolver');
         update();
-        context.executeTransaction(
-          ensContract.setResolver(node, ethers.constants.AddressZero),
-          () => {
-            context.addMessage("Resolver cleared in registry");
-            context.executeTransaction(
-              fifsRegistrarContract.register(label, ethers.constants.AddressZero),
-              () => {
-                context.addMessage("Reclaimed node");
-              },
-              (reason) => { context.addMessage(JSON.stringify(reason)); }
-            );
-          },
-          (reason) => { context.addMessage(JSON.stringify(reason)); }
-        );
-      },
-      (reason) => { context.addMessage(JSON.stringify(reason)); }
-    );
+        return ensContract.setResolver(node, ethers.constants.AddressZero)
+          .then(() => {
+            setCurrentStep('Unregistering name');
+            return fifsRegistrarContract.register(label, ethers.constants.AddressZero)
+              .then(() => setIsLoading(false))
+          });
+      })
+      .catch((reason) => setIsLoading(false));
   };
 
   let action;
@@ -122,7 +107,17 @@ const YourEnsName = ({onNameSet}) => {
     action = <p>No registrar.eth found! {context.provider.network.ensAddress}</p>;
   }
 
-  return action;
+  return (
+    <div>
+      {!isLoading && action}
+      {isLoading && (
+        <div>
+          <div className="spinner"></div>
+          <p>{currentStep}</p>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default YourEnsName;

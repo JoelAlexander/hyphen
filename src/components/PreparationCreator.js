@@ -10,7 +10,7 @@ const PreparationCreator = (props) => {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
   useEffect(() => {
-    contract.getContract("recipes.hyphen")
+    context.getContract("recipes.hyphen")
         .contents()
         .then((recipes) => {
             setRecipes(recipes);

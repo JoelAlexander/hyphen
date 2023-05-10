@@ -18,19 +18,12 @@ const MutableStringSet = (props) => {
   }, [context.signer, props.contractAddress]);
 
   const addString = (str) => {
-    context.executeTransaction(
-      contract.add(str),
-      (receipt) => setContents(prevContents => [...prevContents, str]),
-      (error) => context.addMessage(JSON.stringify(error)));
+    contract.add(str).then(() => setContents(prevContents => [...prevContents, str]));
   };
 
   const removeString = (str) => {
-    context.executeTransaction(
-      contract.remove(str),
-      (receipt) => setContents(prevContents => prevContents.filter(item => item !== str)),
-      (error) => context.addMessage(JSON.stringify(error)));
+    contract.remove(str).then(() => setContents(prevContents => prevContents.filter(item => item !== str)));
   };
-
 
   const handleAddString = (event) => {
     event.preventDefault();

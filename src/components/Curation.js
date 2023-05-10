@@ -31,7 +31,7 @@ const Curation = () => {
   };
 
   const addTag = () => {
-    context.executeTransaction2(curationContract.addTag(address, tag))
+    curationContract.addTag(address, tag)
       .then(() => {
         fetchAllTags();
         fetchAllAddresses();
@@ -39,7 +39,7 @@ const Curation = () => {
   };
 
   const removeTag = () => {
-    context.executeTransaction2(curationContract.removeTag(address, tag))
+    curationContract.removeTag(address, tag)
       .then(() => {
         fetchAllTags();
         fetchAllAddresses();

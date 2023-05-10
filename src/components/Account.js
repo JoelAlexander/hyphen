@@ -41,11 +41,7 @@ const Account = (props) => {
   };
 
   const claimDisbursement = () => {
-    context.executeTransaction(
-      faucetContract.use(),
-      (receipt) => update(),
-      (error) => context.addMessage(JSON.stringify(error))
-    );
+    faucetContract.use().then((receipt) => update());
   };
 
   const take = async (amount) => {
@@ -56,33 +52,28 @@ const Account = (props) => {
     const gasCost = gasPrice.mul(gasAmount);
     const amountPlusGas = amount.add(gasCost);
     if (balance.gte(amountPlusGas)) {
-      context.executeTransaction(
-        context.houseWallet.sendTransaction({
-          to: context.signer.address,
-          value: amount,
-          gasLimit: gasAmount,
-          gasPrice: gasPrice,
-          type: 0x0
-        }),
-        (receipt) => update(),
-        (error) => context.addMessage(JSON.stringify(error))
-      );
+      // TODO: Reimplement house wallet
+      // context.executeTransaction(
+      //   context.houseWallet.sendTransaction({
+      //     to: context.signer.address,
+      //     value: amount,
+      //     gasLimit: gasAmount,
+      //     gasPrice: gasPrice,
+      //     type: 0x0
+      //   })
+      // ).then(() => update());
     }
   };
 
   const put = async (amount) => {
     const gasPrice = await context.signer.getGasPrice();
-    context.executeTransaction(
-      context.signer.sendTransaction({
+    context.executeTransaction({
         to: context.houseWallet.address,
         value: amount,
         gasLimit: 21000,
         gasPrice: gasPrice,
         type: 0x0
-      }),
-      (receipt) => update(),
-      (error) => context.addMessage(JSON.stringify(error))
-    );
+      }).then((receipt) => update());
   };
 
   const toHMSTime = (seconds) => {

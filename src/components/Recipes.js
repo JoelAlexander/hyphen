@@ -72,33 +72,25 @@ const Recipes = (props) => {
   };
 
   const addEditedRecipe = () => {
-    context.executeTransaction(
-      recipesContract.create(
-        editedRecipe.name,
-        editedRecipe.ingredients,
-        editedRecipe.steps
-      ),
-      () => {
-        setSelectedRecipe(null);
-        setEditing(false);
-        setEditedRecipe(null);
-        update();
-      },
-      (err) => context.addMessage(JSON.stringify(err))
-    );
+    recipesContract.create(
+      editedRecipe.name,
+      editedRecipe.ingredients,
+      editedRecipe.steps
+    ).then(() => {
+      setSelectedRecipe(null);
+      setEditing(false);
+      setEditedRecipe(null);
+      update();
+    });
   };
 
   const removeRecipe = (recipeAddress) => {
-    context.executeTransaction(
-      recipesContract.remove(recipeAddress),
-      () => {
-        setSelectedRecipe(null);
-        setEditing(false);
-        setEditedRecipe(null);
-        update();
-      },
-      (err) => context.addMessage(JSON.stringify(err))
-    );
+    recipesContract.remove(recipeAddress).then(() => {
+      setSelectedRecipe(null);
+      setEditing(false);
+      setEditedRecipe(null);
+      update();
+    });
   };
 
   const updateEditedRecipe = (recipe) => {

@@ -10,48 +10,21 @@ import './Hyphen.css';
 import './Onboarding.css';
 const ethers = require("ethers");
 
-const getProvider = (configuration) => {
-  const provider = new ethers.providers.JsonRpcProvider(
-    { url: configuration.url },
-    { name: "home", chainId: configuration.chainId, ensAddress: configuration.ens }
-  );
-  provider.polling = false;
-  return provider;
-}
-
-const getFingerprint = () => {
-  let fingerprint = Cookies.get("fingerprint");
-  if (!fingerprint) {
-    fingerprint = ethers.utils.hexlify(ethers.utils.randomBytes(32));
-    Cookies.set("fingerprint", fingerprint);
-  }
-  return fingerprint;
-}
-
-const createDeterministicWallet = (configuration, userString) => {
-  const fingerprint = getFingerprint();
-  const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(fingerprint + userString));
-  const provider = getProvider(configuration);
-  const wallet =  new ethers.Wallet(privateKey, provider);
-  return wallet;
-};
-
-const InviteCode = ({ configuration, goToUniquePassphrase }) => {
+const InviteCode = ({ setValidInviteCode }) => {
   const [inviteCode, setInviteCode] = useState('');
   const [isValid, setIsValid] = useState(null);
-
-  useEffect(() => {
-    if (isValid) {
-      goToUniquePassphrase();
-    }
-  }, [isValid]);
+  const context = useContext(HyphenContext);
 
   const validateInviteCode = async () => {
     try {
-      const wallet = new ethers.Wallet(inviteCode, getProvider(configuration));
+      const wallet = new ethers.Wallet(inviteCode, context.provider);
       const balance = await wallet.getBalance();
-      sessionStorage.setItem('inviteCode', inviteCode);
-      setIsValid(ethers.utils.formatEther(balance) > 0);
+      if (ethers.utils.formatEther(balance) > 0) {
+        setIsValid(true);
+        setValidInviteCode(inviteCode);
+      } else {
+        setIsValid(false);
+      }
     } catch (error) {
       setIsValid(false);
     }
@@ -67,25 +40,22 @@ const InviteCode = ({ configuration, goToUniquePassphrase }) => {
   );
 };
 
-const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, setWallet }) => {
+const UniquePassphrase = ({ fingerprint, forgetFingerprint, inviteCode, createWallet, setWallet }) => {
   const [passphrase, setPassphrase] = useState('');
   const [isInProgress, setIsInProgress] = useState(false);
-  const [inviteCode, setInviteCode] = useState(sessionStorage.getItem('inviteCode'));
+  const context = useContext(HyphenContext);
 
-  const fingerprint = getFingerprint();
   const setupAccount = async () => {
     if (inviteCode) {
       setIsInProgress(true);
-      const inviteWallet = new ethers.Wallet(inviteCode, getProvider(configuration));
-      const userWallet = createDeterministicWallet(configuration, passphrase);
+      const inviteWallet = new ethers.Wallet(inviteCode, context.provider);
+      const userWallet = createWallet(passphrase);
 
       const amount = await inviteWallet.getBalance();
       const gasLimit = 21000;
       const gasPrice = await inviteWallet.provider.getGasPrice();
       const amountMinusGas = amount.sub(gasPrice.mul(gasLimit))
       if (!amountMinusGas.gt(0)) {
-        sessionStorage.removeItem('inviteCode');
-        setInviteCode(null);
         alert('Invite code has already been used, sorry.');
         return;
       }
@@ -101,8 +71,7 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, setWall
 
         const receipt = await transaction.wait();
         if (receipt.status === 1) {
-          sessionStorage.removeItem('inviteCode');
-          setWallet(userWallet, configuration);
+          setWallet(userWallet);
         } else {
           setIsInProgress(false);
           alert('Failed to set up your account. Please try again.');
@@ -112,7 +81,7 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, setWall
         alert(`Error: ${error.message}`);
       }
     } else {
-      setWallet(createDeterministicWallet(configuration, passphrase));
+      setWallet(createWallet(passphrase));
     }
   };
 
@@ -143,12 +112,12 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, setWall
             {buttonText}
           </button>
         )}
-        <CopyToClipboard text={fingerprint} onCopy={showToast}>
+        {fingerprint && (<CopyToClipboard text={fingerprint} onCopy={context.showToast}>
           <div style={{display: 'flex', alignItems: 'center'}} >
             <Blockies seed={fingerprint} />
             <span style={{ marginLeft: '0.5rem' }}>Copy fingerprint</span>
           </div>
-        </CopyToClipboard>
+        </CopyToClipboard>)}
         <div>
           <button
             style={{
@@ -178,39 +147,39 @@ const UniquePassphrase = ({ showToast, forgetFingerprint, configuration, setWall
   );
 };
 
-const ImportFingerprint = ({ showToast, goToLogin, configuration, setContext }) => {
-  const [fingerprint, setFingerprint] = useState('');
+const ImportFingerprint = ({ setFingerprint }) => {
+  const [currentFingerprint, setCurrentFingerprint] = useState('');
+  const context = useContext(HyphenContext);
 
-  const importAccount = () => {
-    Cookies.set('fingerprint', fingerprint);
-    goToLogin()
-  };
+  const confirmFingerprint = () => {
+    setFingerprint(currentFingerprint);
+  }
 
   return (
     <div>
       <h3>Import account fingerprint</h3>
       <input
         type="text"
-        value={fingerprint}
-        onChange={(e) => setFingerprint(e.target.value)}
+        value={currentFingerprint}
+        onChange={(e) => setCurrentFingerprint(e.target.value)}
         onKeyDown={(e) => {
-          if (e.keyCode === 13 && fingerprint) {
-            importAccount();
+          if (e.keyCode === 13 && currentFingerprint) {
+            confirmFingerprint();
           }
         }}
         placeholder="Enter fingerprint"
       />
-      {fingerprint && (
-        <button onClick={importAccount}>
+      {currentFingerprint && (
+        <button onClick={confirmFingerprint}>
           Import
         </button>
       )}
-      {fingerprint && (
+      {currentFingerprint && (
         <div>
           <p>Current input fingerprint:</p>
-          <CopyToClipboard text={fingerprint} onCopy={showToast}>
+          <CopyToClipboard text={currentFingerprint} onCopy={context.showToast}>
             <span>
-              <Blockies seed={fingerprint} />
+              <Blockies seed={currentFingerprint} />
               <span style={{ marginLeft: '0.5rem' }}>Click to copy</span>
             </span>
           </CopyToClipboard>
@@ -229,21 +198,40 @@ const ClaimName = ({ setName }) => {
   );
 };
 
+const Onboarding = ({ setSigner, setAddress, setName, setHouseWallet }) => {
 
-const Onboarding = ({ configuration, setContext }) => {
-
-  const [toastVisible, setToastVisible] = useState(false);
   const [fingerprint, setFingerprint] = useState(Cookies.get('fingerprint'));
+  const [toastVisible, setToastVisible] = useState(false);
+  const [inviteCode, setInviteCode] = useState(null);
   const [wallet, setWallet] = useState(null);
-  // const [balance, setBalance] = useState(null);
   const [[balance, name], setBalanceAndName] = useState([null, null]);
-  const [step, setStep] = useState(() => {
-    const fingerprintExists = !!Cookies.get('fingerprint');
-    return fingerprintExists ? 'uniquePassphrase' : 'splash';
-  });
+  const [step, setStep] = useState(fingerprint !== null ? 'uniquePassphrase' : 'splash');
+  const context = useContext(HyphenContext);
+
+  const createWallet = (userString) => {
+    const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(fingerprint + userString));
+    return new ethers.Wallet(privateKey, context.provider);
+  };
 
   useEffect(() => {
-    if (wallet != null) {
+    if (fingerprint) {
+      Cookies.set('fingerprint', fingerprint);
+      setStep('uniquePassphrase');
+    } else {
+      Cookies.remove("fingerprint");
+      setStep('splash');
+    }
+  }, [fingerprint])
+
+  useEffect(() => {
+    if (inviteCode !== null) {
+      setFingerprint(ethers.utils.hexlify(ethers.utils.randomBytes(32)));
+      setStep('uniquePassphrase');
+    }
+  }, [inviteCode])
+
+  useEffect(() => {
+    if (wallet !== null) {
       wallet.getBalance()
         .then((balance) => {
           return wallet.provider
@@ -257,52 +245,22 @@ const Onboarding = ({ configuration, setContext }) => {
 
   useEffect(() => {
     if (wallet && balance && balance.gt(0)) {
-      const walletContext = {
-        lookupAddress: ((address) => lookupAddress(wallet.provider, address)),
-        getContract: ((address) => getContract(wallet, address)),
-        configuration: configuration,
-        houseWallet: createDeterministicWallet(configuration, ''),
-        loginMethod: "DeterministicWallet",
-        provider: wallet.provider,
-        signer: wallet,
-        address: wallet.address
-      }
-      if (name != null) {
-        setContext({
-          ...walletContext,
-          "name": name
-        });
-      } else {
-        setContext(walletContext);
-        setStep("claimName");
-      }
+      setSigner(wallet);
+      setAddress(wallet.address);
+      setName(name);
+      setHouseWallet(createWallet(''));
+      setStep("claimName");
     }
   }, [balance, name]);
 
-  const showToast = () => {
-    setToastVisible(true);
-    setTimeout(() => setToastVisible(false), 3000);
-  };
-
-  const getContract = (signer, address) => {
-    return new ethers.Contract(address, configuration.contracts[address], signer);
-  };
-
-  const lookupAddress = (provider, address) => {
-    return provider.lookupAddress(address)
-  };
-
-  const forgetFingerprint = () => {
+  const confirmForgetFingerprint = () => {
     if (window.confirm('Are you sure you want to forget this fingerprint?  Make sure you\'ve copied it to a safe place if you want to import it later.')) {
-      Cookies.remove("fingerprint");
-      setFingerprint(Cookies.get('fingerprint'));
-      setStep('splash');
+      setFingerprint(null);
     }
   };
 
   const goToInviteCode = () => setStep('inviteCode');
   const goToImportFingerprint = () => setStep('importFingerprint');
-  const goToUniquePassphrase = () => setStep('uniquePassphrase');
 
   return (
     <div className="onboarding-container">
@@ -311,14 +269,13 @@ const Onboarding = ({ configuration, setContext }) => {
           <h1>Welcome to the Site</h1>
           <button onClick={goToInviteCode}>🎟️ I have an invite code</button>
           <button onClick={goToImportFingerprint}>🔑 Import account fingerprint</button>
-          <button onClick={goToUniquePassphrase}>➡️ Continue without an invite code</button>
         </div>
       )}
       {step !== 'splash' &&
         <div className="onboarding-content">
-          {step === 'inviteCode' && <InviteCode configuration={configuration} goToUniquePassphrase={goToUniquePassphrase} />}
-          {step === 'uniquePassphrase' && <UniquePassphrase showToast={showToast} forgetFingerprint={forgetFingerprint} configuration={configuration} setWallet={setWallet} />}
-          {step === 'importFingerprint' && <ImportFingerprint showToast={showToast} goToLogin={goToUniquePassphrase} configuration={configuration} setContext={setContext} />}
+          {step === 'inviteCode' && <InviteCode setValidInviteCode={setInviteCode} />}
+          {step === 'uniquePassphrase' && <UniquePassphrase fingerprint={fingerprint} forgetFingerprint={confirmForgetFingerprint} inviteCode={inviteCode} createWallet={createWallet} setWallet={setWallet} />}
+          {step === 'importFingerprint' && <ImportFingerprint setFingerprint={setFingerprint} />}
           {step === 'claimName' && <ClaimName setName={(name) => setBalanceAndName([balance, name])} />}
         </div>
       }

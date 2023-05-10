@@ -12,20 +12,14 @@ const RecipePreparation = (props) => {
   const [selectedSpace, setSelectedSpace] = useState(null);
   const [spaceData, setSpaceData] = useState(null);
   const [date, setDate] = useState(new Date());
+  const recipeHubContract = context.getContract("recipehub.hyphen")
 
   useEffect(() => {
     update();
   }, [date, props.blockNumber]);
 
-  const getHubContract = () => {
-    return new ethers.Contract(
-      "recipehub.hyphen",
-      RecipeHub.abi,
-      context.signer);
-  };
-
   const update = () => {
-    getHubContract()
+    recipeHubContract
       .recipeSpaceByName(date.toDateString())
       .then((space) => {
         new ethers.Contract(space, RecipeSpace.abi, context.signer)
@@ -45,39 +39,24 @@ const RecipePreparation = (props) => {
   };
 
   const createRecipeSpace = (name) => {
-    context.executeTransaction(
-      getHubContract().createRecipeSpace(name),
-      () => {},
-      (reason) => {});
+    recipeHubContract.createRecipeSpace(name);
   };
 
   const removeRecipeSpace = (index) => {
     const space = spaces[index];
-    context.executeTransaction(
-      getHubContract().removeRecipeSpace(space.address),
-      () => {},
-      (reason) => {});
+    recipeHubContract.removeRecipeSpace(space.address);
   };
 
   const startRecipeInSpace = (space, recipe, scalePercentage) => {
-    context.executeTransaction(
-      getHubContract().startRecipeInSpace(space, recipe, scalePercentage),
-      () => {},
-      (reason) => {});
+    recipeHubContract.startRecipeInSpace(space, recipe, scalePercentage);
   };
 
   const removeRecipeFromSpace = (space, recipe) => {
-    context.executeTransaction(
-      getHubContract().endRecipeInSpace(space, recipe),
-      () => {},
-      (reason) => {});
+    recipeHubContract.endRecipeInSpace(space, recipe);
   };
 
   const updateRecipeStepInSpace = (space, recipe, stepIndex) => {
-    context.executeTransaction(
-      getHubContract().updateRecipeStepInSpace(space, recipe, stepIndex),
-      () => {},
-      (reason) => {});
+    recipeHubContract.updateRecipeStepInSpace(space, recipe, stepIndex);
   };
 
   const addDays = (date, days) => {

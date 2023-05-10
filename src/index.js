@@ -6,12 +6,19 @@ import 'purecss/build/pure.css';
 import './styles.css';
 import { ENS, FIFSRegistrar, PublicResolver, ReverseRegistrar } from '@ensdomains/ens-contracts';
 
+const ethers = require("ethers");
 const manifest = require('./../manifest.json');
 const configuration = require('./../configuration.json');
 
+const provider = new ethers.providers.JsonRpcProvider(
+  { url: configuration.url },
+  { name: "home", chainId: configuration.chainId, ensAddress: configuration.ens }
+);
+provider.polling = false;
+
 function runApp(serviceWorkerRegistration) {
   ReactDOM.render(
-    <Hyphen configuration={({...configuration, contracts: contracts, serviceWorkerRegistration: serviceWorkerRegistration })} />,
+    <Hyphen provider={provider} configuration={({...configuration, contracts: contracts, serviceWorkerRegistration: serviceWorkerRegistration })} />,
     document.getElementById('root'));
 }
 

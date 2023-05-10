@@ -10,6 +10,7 @@ import { CopyToClipboard } from 'react-copy-to-clipboard';
 const ethers = require("ethers");
 
 const StatusBar = ({
+  isLoading,
   logout,
   blockNumber,
   entries
@@ -52,6 +53,7 @@ const StatusBar = ({
 
   return (
     <div className="status-bar">
+      {isLoading && <div className="spinner"/>}
       <AccountStatus
         address={address}
         balance={state.balance}

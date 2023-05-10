@@ -13,19 +13,15 @@ const CreateInvitationCode = () => {
     const gasLimit = 21000;
     const gasPrice = await context.signer.getGasPrice();
 
-    context.executeTransaction(
-      context.signer.sendTransaction({
-        to: wallet.address,
-        value: amount,
-        gasLimit: gasLimit,
-        gasPrice: gasPrice,
-        type: 0x0
-      }),
-      (receipt) => {
-        setNewWallet(wallet);
-      },
-      (error) => context.addMessage(JSON.stringify(error))
-    );
+    context.executeTransaction({
+      to: wallet.address,
+      value: amount,
+      gasLimit: gasLimit,
+      gasPrice: gasPrice,
+      type: 0x0
+    }).then(() => {
+      setNewWallet(wallet);
+    });
   };
 
   return (

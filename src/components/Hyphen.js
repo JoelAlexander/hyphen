@@ -5,6 +5,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import Splash from './Splash.js';
 import Account from './Account.js';
+import Counter from './Counter.js';
 import Recipes from './Recipes.js';
 import RecipeSettings from './RecipeSettings.js';
 import RecipePreparation from './RecipePreparation.js';
@@ -22,6 +23,11 @@ const menuItems = [
     label: 'Account',
     emoji: '👤',
     component: Account,
+  },
+  {
+    label: 'Counter',
+    emoji: '🔔',
+    component: Counter,
   },
   {
     label: 'Food',
@@ -72,21 +78,50 @@ const NavMenu = ({ items, onSelectComponent, onSelectSubmenu }) => (
   </div>
 );
 
-const Hyphen = ({ configuration }) => {
+const Hyphen = ({ provider, configuration }) => {
+
+  const [signer, setSigner] = useState(null);
+  const [address, setAddress] = useState(null);
+  const [name, setName] = useState(null);
+  const [houseWallet, setHouseWallet] = useState(null);
+
+  const lookupAddress = (address) => {
+    return provider.lookupAddress(address);
+  };
+
+  const getContract = (address) => {
+    const abi = configuration.contracts[address];
+    const contractInteface = new ethers.utils.Interface(abi);
+    const contract = new ethers.Contract(address, abi, signer);
+    return new Proxy({}, {
+      get: (target, prop) => {
+        const functionFragment = contractInteface.getFunction(prop);
+        if (functionFragment.stateMutability === 'view' ) {
+          return (...args) => {
+            return contract.callStatic[prop](...args);
+          };
+        } else {
+          return async (...args) => {
+            return contract.populateTransaction[prop](...args).then(executeTransaction);
+          };
+        }
+        return contract[prop];
+      },
+    });
+  }
 
   const createInitialLoggedOutState = () => {
 
     return {
-      context: {},
       menuStack: [menuItems],
-      activeComponent: null,
+      menu: [],
+      menuHistory: [],
+      contractCalls: {},
+      contractCallsReadOnly: {},
       entries: [],
       blockNumber: null,
       toastVisible: false,
-      blockNumber: null,
-      menu: [],
-      menuHistory: [],
-      transactionStatus: null
+      activeComponent: null
     };
   };
 
@@ -94,20 +129,18 @@ const Hyphen = ({ configuration }) => {
 
   useEffect(() => {
     const blockNumberInterval = setInterval(() => {
-      if (state.context && state.context.provider) {
-        state.context.provider
-          .getBlockNumber()
-          .then((result) => {
-            console.log(`blockNumber update ${performance.now()}`)
-            setState(prevState => ({ ...prevState, blockNumber: result }));
-          });
-      }
+      provider
+        .getBlockNumber()
+        .then((result) => {
+          console.log(`blockNumber update ${performance.now()}`)
+          setState(prevState => ({ ...prevState, blockNumber: result }));
+        });
     }, 12000);
 
     return () => {
       clearInterval(blockNumberInterval);
     };
-  }, [state.context]);
+  }, []);
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -176,64 +209,34 @@ const Hyphen = ({ configuration }) => {
     });
   };
 
-  const setContext = (context) => {
-    setState(prevState => {
-      return {
-        ...prevState,
-        context: {
-          executeTransaction: executeTransaction,
-          executeTransaction2: executeTransaction2,
-          addMessage: addMessage,
-          showToast: showToast,
-          ...context
-        }
-      };
-    });
-  }
-
   const logout = () => {
-    if (state.loginMethod === "WalletConnect" &&
-      state.context && state.context.provider
-    ) {
-      state.context.provider.provider.disconnect();
-    }
     setState(createInitialLoggedOutState());
   };
 
-  const promptForUserString = () => {
-    const userString = prompt("Enter your user string:");
-    if (userString) {
-      loginWithDeterministicWallet(userString);
+  const executeTransaction = (transactionRequest) => {
+    if (!signer) {
+      return Promise.reject("No signer");
     }
-  };
 
-  const executeTransaction = (transactionResultPromise, onSuccess, onError) => {
-    transactionResultPromise.then((transactionResponse) => {
-      onTransactionResponse(transactionResponse);
-      transactionResponse.wait().then((receipt) => {
-        onTransactionReceipt(receipt);
-        if (receipt.status) {
-          onSuccess(receipt);
-        } else {
-          onError("Transaction not successful.");
-        }
+    return signer.sendTransaction(transactionRequest).then((transactionResponse) => {
+      const transactionHash = transactionResponse.hash;
+      setState(prevState => {
+        const newContractCalls = prevState.contractCalls;
+        newContractCalls[transactionHash] = true;
+        return {...prevState, contractCalls: newContractCalls};
       });
-    }, (error) => {
-      addMessage("Error: " + JSON.stringify(error));
-      onError(error);
-    });
-  };
-
-  const executeTransaction2 = (transactionResultPromise) => {
-    return transactionResultPromise.then((transactionResponse) => {
-      onTransactionResponse(transactionResponse);
       return transactionResponse.wait().then((receipt) => {
-        onTransactionReceipt(receipt);
         if (receipt.status) {
           return receipt;
         } else {
           return Promise.reject("Transaction not successful.");
         }
+      }).finally(() => {
+        setState(prevState => {
+          const newContractCalls = prevState.contractCalls;
+          delete newContractCalls[transactionHash];
+          return {...prevState, contractCalls: newContractCalls};
+        });
       });
     }).catch((reason) => {
       addMessage("Error: " + JSON.stringify(reason));
@@ -257,8 +260,10 @@ const Hyphen = ({ configuration }) => {
     setTimeout(() => setState(prevState => ({ ...prevState, toastVisible: false })), 3000);
   };
 
+  const isInFlightTransactions = Object.keys(state.contractCalls).length !== 0;
+  const appStyles = isInFlightTransactions ? { pointerEvents: 'none', opacity: '0.5' } : {};
   const navOrApp = <>
-    {(state.component && <state.component blockNumber={state.blockNumber} />) ||
+    {(state.component && <div style={appStyles}><state.component blockNumber={state.blockNumber} /></div>) ||
     <NavMenu
       items={state.menuStack[state.menuStack.length - 1]}
       onSelectComponent={handleSelectComponent}
@@ -266,18 +271,30 @@ const Hyphen = ({ configuration }) => {
   </>;
 
   const onboardingOrNavAndApp = <div className="main-content">
-    {(!state.context.signer || !state.context.name) && <Onboarding configuration={configuration} setContext={setContext} /> || navOrApp}
+    {(!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} /> || navOrApp}
   </div>
 
-  const statusBar = state.context.signer && state.context.name ?
+  const statusBar = signer && name ?
     <StatusBar
+      isLoading={isInFlightTransactions}
       logout={logout}
-      address={state.context.address || 'logged-out'}
+      address={address || 'logged-out'}
       blockNumber={state.blockNumber}
       entries={state.entries} /> : null
 
   return (
-    <HyphenContext.Provider value={state.context}>
+    <HyphenContext.Provider value={{
+      configuration: configuration,
+      provider: provider,
+      lookupAddress: lookupAddress,
+      getContract: getContract,
+      executeTransaction: executeTransaction,
+      signer: signer,
+      address: address,
+      name: name,
+      houseWallet: houseWallet,
+      showToast: showToast
+    }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'inline-block', width: '100%' }}>
           {statusBar}

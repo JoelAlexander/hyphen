@@ -13,7 +13,9 @@ const AddressCuration = ({ address }) => {
   const fetchTags = () => {
     setIsLoading(true);
     curationContract.getTagsForAddress(address)
-      .then(setTags)
+      .then((tags) => {
+        setTags(tags);
+      })
       .catch(() => setTags([]))
       .finally(() => setIsLoading(false));
   };
@@ -30,7 +32,7 @@ const AddressCuration = ({ address }) => {
     if (tag.trim()) {
       setIsLoading(true);
       setShowPopover(false);
-      context.executeTransaction2(curationContract.addTag(address, tag.trim()))
+      curationContract.addTag(address, tag.trim())
         .then(() => {
           fetchTags();
           setTag('');
@@ -42,7 +44,7 @@ const AddressCuration = ({ address }) => {
 
   const removeTag = (tagToRemove) => {
     setIsLoading(true);
-    context.executeTransaction2(curationContract.removeTag(address, tagToRemove))
+    curationContract.removeTag(address, tagToRemove)
       .then(() => {
         fetchTags();
       })
