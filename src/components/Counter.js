@@ -18,7 +18,7 @@ const Counter = () => {
     return () => {
       counterContract.off('Incremented', fetchCount);
     };
-  }, []);
+  }, [counterContract, fetchCount]);
 
   const handleIncrement = () => {
     counterContract.increment();
