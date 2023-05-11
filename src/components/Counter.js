@@ -12,16 +12,33 @@ const Counter = () => {
     counterContract.count().then(setCount);
   };
 
+  const incrementListener = (address) => {
+    if (context.address !== address) {
+      setCount(count.add(1));
+    }
+  };
+
   useEffect(() => {
-    counterContract.on('Incremented', fetchCount);
     fetchCount();
-    return () => {
-      counterContract.off('Incremented', fetchCount);
+  }, [])
+
+  useEffect(() => {
+    const incrementListener = (address) => {
+      if (context.address !== address) {
+        setCount(count.add(1));
+      }
     };
-  }, [fetchCount]);
+
+    counterContract.on('Incremented', incrementListener);
+    return () => {
+      counterContract.off('Incremented', incrementListener);
+    };
+  }, [count]);
 
   const handleIncrement = () => {
-    counterContract.increment();
+    setCount(count.add(1));
+    counterContract.increment()
+      .catch(() => setCount(count.sub(1)));
   };
 
   return (

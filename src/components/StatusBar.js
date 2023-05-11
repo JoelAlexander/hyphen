@@ -7,13 +7,13 @@ import Overlay from 'react-bootstrap/Overlay';
 import Popover from 'react-bootstrap/Popover';
 import Address from './Address';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
+import { stringToColor, getContrastColor} from '../Utils';
 const ethers = require("ethers");
 
 const StatusBar = ({
-  isLoading,
+  loadingStatus,
   logout,
   blockNumber,
-  entries
 }) => {
   const handleCloseModal = () => setShowModal(false);
   const handleOpenModal = (e) => {
@@ -45,19 +45,20 @@ const StatusBar = ({
     });
   };
 
-  const transactions = entries
-    ? entries
-        .filter((entry) => entry.type === "transaction")
-        .map((transaction) => <Transaction key={transaction.key} transaction={transaction} />)
-    : [];
+  const bgColor = stringToColor(loadingStatus);
+  const textColor = getContrastColor(bgColor);
 
   return (
     <div className="status-bar">
-      {isLoading && <div className="spinner"/>}
       <AccountStatus
         address={address}
         balance={state.balance}
         onClick={handleOpenModal} />
+      {loadingStatus && 
+        <div className="loading-container" style={{ 'display': 'flex', 'alignItems': 'center', 'padding': '.5em', 'backgroundColor': bgColor, borderRadius: '5px' }}>
+          <div className="loading-status" style={{ 'color': textColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{loadingStatus}</div>
+          <div className="spinner" style={{ 'borderLeftColor': textColor }}/>
+        </div>}
       <Overlay show={showModal} target={state.target} placement="bottom" onHide={handleCloseModal} rootClose>
         <Popover id="transaction-feed-popover" title="Account Details" className="custom-popover">
           <div className="d-flex justify-content-between align-items-center mb-2">
@@ -69,8 +70,6 @@ const StatusBar = ({
               <span className="clipboard-icon" style={{ cursor: "pointer" }}>📋</span>
             </CopyToClipboard>
           </div>
-          <h5 className="transaction-feed-heading">Transaction Feed</h5>
-          <TransactionFeed transactions={transactions} />
           <button onClick={logout}>Logout</button>
         </Popover>
       </Overlay>

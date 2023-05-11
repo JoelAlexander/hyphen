@@ -264,7 +264,7 @@ const Hyphen = ({ provider, configuration }) => {
   };
 
   const isInFlightTransactions = Object.keys(state.contractCalls).length !== 0;
-  const appStyles = isInFlightTransactions ? { pointerEvents: 'none', opacity: '0.5' } : {};
+  const appStyles = false ? { pointerEvents: 'none', opacity: '0.5' } : {};
   const navOrApp = <>
     {(state.component && <div style={appStyles}><state.component blockNumber={state.blockNumber} /></div>) ||
     <NavMenu
@@ -279,8 +279,8 @@ const Hyphen = ({ provider, configuration }) => {
 
   const statusBar = signer && name ?
     <StatusBar
-      isLoading={isInFlightTransactions}
       logout={logout}
+      loadingStatus={isInFlightTransactions ? Object.keys(state.contractCalls)[0].toString() : null}
       address={address || 'logged-out'}
       blockNumber={state.blockNumber}
       entries={state.entries} /> : null

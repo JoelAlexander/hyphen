@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import HyphenContext from './HyphenContext';
 import './AddressCuration.css';
+import { stringToColor, getContrastColor} from '../Utils';
 
 const AddressCuration = ({ address }) => {
   const context = useContext(HyphenContext);
@@ -53,29 +54,6 @@ const AddressCuration = ({ address }) => {
 
   const togglePopover = () => {
     setShowPopover(!showPopover);
-  };
-
-  const stringToColor = (str) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    let color = '#';
-    for (let i = 0; i < 3; i++) {
-      const value = (hash >> (i * 8)) & 0xff;
-      color += ('00' + value.toString(16)).substr(-2);
-    }
-    return color;
-  };
-
-  const getContrastColor = (bgColor) => {
-    const hex = bgColor.slice(1);
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-    return luminance > 0.5 ? 'black' : 'white';
   };
 
   return (
