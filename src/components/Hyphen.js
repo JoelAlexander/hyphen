@@ -1,7 +1,7 @@
 import Cookies from "js-cookie";
 import { hot } from 'react-hot-loader';
 import WalletConnectProvider from '@walletconnect/web3-provider';
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import HyphenContext from './HyphenContext';
 import Splash from './Splash.js';
 import Account from './Account.js';
@@ -18,61 +18,44 @@ import './NavMenu.css';
 const ensContracts = require('@ensdomains/ens-contracts')
 const ethers = require("ethers");
 
-const menuItems = [
-  {
-    label: 'Account',
-    emoji: '👤',
-    component: Account,
-  },
-  {
-    label: 'Counter',
-    emoji: '🔔',
-    component: Counter,
-  },
-  {
-    label: 'Food',
+const menuItems = {
+  'Account': { emoji: '👤', component: Account },
+  'Counter': { emoji: '🔔', component: Counter },
+  'Food': { 
     emoji: '🍽️',
-    submenu: [
-      {
-        label: 'Meal planning',
-        emoji: '📅',
-        component: RecipePreparation,
-      },
-      {
-        label: 'Recipes',
-        emoji: '📚',
-        component: Recipes,
-      },
-      {
-        label: 'Settings',
-        emoji: '⚙️',
-        component: RecipeSettings,
-      }
-    ],
+    submenu: {
+      'Meal planning': { emoji: '📅', component: RecipePreparation },
+      'Recipes': { emoji: '📚', component: Recipes },
+      'Settings': { emoji: '⚙️', component: RecipeSettings },
+    },
   },
-  {
-    label: 'Help',
-    emoji: '❓',
-    component: Faq
-  }
-];
+  'Help': { emoji: '❓', component: Faq }
+};
 
-const NavMenu = ({ items, onSelectComponent, onSelectSubmenu }) => (
+const getSubMenu = (path) => {
+  if (path.length === 0) return menuItems;
+
+  return path.reduce((obj, key) => (obj && obj[key] && obj[key].submenu) ? obj[key].submenu : null, menuItems);
+};
+
+const getComponent = (path) => {
+  const lastKey = path[path.length - 1]
+  const submenu = getSubMenu(path.slice(0, -1))
+  return (submenu && submenu[lastKey] && submenu[lastKey].component) ? submenu[lastKey].component : null;
+};
+
+const NavMenu = ({ items, onSelectMenu }) => (
   <div className="nav-menu">
-    {items.map((item, index) => (
+    {items && Object.entries(items).map(([label, item], index) => (
       <div
         key={index}
         className="nav-menu-item"
-        onClick={
-          item.component
-            ? () => onSelectComponent(item.component)
-            : () => onSelectSubmenu(item.submenu)
-        }
+        onClick={() => onSelectMenu(label)}
       >
-        <span role="img" aria-label={item.label}>
+        <span role="img" aria-label={label}>
           {item.emoji}
         </span>
-        <p>{item.label}</p>
+        <p>{label}</p>
       </div>
     ))}
   </div>
@@ -80,55 +63,15 @@ const NavMenu = ({ items, onSelectComponent, onSelectSubmenu }) => (
 
 const Hyphen = ({ provider, configuration }) => {
 
+  const [menuStack, setMenuStack] = useState([]);
+  const [contractCalls, setContractCalls] = useState({});
+  const [entries, setEntries] = useState([]);
+  const [blockNumber, setBlockNumber] = useState(null);
+  const [toastVisible, setToastVisible] = useState(false);
   const [signer, setSigner] = useState(null);
   const [address, setAddress] = useState(null);
   const [name, setName] = useState(null);
   const [houseWallet, setHouseWallet] = useState(null);
-
-  const lookupAddress = (address) => {
-    return provider.lookupAddress(address);
-  };
-
-  const getContract = (address) => {
-    const abi = configuration.contracts[address];
-    const contractInterface = new ethers.utils.Interface(abi);
-    const contract = new ethers.Contract(address, abi, signer);
-    return new Proxy({}, {
-      get: (target, prop) => {
-        try {
-          const functionFragment = contractInterface.getFunction(prop);
-          if (functionFragment.stateMutability === 'view' ) {
-            return (...args) => {
-              return contract.callStatic[prop](...args);
-            };
-          } else {
-            return async (...args) => {
-              return contract.populateTransaction[prop](...args).then(executeTransaction);
-            };
-          }
-        } catch {
-          return contract[prop];
-        }
-      },
-    });
-  }
-
-  const createInitialLoggedOutState = () => {
-
-    return {
-      menuStack: [menuItems],
-      menu: [],
-      menuHistory: [],
-      contractCalls: {},
-      contractCallsReadOnly: {},
-      entries: [],
-      blockNumber: null,
-      toastVisible: false,
-      activeComponent: null
-    };
-  };
-
-  const [state, setState] = useState(createInitialLoggedOutState());
 
   useEffect(() => {
     const blockNumberInterval = setInterval(() => {
@@ -136,7 +79,7 @@ const Hyphen = ({ provider, configuration }) => {
         .getBlockNumber()
         .then((result) => {
           console.log(`blockNumber update ${performance.now()}`)
-          setState(prevState => ({ ...prevState, blockNumber: result }));
+          setBlockNumber(result);
         });
     }, 12000);
 
@@ -159,61 +102,80 @@ const Hyphen = ({ provider, configuration }) => {
     };
   });
 
-  const handleSelectComponent = (component) => {
-    window.history.pushState({}, '');
-    setState(prevState => ({...prevState, component: component}));
+  const lookupAddress = (address) => {
+    return provider.lookupAddress(address);
   };
 
-  const handleSelectSubmenu = (submenu) => {
+  const getContract = (address) => {
+    const abi = configuration.contracts[address];
+    const contractInterface = new ethers.utils.Interface(abi);
+    const contract = new ethers.Contract(address, abi, signer);
+    return new Proxy({}, {
+      get: (target, prop) => {
+        try {
+          const functionFragment = contractInterface.getFunction(prop);
+          if (functionFragment.stateMutability === 'view' ) {
+            return (...args) => {
+              return contract.callStatic[prop](...args);
+            };
+          } else {
+            return (...args) => {
+              return contract.populateTransaction[prop](...args).then(executeTransaction);
+            };
+          }
+        } catch {
+          return contract[prop];
+        }
+      },
+    });
+  };
+
+  const handleSelectMenu = (label) => {
     window.history.pushState({}, '');
-    setState(prevState => ({...prevState, menuStack: [...prevState.menuStack, submenu]}));
+    setMenuStack([...menuStack, label]);
   };
 
   const canGoBack = () => {
-    return state.component || (state.menuStack.length > 1);
+    return menuStack.length > 1;
   }
 
   const handleBack = () => {
-    setState(prevState => {
-      const menuStack = prevState.menuStack
-      if (!prevState.component && menuStack.length > 1) {
-        menuStack.pop()
-      }
-      return {...prevState, menuStack: menuStack, component: null}
-    });
+    const newMenuStack = menuStack.slice();
+    if (newMenuStack.length > 1) {
+      newMenuStack.pop()
+    }
+    setMenuStack(newMenuStack);
   };
 
   const addMessage = (message) => {
-    setState(prevState => {
-      const newEntries = prevState.entries.slice();
-      newEntries.unshift({type: "message", key: newEntries.length, message: message});      
-      return {...prevState, entries: newEntries};
-    });
+    const newEntries = entries.slice();
+    newEntries.unshift({type: "message", key: newEntries.length, message: message});
+    setEntries(newEntries);
   };
 
   const onTransactionResponse = (transactionResponse) => {
-    setState(prevState => {
-      const newEntries = prevState.entries.slice();
-      newEntries.unshift({type: "transaction", key: transactionResponse.hash, transactionResponse: transactionResponse});
-      return {...prevState, entries: newEntries};
-    });
+    const newEntries = entries.slice();
+    newEntries.unshift({type: "transaction", key: transactionResponse.hash, transactionResponse: transactionResponse});
+    setEntries(newEntries);
   };
 
   const onTransactionReceipt = (transactionReceipt) => {
-    setState(prevState => {
-      const newEntries = prevState.entries.slice();
-      const updateIndex = newEntries.findIndex((entry) => entry.key === transactionReceipt.transactionHash);
-      if (updateIndex != -1) {
-        const modified = newEntries[updateIndex];
-        modified.transactionReceipt = transactionReceipt;
-        newEntries[updateIndex] = modified;
-      }
-      return {...prevState, entries: newEntries};
-    });
+    const newEntries = entries.slice();
+    const updateIndex = newEntries.findIndex((entry) => entry.key === transactionReceipt.transactionHash);
+    if (updateIndex != -1) {
+      const modified = newEntries[updateIndex];
+      modified.transactionReceipt = transactionReceipt;
+      newEntries[updateIndex] = modified;
+    }
+    setEntries(newEntries);
   };
 
   const logout = () => {
-    setState(createInitialLoggedOutState());
+    setMenuStack([]);
+    setContractCalls({});
+    setEntries([]);
+    setBlockNumber(null);
+    setToastVisible(false);
   };
 
   const executeTransaction = (transactionRequest) => {
@@ -221,69 +183,43 @@ const Hyphen = ({ provider, configuration }) => {
       return Promise.reject("No signer");
     }
 
-    return signer.sendTransaction(transactionRequest).then((transactionResponse) => {
-      const transactionHash = transactionResponse.hash;
-      setState(prevState => {
-        const newContractCalls = prevState.contractCalls;
-        newContractCalls[transactionHash] = true;
-        return {...prevState, contractCalls: newContractCalls};
-      });
-      return transactionResponse.wait().then((receipt) => {
-        if (receipt.status) {
-          return receipt;
-        } else {
-          return Promise.reject("Transaction not successful.");
-        }
-      }).finally(() => {
-        setState(prevState => {
-          const newContractCalls = prevState.contractCalls;
+    return signer.sendTransaction(transactionRequest)
+      .then((transactionResponse) => {
+        const transactionHash = transactionResponse.hash;
+        setContractCalls({...contractCalls, [transactionHash]: true});
+        return transactionResponse.wait().then((receipt) => {
+          if (receipt.status) {
+            return receipt;
+          } else {
+            return Promise.reject("Transaction not successful.");
+          }
+        }).finally(() => {
+          const newContractCalls = {...contractCalls};
           delete newContractCalls[transactionHash];
-          return {...prevState, contractCalls: newContractCalls};
+          setContractCalls(newContractCalls);
         });
+      }).catch((reason) => {
+        addMessage("Error: " + JSON.stringify(reason));
       });
-    }).catch((reason) => {
-      addMessage("Error: " + JSON.stringify(reason));
-    });
-  };
-
-  const watchAsset = () => {
-    state.walletConnectProvider.send("wallet_watchAsset", {
-      type: 'ERC20',
-      options: {
-        address: "",
-        symbol: "LEOJ",
-        decimals: 18,
-        image: ""
-      }
-    });
   };
 
   const showToast = () => {
-    setState(prevState => ({ ...prevState, toastVisible: true }));
-    setTimeout(() => setState(prevState => ({ ...prevState, toastVisible: false })), 3000);
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 3000);
   };
 
-  const isInFlightTransactions = Object.keys(state.contractCalls).length !== 0;
+  const isInFlightTransactions = Object.keys(contractCalls).length !== 0;
   const appStyles = false ? { pointerEvents: 'none', opacity: '0.5' } : {};
-  const navOrApp = <>
-    {(state.component && <div style={appStyles}><state.component blockNumber={state.blockNumber} /></div>) ||
-    <NavMenu
-      items={state.menuStack[state.menuStack.length - 1]}
-      onSelectComponent={handleSelectComponent}
-      onSelectSubmenu={handleSelectSubmenu} />}
-  </>;
-
-  const onboardingOrNavAndApp = <div className="main-content">
-    {(!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} /> || navOrApp}
-  </div>
-
   const statusBar = signer && name ?
     <StatusBar
       logout={logout}
-      loadingStatus={isInFlightTransactions ? Object.keys(state.contractCalls)[0].toString() : null}
+      loadingStatus={isInFlightTransactions ? Object.keys(contractCalls)[0].toString() : null}
       address={address || 'logged-out'}
-      blockNumber={state.blockNumber}
-      entries={state.entries} /> : null
+      blockNumber={blockNumber}
+      entries={entries} /> : null;
+
+  const currentMenu = getSubMenu(menuStack);
+  const ActiveComponent = getComponent(menuStack);
 
   return (
     <HyphenContext.Provider value={{
@@ -310,10 +246,16 @@ const Hyphen = ({ provider, configuration }) => {
             height: '100%',
             paddingLeft: '2em',
             paddingRight: '2em' }}>
-            {onboardingOrNavAndApp}
+            <div className="main-content">
+              {(!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} /> ||
+                (ActiveComponent && <div style={appStyles}><ActiveComponent blockNumber={blockNumber} /></div>) ||
+                <NavMenu
+                  items={currentMenu}
+                  onSelectMenu={handleSelectMenu} />}
+            </div>
           </div>
         </div>
-        {state.toastVisible && <Toast />}
+        {toastVisible && <Toast />}
       </div>
   </HyphenContext.Provider>);
 };
