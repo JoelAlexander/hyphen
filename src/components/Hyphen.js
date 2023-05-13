@@ -64,7 +64,6 @@ const NavMenu = ({ items, onSelectMenu }) => (
 const Hyphen = ({ provider, configuration }) => {
 
   const [menuStack, setMenuStack] = useState([]);
-  const [contractCalls, setContractCalls] = useState({});
   const [entries, setEntries] = useState([]);
   const [blockNumber, setBlockNumber] = useState(null);
   const [toastVisible, setToastVisible] = useState(false);
@@ -72,6 +71,9 @@ const Hyphen = ({ provider, configuration }) => {
   const [address, setAddress] = useState(null);
   const [name, setName] = useState(null);
   const [houseWallet, setHouseWallet] = useState(null);
+  const [unsentTransactions, setUnsentTransactions] = useState([]);
+  const [inProgressTransaction, setInProgressTransaction] = useState(null);
+  const [pendingTransactions, setPendingTransactions] = useState({});
 
   useEffect(() => {
     const blockNumberInterval = setInterval(() => {
@@ -102,6 +104,60 @@ const Hyphen = ({ provider, configuration }) => {
     };
   });
 
+  useEffect(() => {
+    if (unsentTransactions.length === 0 || inProgressTransaction !== null) {
+      return;
+    }
+
+    const [[populateTransaction, resolve, reject], ...rest] = unsentTransactions;
+    setInProgressTransaction([populateTransaction, resolve, reject]);
+    setUnsentTransactions(rest);
+  }, [unsentTransactions, inProgressTransaction]);
+
+  useEffect(() => {
+    if (inProgressTransaction === null) {
+      return;
+    }
+
+    const [populateTransaction, resolve, reject] = inProgressTransaction;
+    populateTransaction().then((transactionRequest) => {
+      return signer.sendTransaction(transactionRequest)
+        .finally(() => setInProgressTransaction(null))
+        .then((transactionResponse) => {
+            const transactionHash = transactionResponse.hash;
+            setPendingTransactions((prev) => {
+              return {...prev, [transactionHash]: true}; 
+            });
+            return transactionResponse.wait()
+              .then((receipt) => {
+                if (receipt.status) {
+                  return receipt;
+                } else {
+                  return Promise.reject(receipt);
+                }
+              })
+              .then(resolve, reject)
+              .finally(() => {
+                setPendingTransactions((prev) => {
+                  const newPendingTransactions = {...prev};
+                  delete newPendingTransactions[transactionHash];
+                  return newPendingTransactions;                  
+                });
+              });
+          });
+    });
+  }, [inProgressTransaction]);
+
+  const waitForConfirmation = (transactionResponse) => {
+    return transactionResponse
+  };
+
+  const enqueueTransaction = (populateTransaction) => {
+    return new Promise((resolve, reject) => {
+      setUnsentTransactions([...unsentTransactions, [populateTransaction, resolve, reject]]);
+    });
+  };
+
   const lookupAddress = (address) => {
     return provider.lookupAddress(address);
   };
@@ -120,7 +176,9 @@ const Hyphen = ({ provider, configuration }) => {
             };
           } else {
             return (...args) => {
-              return contract.populateTransaction[prop](...args).then(executeTransaction);
+              return enqueueTransaction(() => {
+                return contract.populateTransaction[prop](...args);
+              });
             };
           }
         } catch {
@@ -136,12 +194,12 @@ const Hyphen = ({ provider, configuration }) => {
   };
 
   const canGoBack = () => {
-    return menuStack.length > 1;
+    return menuStack.length > 0;
   }
 
   const handleBack = () => {
     const newMenuStack = menuStack.slice();
-    if (newMenuStack.length > 1) {
+    if (newMenuStack.length > 0) {
       newMenuStack.pop()
     }
     setMenuStack(newMenuStack);
@@ -183,24 +241,9 @@ const Hyphen = ({ provider, configuration }) => {
       return Promise.reject("No signer");
     }
 
-    return signer.sendTransaction(transactionRequest)
-      .then((transactionResponse) => {
-        const transactionHash = transactionResponse.hash;
-        setContractCalls({...contractCalls, [transactionHash]: true});
-        return transactionResponse.wait().then((receipt) => {
-          if (receipt.status) {
-            return receipt;
-          } else {
-            return Promise.reject("Transaction not successful.");
-          }
-        }).finally(() => {
-          const newContractCalls = {...contractCalls};
-          delete newContractCalls[transactionHash];
-          setContractCalls(newContractCalls);
-        });
-      }).catch((reason) => {
-        addMessage("Error: " + JSON.stringify(reason));
-      });
+    return enqueueTransaction(() => {
+      return signer.populateTransaction(transactionRequest);
+    });
   };
 
   const showToast = () => {
@@ -208,12 +251,12 @@ const Hyphen = ({ provider, configuration }) => {
     setTimeout(() => setToastVisible(false), 3000);
   };
 
-  const isInFlightTransactions = Object.keys(contractCalls).length !== 0;
+  const isInFlightTransactions = Object.keys(pendingTransactions).length !== 0;
   const appStyles = false ? { pointerEvents: 'none', opacity: '0.5' } : {};
   const statusBar = signer && name ?
     <StatusBar
       logout={logout}
-      loadingStatus={isInFlightTransactions ? Object.keys(contractCalls)[0].toString() : null}
+      loadingStatus={isInFlightTransactions ? Object.keys(pendingTransactions)[0].toString() : null}
       address={address || 'logged-out'}
       blockNumber={blockNumber}
       entries={entries} /> : null;

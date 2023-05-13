@@ -37,7 +37,7 @@ const Counter = () => {
   const handleIncrement = () => {
     setCount(count.add(1));
     counterContract.increment()
-      .catch(() => setCount(count.sub(1)));
+      .catch((reason) => setCount(count));
   };
 
   return (
