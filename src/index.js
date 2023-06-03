@@ -10,11 +10,10 @@ const ethers = require("ethers");
 const manifest = require('./../manifest.json');
 const configuration = require('./../configuration.json');
 
-const provider = new ethers.providers.JsonRpcProvider(
+const provider = new ethers.providers.StaticJsonRpcProvider(
   { url: configuration.url },
   { name: "home", chainId: configuration.chainId, ensAddress: configuration.ens }
 );
-provider.polling = false;
 
 function runApp(serviceWorkerRegistration) {
   ReactDOM.render(

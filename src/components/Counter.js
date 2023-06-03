@@ -11,12 +11,6 @@ const Counter = () => {
     counterContract.count().then(setCount);
   };
 
-  const incrementListener = (address) => {
-    if (context.address !== address) {
-      setCount(count.add(1));
-    }
-  };
-
   useEffect(() => {
     fetchCount();
   }, [])
@@ -25,6 +19,9 @@ const Counter = () => {
     const incrementListener = (address) => {
       if (context.address !== address) {
         setCount(count.add(1));
+        console.log('Event incremented.')
+      } else {
+        console.log('Event passthru.')
       }
     };
 

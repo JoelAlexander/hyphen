@@ -4,11 +4,12 @@ import { CopyToClipboard } from 'react-copy-to-clipboard';
 
 const Address = ({ address, style }) => {
   const context = useContext(HyphenContext);
-  const [ensName, setEnsName] = useState(null);
+  const [ensName, setEnsName] = useState(ensName);
 
+  // TODO: Refresh on more specific event
   useEffect(() => {
     context.provider.lookupAddress(address).then(setEnsName);
-  }, [])
+  }, [address]);
 
   const shortenHex = (raw) => raw.slice(0, 5) + "..." + raw.slice(raw.length - 3);
   const shortenedAddress = address ? shortenHex(address) : '\u{200D}';

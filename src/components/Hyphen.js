@@ -74,21 +74,23 @@ const Hyphen = ({ provider, configuration }) => {
   const [unsentTransactions, setUnsentTransactions] = useState([]);
   const [inProgressTransaction, setInProgressTransaction] = useState(null);
   const [pendingTransactions, setPendingTransactions] = useState({});
+  const [connectedContracts, setConnectedContracts] = useState({});
+  const [isPolling, setIsPolling] = useState(true);
+  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(12);
 
   useEffect(() => {
-    const blockNumberInterval = setInterval(() => {
-      provider
-        .getBlockNumber()
-        .then((result) => {
-          console.log(`blockNumber update ${performance.now()}`)
-          setBlockNumber(result);
-        });
-    }, 12000);
-
+    provider.on('poll', (pollId, blockNumber) => {
+      setBlockNumber(blockNumber);
+    });
     return () => {
-      clearInterval(blockNumberInterval);
+      provider.off('poll');
     };
   }, []);
+
+  useEffect(() => {
+    provider.polling = isPolling;
+    provider.pollingInterval = pollingIntervalSeconds * 1000;
+  }, [isPolling, pollingIntervalSeconds]);
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -163,10 +165,14 @@ const Hyphen = ({ provider, configuration }) => {
   };
 
   const getContract = (address) => {
+    if (connectedContracts[address]) {
+      return connectedContracts[address];
+    }
+
     const abi = configuration.contracts[address];
     const contractInterface = new ethers.utils.Interface(abi);
     const contract = new ethers.Contract(address, abi, signer);
-    return new Proxy({}, {
+    const returnedContract = new Proxy({}, {
       get: (target, prop) => {
         try {
           const functionFragment = contractInterface.getFunction(prop);
@@ -186,6 +192,8 @@ const Hyphen = ({ provider, configuration }) => {
         }
       },
     });
+    connectedContracts[address] = returnedContract;
+    return returnedContract;
   };
 
   const handleSelectMenu = (label) => {
@@ -234,6 +242,7 @@ const Hyphen = ({ provider, configuration }) => {
     setEntries([]);
     setBlockNumber(null);
     setToastVisible(false);
+    setConnectedContracts({});
   };
 
   const executeTransaction = (transactionRequest) => {
@@ -266,6 +275,7 @@ const Hyphen = ({ provider, configuration }) => {
 
   return (
     <HyphenContext.Provider value={{
+      blockNumber: blockNumber,
       configuration: configuration,
       provider: provider,
       lookupAddress: lookupAddress,
@@ -291,7 +301,7 @@ const Hyphen = ({ provider, configuration }) => {
             paddingRight: '2em' }}>
             <div className="main-content">
               {(!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} /> ||
-                (ActiveComponent && <div style={appStyles}><ActiveComponent blockNumber={blockNumber} /></div>) ||
+                (ActiveComponent && <div style={appStyles}><ActiveComponent /></div>) ||
                 <NavMenu
                   items={currentMenu}
                   onSelectMenu={handleSelectMenu} />}

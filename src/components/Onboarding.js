@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import Cookies from 'js-cookie';
+import { openDB } from 'idb';
 import Toast from './Toast';
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import Blockies from 'react-blockies';
@@ -200,7 +200,7 @@ const ClaimName = ({ setName }) => {
 
 const Onboarding = ({ setSigner, setAddress, setName, setHouseWallet }) => {
 
-  const [fingerprint, setFingerprint] = useState(Cookies.get('fingerprint'));
+  const [fingerprint, setFingerprint] = useState(null);
   const [toastVisible, setToastVisible] = useState(false);
   const [inviteCode, setInviteCode] = useState(null);
   const [wallet, setWallet] = useState(null);
@@ -214,21 +214,56 @@ const Onboarding = ({ setSigner, setAddress, setName, setHouseWallet }) => {
   };
 
   useEffect(() => {
+    const getFingerprint = async () => {
+      const db = await openDB('Hyphen', 1);
+      const fingerprint = await db.get('fingerprint', 'key');
+      setFingerprint(fingerprint);
+    }
+    getFingerprint();
+  }, []);
+
+  useEffect(() => {
+    const getFingerprint = async () => {
+      const db = await openDB('Hyphen', 1, {
+        upgrade(db) {
+          db.createObjectStore('fingerprint');
+        },
+      });
+      const fingerprint = await db.get('fingerprint', 'key');
+      setFingerprint(fingerprint);
+    }
+    getFingerprint();
+  }, []);
+
+  useEffect(() => {
     if (fingerprint) {
-      Cookies.set('fingerprint', fingerprint);
+      const setFingerprint = async () => {
+        const db = await openDB('Hyphen', 1, {
+          upgrade(db) {
+            if (!db.objectStoreNames.contains('fingerprint')) {
+              db.createObjectStore('fingerprint');
+            }
+          },
+        });
+        await db.put('fingerprint', fingerprint, 'key');
+      }
+      setFingerprint();
       setStep('uniquePassphrase');
     } else {
-      Cookies.remove("fingerprint");
+      const removeFingerprint = async () => {
+        const db = await openDB('Hyphen', 1, {
+          upgrade(db) {
+            if (!db.objectStoreNames.contains('fingerprint')) {
+              db.createObjectStore('fingerprint');
+            }
+          },
+        });
+        await db.delete('fingerprint', 'key');
+      }
+      removeFingerprint();
       setStep('splash');
     }
   }, [fingerprint])
-
-  useEffect(() => {
-    if (inviteCode !== null) {
-      setFingerprint(ethers.utils.hexlify(ethers.utils.randomBytes(32)));
-      setStep('uniquePassphrase');
-    }
-  }, [inviteCode])
 
   useEffect(() => {
     if (wallet !== null) {
