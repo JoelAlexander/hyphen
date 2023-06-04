@@ -17,18 +17,20 @@ const Counter = () => {
   useEffect(() => {
     const incrementListener = (address) => {
       if (context.address !== address) {
-        setCount(count.add(1));
-        console.log('Event incremented.')
-      } else {
-        console.log('Event passthru.')
+        setCount(prevCount => {
+          if (prevCount) {
+            return prevCount.add(1);
+          }
+        });
       }
     };
 
-    counterContract.on('Incremented', incrementListener);
+    const filter = counterContract.filters.Incremented(null);
+    counterContract.on(filter, incrementListener);
     return () => {
-      counterContract.off('Incremented', incrementListener);
+      counterContract.off(filter, incrementListener);
     };
-  }, [count]);
+  }, []);
 
   const handleIncrement = () => {
     setCount(count.add(1));

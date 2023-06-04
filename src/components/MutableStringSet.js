@@ -3,11 +3,11 @@ import HyphenContext from './HyphenContext';
 import { StringSet } from '@local-blockchain-toolbox/contract-primitives';
 const ethers = require("ethers");
 
-const MutableStringSet = (props) => {
+const MutableStringSet = ({ contractAddress }) => {
   const [contents, setContents] = useState([]);
   const [newString, setNewString] = useState("");
   const context = useContext(HyphenContext);
-  const contract = context.getContract(props.contractAddress);
+  const contract = context.getContract(contractAddress);
 
   useEffect(() => {
     contract
@@ -15,7 +15,7 @@ const MutableStringSet = (props) => {
       .then((result) => {
         setContents(result);
       });
-  }, [context.signer, props.contractAddress]);
+  }, []);
 
   const addString = (str) => {
     contract.add(str).then(() => setContents(prevContents => [...prevContents, str]));

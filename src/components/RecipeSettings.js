@@ -16,8 +16,7 @@ const RecipeSettings = (props) => {
         creating and editing them.
       </p>
       <MutableStringSet
-        contractAddress="measures.hyphen"
-        addMessage={context.addMessage} />
+        contractAddress="measures.hyphen" />
     </div>
   );
 }
