@@ -195,7 +195,7 @@ const ImportFingerprint = ({ setFingerprint }) => {
 const ClaimName = ({ setName }) => {
   return (
     <div>
-      <h3>Claim your ENS name</h3>
+      <h3>Claim your name</h3>
       <YourEnsName onNameSet={setName} />
     </div>
   );
