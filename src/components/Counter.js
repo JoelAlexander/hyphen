@@ -5,7 +5,6 @@ const Counter = () => {
   const context = useContext(HyphenContext);
   const counterContract = context.getContract('counter.hyphen');
   const [count, setCount] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const fetchCount = () => {
     counterContract.count().then(setCount);
@@ -34,16 +33,17 @@ const Counter = () => {
   const handleIncrement = () => {
     setCount(count.add(1));
     counterContract.increment()
-      .catch((reason) => setCount(count));
+      .catch((reason) => {
+        console.error(`Exception during increment: ${reason}, resetting count to ${count}`)
+        setCount(count);
+      });
   };
 
   return (
     <div className="counter">
       <h1>Counter</h1>
       <p>Current count: {count === null ? 'Loading...' : count.toString()}</p>
-      <button onClick={handleIncrement}>
-        {loading ? 'Incrementing...' : 'Increment'}
-      </button>
+      <button onClick={handleIncrement}>Increment</button>
     </div>
   );
 };

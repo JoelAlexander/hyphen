@@ -52,12 +52,15 @@ const RecipeViewer = (props) => {
     deleteButton = props.removeRecipe ? <button onClick={() => props.removeRecipe(props.recipe.recipe)}>Delete</button> : null;
   }
 
+  const closeButton = props.closeRecipe ? <button onClick={() => props.closeRecipe()}>Close</button> : null;
+
   return (
     <div>
       <div className="pure-g">
         <div className="pure-u-2-3">
           <h3>{props.recipe && props.recipe.name}</h3>
           {authorship}
+          {closeButton}
         </div>
       </div>
       {ingredientsSection}

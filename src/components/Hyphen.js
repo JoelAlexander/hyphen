@@ -122,32 +122,35 @@ const Hyphen = ({ provider, configuration }) => {
     }
 
     const [populateTransaction, resolve, reject] = inProgressTransaction;
-    populateTransaction().then((transactionRequest) => {
-      return signer.sendTransaction(transactionRequest)
-        .finally(() => setInProgressTransaction(null))
-        .then((transactionResponse) => {
-            const transactionHash = transactionResponse.hash;
-            setPendingTransactions((prev) => {
-              return {...prev, [transactionHash]: true}; 
-            });
-            return transactionResponse.wait()
-              .then((receipt) => {
-                if (receipt.status) {
-                  return receipt;
-                } else {
-                  return Promise.reject(receipt);
-                }
-              })
-              .then(resolve, reject)
-              .finally(() => {
-                setPendingTransactions((prev) => {
-                  const newPendingTransactions = {...prev};
-                  delete newPendingTransactions[transactionHash];
-                  return newPendingTransactions;                  
-                });
+    populateTransaction()
+      .catch(console.error)
+      .then((transactionRequest) => {
+        return signer.sendTransaction(transactionRequest)
+          .catch(console.error)
+          .finally(() => setInProgressTransaction(null))
+          .then((transactionResponse) => {
+              const transactionHash = transactionResponse.hash;
+              setPendingTransactions((prev) => {
+                return {...prev, [transactionHash]: true}; 
               });
-          });
-    });
+              return transactionResponse.wait()
+                .then((receipt) => {
+                  if (receipt.status) {
+                    return receipt;
+                  } else {
+                    return Promise.reject(receipt);
+                  }
+                })
+                .then(resolve, reject)
+                .finally(() => {
+                  setPendingTransactions((prev) => {
+                    const newPendingTransactions = {...prev};
+                    delete newPendingTransactions[transactionHash];
+                    return newPendingTransactions;                  
+                  });
+                });
+            });
+      });
   }, [inProgressTransaction]);
 
   const waitForConfirmation = (transactionResponse) => {
@@ -156,7 +159,7 @@ const Hyphen = ({ provider, configuration }) => {
 
   const enqueueTransaction = (populateTransaction) => {
     return new Promise((resolve, reject) => {
-      setUnsentTransactions([...unsentTransactions, [populateTransaction, resolve, reject]]);
+      setUnsentTransactions(previousUnsetTransactions => [...previousUnsetTransactions, [populateTransaction, resolve, reject]]);
     });
   };
 
@@ -171,7 +174,7 @@ const Hyphen = ({ provider, configuration }) => {
 
     const abi = configuration.contracts[address];
     const contractInterface = new ethers.utils.Interface(abi);
-    const contract = new ethers.Contract(address, abi, signer);
+    const contract = new ethers.Contract(address, abi, signer ? signer : provider);
     const returnedContract = new Proxy({}, {
       get: (target, prop) => {
         try {

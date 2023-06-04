@@ -20,7 +20,6 @@ const RecipeEditor = ({
   const [steps, setSteps] = useState(recipe ? recipe.steps : ['']);
 
   useEffect(() => {
-    onRecipeChanged(getRecipe());
     const updateParent = setInterval(() => onRecipeChanged(getRecipe()), 1000);
     return () => clearInterval(updateParent);
   }, [name, ingredients, steps]);

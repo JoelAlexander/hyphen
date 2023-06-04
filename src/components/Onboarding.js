@@ -15,26 +15,29 @@ const InviteCode = ({ setValidInviteCode }) => {
   const [isValid, setIsValid] = useState(null);
   const context = useContext(HyphenContext);
 
-  const validateInviteCode = async () => {
+  useEffect(() => {
+    let wallet;
     try {
-      const wallet = new ethers.Wallet(inviteCode, context.provider);
-      const balance = await wallet.getBalance();
-      if (ethers.utils.formatEther(balance) > 0) {
-        setIsValid(true);
-        setValidInviteCode(inviteCode);
-      } else {
-        setIsValid(false);
-      }
-    } catch (error) {
-      setIsValid(false);
+      wallet = new ethers.Wallet(inviteCode, context.provider);
+    } catch {
+      wallet = null;
     }
-  };
+    if (wallet) {
+      wallet.getBalance().then((balance) => {
+        if (ethers.utils.formatEther(balance) > 0) {
+          setIsValid(true);
+          setValidInviteCode(inviteCode);
+        } else {
+          setIsValid(false);
+        }
+      });
+    }
+  }, [inviteCode])
 
   return (
     <div>
       <h3>Enter your invite code</h3>
       <input type="text" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} />
-      <button onClick={validateInviteCode}>Validate</button>
       {isValid === false && <p>Not a valid invite code.</p>}
     </div>
   );
@@ -205,7 +208,7 @@ const Onboarding = ({ setSigner, setAddress, setName, setHouseWallet }) => {
   const [inviteCode, setInviteCode] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [[balance, name], setBalanceAndName] = useState([null, null]);
-  const [step, setStep] = useState(fingerprint !== null ? 'uniquePassphrase' : 'splash');
+  const [step, setStep] = useState('splash');
   const context = useContext(HyphenContext);
 
   const createWallet = (userString) => {
@@ -214,56 +217,49 @@ const Onboarding = ({ setSigner, setAddress, setName, setHouseWallet }) => {
   };
 
   useEffect(() => {
-    const getFingerprint = async () => {
-      const db = await openDB('Hyphen', 1);
-      const fingerprint = await db.get('fingerprint', 'key');
-      setFingerprint(fingerprint);
-    }
-    getFingerprint();
+    openDB('Hyphen', 1, {
+      upgrade(db) {
+        db.createObjectStore('fingerprint');
+      }
+    }).then(db => {
+      return db.get('fingerprint', 'key');
+    }).then(fp => {
+      setFingerprint(fp);
+    });
   }, []);
 
   useEffect(() => {
-    const getFingerprint = async () => {
-      const db = await openDB('Hyphen', 1, {
-        upgrade(db) {
-          db.createObjectStore('fingerprint');
-        },
+    if (inviteCode) {
+      openDB('Hyphen', 1).then(db => {
+        return db.get('fingerprint', 'key').then(existingFingerprint => {
+          if (!existingFingerprint) {
+            const randomBytes = ethers.utils.randomBytes(16);
+            const newFingerprint = ethers.utils.hexlify(randomBytes);
+            db.put('fingerprint', newFingerprint, 'key').then(() => {
+              setFingerprint(newFingerprint);
+            });
+          }
+        });
       });
-      const fingerprint = await db.get('fingerprint', 'key');
-      setFingerprint(fingerprint);
-    }
-    getFingerprint();
-  }, []);
+    }    
+  }, [inviteCode]);
 
   useEffect(() => {
-    if (fingerprint) {
-      const setFingerprint = async () => {
-        const db = await openDB('Hyphen', 1, {
-          upgrade(db) {
-            if (!db.objectStoreNames.contains('fingerprint')) {
-              db.createObjectStore('fingerprint');
-            }
-          },
-        });
-        await db.put('fingerprint', fingerprint, 'key');
-      }
-      setFingerprint();
-      setStep('uniquePassphrase');
-    } else {
-      const removeFingerprint = async () => {
-        const db = await openDB('Hyphen', 1, {
-          upgrade(db) {
-            if (!db.objectStoreNames.contains('fingerprint')) {
-              db.createObjectStore('fingerprint');
-            }
-          },
-        });
-        await db.delete('fingerprint', 'key');
-      }
-      removeFingerprint();
-      setStep('splash');
+    if (fingerprint === undefined) {
+      openDB('Hyphen', 1).then((db) => {
+        return db.delete('fingerprint', 'key');
+      }).then(() => {
+        setFingerprint(null);
+        setStep('splash');
+      });
+    } else if (fingerprint !== null) {
+      openDB('Hyphen', 1).then((db) => {
+        return db.put('fingerprint', fingerprint, 'key');
+      }).then(() => {
+        setStep('uniquePassphrase');
+      });
     }
-  }, [fingerprint])
+  }, [fingerprint]);
 
   useEffect(() => {
     if (wallet !== null) {
@@ -290,12 +286,13 @@ const Onboarding = ({ setSigner, setAddress, setName, setHouseWallet }) => {
 
   const confirmForgetFingerprint = () => {
     if (window.confirm('Are you sure you want to forget this fingerprint?  Make sure you\'ve copied it to a safe place if you want to import it later.')) {
-      setFingerprint(null);
+      setFingerprint(undefined);
     }
   };
 
   const goToInviteCode = () => setStep('inviteCode');
   const goToImportFingerprint = () => setStep('importFingerprint');
+  const setInviteCode2 = (inviteCode2) => setInviteCode(inviteCode2);
 
   return (
     <div className="onboarding-container">

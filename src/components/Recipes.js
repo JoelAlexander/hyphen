@@ -117,6 +117,10 @@ const Recipes = (props) => {
     setEditedRecipe(null);
   };
 
+  const closeRecipe = () => {
+    setSelectedRecipe(null);
+  };
+
   const update = () => {
     recipesContract
       .contents()
@@ -174,10 +178,21 @@ const Recipes = (props) => {
           ))}
         </Popover>
       </Overlay>
-      <RecipeViewer
-        recipe={displayRecipe}
-        startEditing={startEditing}
-        removeRecipe={removeRecipe} />
+      { editing &&
+        <RecipeEditor
+          recipe={editedRecipe}
+          onRecipeChanged={updateEditedRecipe}
+          measures={measures}
+          commit={addEditedRecipe}
+          stopEditing={stopEditing} /> }
+      { !editing && selectedRecipe === null &&
+        <button onClick={() => startEditing(null)}>New recipe</button>}
+      { displayRecipe &&
+        <RecipeViewer
+          recipe={displayRecipe}
+          startEditing={startEditing}
+          closeRecipe={closeRecipe}
+          removeRecipe={removeRecipe} />}
     </div>
   );
 }

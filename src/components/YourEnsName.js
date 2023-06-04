@@ -8,7 +8,7 @@ const YourEnsName = ({onNameSet}) => {
   const context = useContext(HyphenContext);
   const ensContract = context.getContract(context.configuration.ens)
   const resolverContract = context.getContract('resolver')
-  const fifsRegistrarContract = context.getContract('registrar.eth')
+  const fifsRegistrarContract = context.getContract('registrar.hyphen')
   const reverseRegistrarContract = context.getContract('addr.reverse')
   const [name, setName] = useState(null);
   const [enteredLabelString, setEnteredLabelString] = useState('');
@@ -33,7 +33,7 @@ const YourEnsName = ({onNameSet}) => {
       return;
     }
 
-    const fullname = enteredLabelString + ".eth";
+    const fullname = enteredLabelString + ".hyphen";
     const label = ethers.utils.id(enteredLabelString);
     const node = namehash.hash(fullname);
     setCurrentStep('Registering name');
@@ -60,13 +60,13 @@ const YourEnsName = ({onNameSet}) => {
   };
 
   const releaseName = () => {
-    const suffix = ".eth";
+    const suffix = ".hyphen";
     const suffixIndex = name.lastIndexOf(suffix);
     if (
       suffixIndex === -1 ||
       (suffix.length + suffixIndex) !== name.length
     ) {
-      context.addMessage("Name must end in .eth");
+      context.addMessage("Name must end in .hyphen");
       return;
     }
 
@@ -99,12 +99,12 @@ const YourEnsName = ({onNameSet}) => {
     } else {
       action = (
         <div>
-          <input type="text" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />.eth
+          <input type="text" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />.hyphen
           <input onClick={claimName} type="submit" value="Claim name" />
         </div>);
     }
   } else {
-    action = <p>No registrar.eth found! {context.provider.network.ensAddress}</p>;
+    action = <p>No registrar.hyphen found! {context.provider.network.ensAddress}</p>;
   }
 
   return (
