@@ -12,18 +12,18 @@ contract Curation {
     AddressSet private allAddresses;
 
     constructor() {
-        allTags = new StringSet();
-        allAddresses = new AddressSet();
+        allTags = new StringSet(address(this));
+        allAddresses = new AddressSet(address(this));
     }
 
     function addTag(address addr, string memory tag) external {
         if (address(addressToTags[addr]) == address(0)) {
-            addressToTags[addr] = new StringSet();
+            addressToTags[addr] = new StringSet(address(this));
         }
         addressToTags[addr].add(tag);
 
         if (address(tagToAddresses[tag]) == address(0)) {
-            tagToAddresses[tag] = new AddressSet();
+            tagToAddresses[tag] = new AddressSet(address(this));
         }
         tagToAddresses[tag].add(addr);
 

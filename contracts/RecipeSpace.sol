@@ -38,7 +38,7 @@ contract RecipeSpace {
 
 	constructor(string memory _name) {
 		name = _name;
-		recipes = new AddressSet();
+		recipes = new AddressSet(address(this));
 	}
 
 	function startRecipe(address creator, Recipe recipe, uint scalePercentage) external {

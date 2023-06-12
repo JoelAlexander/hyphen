@@ -21,7 +21,7 @@ contract RecipeHub {
     mapping(string => address) spacesByName;
 
     constructor() {
-        spaces = new AddressSet();
+        spaces = new AddressSet(address(this));
     }
 
     modifier isActiveSpace(RecipeSpace space) {

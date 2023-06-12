@@ -11,7 +11,7 @@ contract RecipeSet {
     AddressSet recipes;
 
     constructor() {
-        recipes = new AddressSet();
+        recipes = new AddressSet(address(this));
     }
 
     function add(Recipe recipe) external {

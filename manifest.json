@@ -1,17 +1,7 @@
 {
   "name": "hyphen",
-  "resources": {
-    "houseWallet": {
-      "type": "PrivateKey",
-      "options": {
-        "random": true
-      }
-    }
-  },
-  "namespaces": {
-    "hyphen": {
-      "type": "FIFSRegistrar"
-    }
+  "namespace": {
+    "type": "FIFSRegistrar"
   },
   "deploy": {
     "faucetauthorizer": {
@@ -19,7 +9,7 @@
     },
     "faucet": {
       "source": "@local-blockchain-toolbox/contract-primitives/AuthorizedFaucet",
-      "args": [ "{faucetauthorizer}" ]
+      "args": [ "faucetauthorizer.hyphen" ]
     },
     "recipehub": {
       "source": "RecipeHub"
