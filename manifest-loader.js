@@ -22,14 +22,8 @@ module.exports = function (source) {
     [ 'resolver', '@ensdomains/ens-contracts/resolvers/PublicResolver' ],
     [ 'addr.reverse', '@ensdomains/ens-contracts/registry/ReverseRegistrar']
   ];
-  const namespacesEntries = !manifest.namespaces ? [] :
-    Object.entries(manifest.namespaces).map(([key, value]) => {
-      if (value.type && value.type === 'FIFSRegistrar') {
-        return [ `registrar.${key}`, '@ensdomains/ens-contracts/registry/FIFSRegistrar' ]
-      } else {
-        return null
-      }
-    }).filter((entry) => entry !== null);
+  const namespacesEntries = manifest.namespace && manifest.namespace.type && manifest.namespace.type === 'FIFSRegistrar' ?
+        [[ `registrar.${manifest.name}`, '@ensdomains/ens-contracts/registry/FIFSRegistrar' ]] : []
 
   const deployedEntries = Object.entries(manifest.deploy).map(([key, value]) => [`${key}.${manifest.name}`, value.source]);
   const allEntries = [...ensEntries, ...namespacesEntries, ...deployedEntries];
