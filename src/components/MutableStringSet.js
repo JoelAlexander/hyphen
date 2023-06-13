@@ -9,20 +9,57 @@ const MutableStringSet = ({ contractAddress }) => {
   const context = useContext(HyphenContext);
   const contract = context.getContract(contractAddress);
 
+  const fetchContents = async () => {
+    const result = await contract.contents();
+    setContents(result);
+  }
+
   useEffect(() => {
-    contract
-      .contents()
-      .then((result) => {
-        setContents(result);
-      });
+    fetchContents();
+
+    const addedFilter = contract.filters.StringAdded();
+    contract.on(addedFilter, (by, str) => {
+      if (by !== context.address) {
+        setContents(prevContents => [...prevContents, str]);
+      }
+    });
+
+    const removedFilter = contract.filters.StringRemoved();
+    contract.on(removedFilter, (by, str) => {
+      if (by !== context.address) {   
+        setContents(prevContents => prevContents.filter(item => item !== str));
+      }
+    });
+
+    return () => {
+      contract.removeAllListeners('StringAdded');
+      contract.removeAllListeners('StringRemoved');
+    };
   }, []);
 
-  const addString = (str) => {
-    contract.add(str).then(() => setContents(prevContents => [...prevContents, str]));
+  const addString = async (str) => {
+    if (contents.includes(str)) {
+      alert("This string is already in the list!");
+      return;
+    }
+
+    setContents(prevContents => [...prevContents, str]);
+    try {
+      await contract.add(str);
+    } catch (error) {
+      setContents(prevContents => prevContents.filter(item => item !== str));
+      console.error(`Failed to add string: ${error}`);
+    }
   };
 
-  const removeString = (str) => {
-    contract.remove(str).then(() => setContents(prevContents => prevContents.filter(item => item !== str)));
+  const removeString = async (str) => {
+    setContents(prevContents => prevContents.filter(item => item !== str));
+    try {
+      await contract.remove(str);
+    } catch (error) {
+      setContents(prevContents => [...prevContents, str]);
+      console.error(`Failed to remove string: ${error}`);
+    }
   };
 
   const handleAddString = (event) => {

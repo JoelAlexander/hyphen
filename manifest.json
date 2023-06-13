@@ -18,7 +18,8 @@
       "source": "RecipeSet"
     },
     "measures": {
-      "source": "@local-blockchain-toolbox/contract-primitives/StringSet"
+      "source": "@local-blockchain-toolbox/contract-primitives/StringSet",
+      "args": [ "0x0000000000000000000000000000000000000000" ]
     },
     "curation": {
       "source": "Curation"
