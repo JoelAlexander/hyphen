@@ -73,7 +73,7 @@ const Hyphen = ({ provider, configuration }) => {
   const [houseWallet, setHouseWallet] = useState(null);
   const [unsentTransactions, setUnsentTransactions] = useState([]);
   const [inProgressTransaction, setInProgressTransaction] = useState(null);
-  const [pendingTransactions, setPendingTransactions] = useState({});
+  const [pendingTransactions, setPendingTransactions] = useState([]);
   const [connectedContracts, setConnectedContracts] = useState({});
   const [isPolling, setIsPolling] = useState(true);
   const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(12);
@@ -131,7 +131,7 @@ const Hyphen = ({ provider, configuration }) => {
           .then((transactionResponse) => {
               const transactionHash = transactionResponse.hash;
               setPendingTransactions((prev) => {
-                return {...prev, [transactionHash]: true}; 
+                return [...prev, [transactionHash]];
               });
               return transactionResponse.wait()
                 .then((receipt) => {
@@ -144,9 +144,7 @@ const Hyphen = ({ provider, configuration }) => {
                 .then(resolve, reject)
                 .finally(() => {
                   setPendingTransactions((prev) => {
-                    const newPendingTransactions = {...prev};
-                    delete newPendingTransactions[transactionHash];
-                    return newPendingTransactions;                  
+                    return [...prev].filter(hash => hash != transactionHash);
                   });
                 });
             });
@@ -263,12 +261,12 @@ const Hyphen = ({ provider, configuration }) => {
     setTimeout(() => setToastVisible(false), 3000);
   };
 
-  const isInFlightTransactions = Object.keys(pendingTransactions).length !== 0;
+  const isInFlightTransactions = pendingTransactions.length !== 0;
   const appStyles = false ? { pointerEvents: 'none', opacity: '0.5' } : {};
   const statusBar = signer && name ?
     <StatusBar
       logout={logout}
-      loadingStatus={isInFlightTransactions ? Object.keys(pendingTransactions)[0].toString() : null}
+      syncing={isInFlightTransactions}
       address={address || 'logged-out'}
       blockNumber={blockNumber}
       entries={entries} /> : null;
