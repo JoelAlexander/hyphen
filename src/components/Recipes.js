@@ -74,14 +74,12 @@ const Recipes = (props) => {
     const addedFilter = recipesAddressSetContract.filters.AddressAdded();
     const removedFilter = recipesAddressSetContract.filters.AddressRemoved();
     const addedListener = (by, recipe) => {
-      if (by != context.address) {
-        setRecipes(prev => [...prev, recipe]);
-      }
+      setRecipes(prev => [...prev, recipe]);
+      context.addActivityToast(by, `Added a recipe`);
     };
     const removedListener = (by, recipe) => {
-      if (by != context.address) {
-        setRecipes(prev => [...prev].filter(it => it != recipe));
-      }
+      setRecipes(prev => [...prev].filter(it => it != recipe));
+      context.addActivityToast(by, `Removed a recipe`);
     };
 
     recipesAddressSetContract.on(addedFilter, addedListener);
@@ -218,6 +216,7 @@ const Recipes = (props) => {
       { displayRecipe &&
         <RecipeViewer
           recipe={displayRecipe}
+          recipeAddress={selectedRecipe}
           startEditing={startEditing}
           closeRecipe={closeRecipe}
           removeRecipe={removeRecipe} />}
