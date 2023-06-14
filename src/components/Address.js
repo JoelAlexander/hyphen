@@ -4,10 +4,10 @@ import { CopyToClipboard } from 'react-copy-to-clipboard';
 
 const Address = ({ address, style }) => {
   const context = useContext(HyphenContext);
-  const [ensName, setEnsName] = useState(ensName);
+  const [ensName, setEnsName] = useState(null);
 
-  // TODO: Refresh on more specific event
   useEffect(() => {
+    setEnsName(null);
     context.provider.lookupAddress(address).then(setEnsName);
   }, [address]);
 
@@ -16,7 +16,7 @@ const Address = ({ address, style }) => {
   const displayValue = ensName ? ensName : shortenedAddress;
   return (
     <div style={style}>
-      <p style={{ margin: ".5em" }}>{displayValue}</p>
+      <p>{displayValue}</p>
     </div>
   );
 };

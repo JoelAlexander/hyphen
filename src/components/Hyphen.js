@@ -11,6 +11,7 @@ import RecipeSettings from './RecipeSettings.js';
 import RecipePreparation from './RecipePreparation.js';
 import StatusBar from './StatusBar.js';
 import Onboarding from './Onboarding';
+import ActivityToast from './ActivityToast';
 import Faq from './Faq.js';
 import Toast from './Toast';
 import './Hyphen.css';
@@ -77,6 +78,7 @@ const Hyphen = ({ provider, configuration }) => {
   const [connectedContracts, setConnectedContracts] = useState({});
   const [isPolling, setIsPolling] = useState(true);
   const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(12);
+  const [activityToasts, setActivityToasts] = useState([]);
 
   useEffect(() => {
     provider.on('poll', (pollId, blockNumber) => {
@@ -86,6 +88,15 @@ const Hyphen = ({ provider, configuration }) => {
       provider.off('poll');
     };
   }, []);
+
+  useEffect(() => {
+    if (activityToasts.length > 0) {
+      const timer = setTimeout(() => {
+        setActivityToasts(activityToasts.slice(1));
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [activityToasts]);
 
   useEffect(() => {
     provider.polling = isPolling;
@@ -273,6 +284,10 @@ const Hyphen = ({ provider, configuration }) => {
   const currentMenu = getSubMenu(menuStack);
   const ActiveComponent = getComponent(menuStack);
 
+  const addActivityToast = (address, message) => {
+    setActivityToasts(previousToasts => [...previousToasts, { address, message }]);
+  };
+
   return (
     <HyphenContext.Provider value={{
       blockNumber: blockNumber,
@@ -285,7 +300,8 @@ const Hyphen = ({ provider, configuration }) => {
       address: address,
       name: name,
       houseWallet: houseWallet,
-      showToast: showToast
+      showToast: showToast,
+      addActivityToast: addActivityToast
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <div style={{ display: 'inline-block', width: '100%' }}>
@@ -309,6 +325,7 @@ const Hyphen = ({ provider, configuration }) => {
           </div>
         </div>
         {toastVisible && <Toast />}
+        {activityToasts.length > 0 && <ActivityToast toast={activityToasts[0]} />}
       </div>
   </HyphenContext.Provider>);
 };

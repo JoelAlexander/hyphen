@@ -33,7 +33,9 @@ const Counter = () => {
   }, []);
 
   const handleIncrement = () => {
-    setCount(count.add(1));
+    const newCount = count.add(1);
+    setCount(newCount);
+    context.addActivityToast(context.address, `${newCount}`);
     counterContract.increment()
       .catch((reason) => {
         console.error(`Exception during increment: ${reason}, resetting count to ${count}`)

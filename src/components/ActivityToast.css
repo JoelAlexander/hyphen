@@ -1,0 +1,23 @@
+.activity-toast {
+    display: flex;
+    align-items: center;
+    border: 1px solid gray;
+    border-radius: 16px;
+    padding: 10px;
+    margin: 0 auto 20px auto; /* Centers the toast horizontally and adds a 20px gap from the bottom */
+    position: fixed; /* Makes the toast position independent of other elements */
+    bottom: 0; /* Positions the toast at the bottom of the screen */
+    left: 0;
+    right: 0;
+    width: 80%; /* Limits the width of the toast to 80% of the screen width */
+    max-width: 600px; /* Limits the maximum width to 600px */
+    box-sizing: border-box;
+}
+
+.activity-toast-info {
+    margin-left: 10px;
+}
+
+.activity-toast-info p {
+    margin: 0;
+}
