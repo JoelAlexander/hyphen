@@ -17,23 +17,27 @@ const MutableStringSet = ({ contractAddress }) => {
   useEffect(() => {
     fetchContents();
 
+
+
     const addedFilter = contract.filters.StringAdded();
-    contract.on(addedFilter, (by, str) => {
+    const removedFilter = contract.filters.StringRemoved();
+    const addedListener = (by, str) => {
       if (by !== context.address) {
         setContents(prevContents => [...prevContents, str]);
       }
-    });
-
-    const removedFilter = contract.filters.StringRemoved();
-    contract.on(removedFilter, (by, str) => {
+    };
+    const removedListener = (by, str) => {
       if (by !== context.address) {   
         setContents(prevContents => prevContents.filter(item => item !== str));
       }
-    });
+    };
+
+    contract.on(addedFilter, addedListener);
+    contract.on(removedFilter, removedListener);
 
     return () => {
-      contract.removeAllListeners('StringAdded');
-      contract.removeAllListeners('StringRemoved');
+      contract.off(addedFilter, addedListener);
+      contract.off(removedFilter, removedListener);
     };
   }, []);
 

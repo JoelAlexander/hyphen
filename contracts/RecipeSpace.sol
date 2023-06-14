@@ -21,16 +21,9 @@ struct RecipeSpaceData {
 
 contract RecipeSpace {
 
-	enum RecipeChangeType {
-		STARTED,
-		UPDATED,
-		ENDED
-	}
-
-	event RecipeChanged(
-		address creator,
-		RecipeChangeType changeType,
-		Recipe recipeAddress);
+	event RecipeAdded(address by, Recipe recipe);
+	event RecipeUpdated(address by, Recipe recipe);
+	event RecipeRemoved(address by, Recipe recipe);
 
 	string public name;
 	AddressSet recipes;
@@ -46,31 +39,22 @@ contract RecipeSpace {
 		RecipeStatus memory status = RecipeStatus({stepIndex: 0, scalePercentage: scalePercentage});
 		recipes.add(address(recipe));
 		recipeStatus[recipe] = status;
-		emit RecipeChanged(
-			creator,
-			RecipeChangeType.STARTED,
-			recipe);
+		emit RecipeAdded(creator, recipe);
 	}
 
 	function updateRecipeStep(address creator, Recipe recipe, uint stepIndex) external {
 		require(recipes.contains(address(recipe)), "Recipe must be already started");
-		require(stepIndex <= recipe.getStepsCount(), "Step index must be less than or equal than the number of steps.");
+		require(stepIndex <= recipe.getData().steps.length, "Step index must be less than or equal than the number of steps.");
 		RecipeStatus memory updatedStatus = recipeStatus[recipe];
 		updatedStatus.stepIndex = stepIndex;
 		recipeStatus[recipe] = updatedStatus;
-		emit RecipeChanged(
-			creator,
-			RecipeChangeType.UPDATED,
-			recipe);
+		emit RecipeUpdated(creator, recipe);
 	}
 
 	function endRecipe(address creator, Recipe recipe) external {
 		delete recipeStatus[recipe];
 		recipes.remove(address(recipe));
-		emit RecipeChanged(
-			creator,
-			RecipeChangeType.ENDED,
-			recipe);
+		emit RecipeRemoved(creator, recipe);
 	}
 
 	function activeRecipeData(Recipe recipe) external view returns (ActiveRecipeData memory) {

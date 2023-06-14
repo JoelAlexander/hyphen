@@ -8,7 +8,6 @@ struct Ingredient {
 }
 
 struct RecipeData {
-    Recipe recipe;
     address author; 
     string name;
     Ingredient[] ingredients;
@@ -19,8 +18,8 @@ contract Recipe {
 
     address public author;
     string public name;
-    Ingredient[] ingredients;
-    string[] steps;
+    Ingredient[] public ingredients;
+    string[] public steps;
 
     constructor(
         address _author,
@@ -49,10 +48,6 @@ contract Recipe {
     }
 
     function getData() external view returns (RecipeData memory) {
-        return RecipeData({recipe: this, author: author, name: name, ingredients: ingredients, steps: steps});
-    }
-
-    function getStepsCount() external view returns (uint) {
-        return steps.length;
+        return RecipeData({author: author, name: name, ingredients: ingredients, steps: steps});
     }
 }

@@ -6,16 +6,9 @@ import "./RecipeSpace.sol";
 
 contract RecipeHub {
 
-    enum RecipeSpaceChangeType {
-        CREATED,
-        UPDATED,
-        REMOVED
-    }
-
-    event RecipeSpaceChanged(
-        address addr,
-        RecipeSpaceChangeType changeType, 
-        RecipeSpace recipeSpace);
+    event RecipeSpaceAdded(address by, RecipeSpace recipeSpace);
+    event RecipeSpaceUpdated(address by, RecipeSpace recipeSpace);
+    event RecipeSpaceRemoved(address by, RecipeSpace recipeSpace);
 
     AddressSet spaces;
     mapping(string => address) spacesByName;
@@ -34,10 +27,7 @@ contract RecipeHub {
         RecipeSpace space = new RecipeSpace(name);
         spaces.add(address(space));
         spacesByName[name] = address(space);
-        emit RecipeSpaceChanged(
-            msg.sender,
-            RecipeSpaceChangeType.CREATED,
-            space);
+        emit RecipeSpaceAdded(msg.sender, space);
     }
 
     function startRecipeInSpace(
@@ -46,10 +36,7 @@ contract RecipeHub {
         uint scalePercentage
     ) isActiveSpace(space) external {
         space.startRecipe(msg.sender, recipe, scalePercentage);
-        emit RecipeSpaceChanged(
-            msg.sender,
-            RecipeSpaceChangeType.UPDATED,
-            space);
+        emit RecipeSpaceUpdated(msg.sender, space);
     }
 
     function updateRecipeStepInSpace(
@@ -58,10 +45,7 @@ contract RecipeHub {
         uint stepIndex
     ) isActiveSpace(space) external {
         space.updateRecipeStep(msg.sender, recipe, stepIndex);
-        emit RecipeSpaceChanged(
-            msg.sender,
-            RecipeSpaceChangeType.UPDATED,
-            space);
+        emit RecipeSpaceUpdated(msg.sender, space);
     }
 
     function endRecipeInSpace(
@@ -69,19 +53,13 @@ contract RecipeHub {
         Recipe recipe
     ) isActiveSpace(space) external {
         space.endRecipe(msg.sender, recipe);
-        emit RecipeSpaceChanged(
-            msg.sender,
-            RecipeSpaceChangeType.UPDATED,
-            space);
+        emit RecipeSpaceUpdated(msg.sender, space);
     }
 
     function removeRecipeSpace(RecipeSpace space) external {
         spaces.remove(address(space));
         delete spacesByName[space.name()];
-        emit RecipeSpaceChanged(
-            msg.sender,
-            RecipeSpaceChangeType.REMOVED,
-            space);
+        emit RecipeSpaceRemoved(msg.sender, space);
     }
 
     function recipeSpaceByName(string memory name) external view returns (RecipeSpace) {

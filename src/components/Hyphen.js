@@ -151,10 +151,6 @@ const Hyphen = ({ provider, configuration }) => {
       });
   }, [inProgressTransaction]);
 
-  const waitForConfirmation = (transactionResponse) => {
-    return transactionResponse
-  };
-
   const enqueueTransaction = (populateTransaction) => {
     return new Promise((resolve, reject) => {
       setUnsentTransactions(previousUnsetTransactions => [...previousUnsetTransactions, [populateTransaction, resolve, reject]]);
@@ -165,12 +161,15 @@ const Hyphen = ({ provider, configuration }) => {
     return provider.lookupAddress(address);
   };
 
-  const getContract = (address) => {
+  const getContract = (address, abi) => {
     if (connectedContracts[address]) {
       return connectedContracts[address];
     }
 
-    const abi = configuration.contracts[address];
+    if (!abi) {
+      abi = configuration.contracts[address];
+    }
+
     const contractInterface = new ethers.utils.Interface(abi);
     const contract = new ethers.Contract(address, abi, signer ? signer : provider);
     const returnedContract = new Proxy({}, {
