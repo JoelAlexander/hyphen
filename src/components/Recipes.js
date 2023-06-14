@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import HyphenContext from './HyphenContext';
-import { AddressSet, StringSet } from '@local-blockchain-toolbox/contract-primitives';
-import RecipeSet from 'contracts/RecipeSet.sol/RecipeSet.json';
+import { AddressSet } from '@local-blockchain-toolbox/contract-primitives';
 import Recipe from 'contracts/Recipe.sol/Recipe.json';
 import RecipeViewer from './RecipeViewer';
-import RecipeMenu from "./RecipeMenu";
 import RecipeEditor from "./RecipeEditor";
-import MutableStringSet from "./MutableStringSet";
-import Address from "./Address";
 import Overlay from 'react-bootstrap/Overlay';
 import Popover from 'react-bootstrap/Popover';
 import { useKeyPress } from './useKeyPress';
-const ethers = require("ethers");
 
 import './Recipes.css';
 
@@ -165,12 +160,11 @@ const Recipes = (props) => {
     setSelectedRecipe(null);
   };
 
-  const handleSearch = (e) => {
-    const newSearchQuery = e.target.value;
+  const handleSearch = (query) => {
     const newResults =
       recipes.map(recipe => [recipe, loadedRecipes[recipe]])
-        .filter(([_, data]) => data && data.name.toLowerCase().includes(newSearchQuery.trim().toLowerCase()))
-    setSearchQuery(newSearchQuery);
+        .filter(([_, data]) => data && data.name.toLowerCase().includes(query.trim().toLowerCase()))
+    setSearchQuery(query);
     setSearchResults(newResults);
     setHighlightedSuggestion(newResults.length > 0 ? 0 : -1);
   };
@@ -185,7 +179,8 @@ const Recipes = (props) => {
         type="text"
         placeholder="Search for a recipe"
         value={searchQuery}
-        onChange={handleSearch} />
+        onChange={e => handleSearch(e.target.value)}
+        onClick={() => handleSearch("")} />
       <Overlay
         show={searchResults.length > 0 && searchInputRef.current}
         target={searchInputRef.current}
