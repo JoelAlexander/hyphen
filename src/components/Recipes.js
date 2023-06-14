@@ -65,7 +65,15 @@ const Recipes = (props) => {
       }
     });
   }, [recipes]);
-  
+
+  const addRecipeAddress = (addr) => {
+    setRecipes(prev => [...prev, addr]);
+  };
+
+  const removeRecipeAddress = (addr) => {
+    setRecipes(prev => [...prev].filter(it => it != addr));
+  };
+
   useEffect(() => {
     if (!recipesAddressSetContract) {
       return;
@@ -73,12 +81,12 @@ const Recipes = (props) => {
 
     const addedFilter = recipesAddressSetContract.filters.AddressAdded();
     const removedFilter = recipesAddressSetContract.filters.AddressRemoved();
-    const addedListener = (by, recipe) => {
-      setRecipes(prev => [...prev, recipe]);
+    const addedListener = (by, addr) => {
+      addRecipeAddress(addr);
       context.addActivityToast(by, `Added a recipe`);
     };
-    const removedListener = (by, recipe) => {
-      setRecipes(prev => [...prev].filter(it => it != recipe));
+    const removedListener = (by, addr) => {
+      removeRecipeAddress(addr);
       context.addActivityToast(by, `Removed a recipe`);
     };
 
@@ -111,27 +119,26 @@ const Recipes = (props) => {
   };
 
   const addEditedRecipe = () => {
+    setEditing(false);
+    setEditedRecipe(null);
     recipesContract.create(
       editedRecipe.name,
       editedRecipe.ingredients,
       editedRecipe.steps
-    ).then(() => {
-      setSelectedRecipe(null);
-      setEditing(false);
-      setEditedRecipe(null);
+    ).catch(() => {
+      setEditing(true);
+      setEditedRecipe(editedRecipe);
     });
   };
 
   const removeRecipe = (recipeAddress) => {
-    recipesContract.remove(recipeAddress).then(() => {
-      setSelectedRecipe(null);
-      setEditing(false);
-      setEditedRecipe(null);
+    setSelectedRecipe(null);
+    removeRecipeAddress(recipeAddress);
+    recipesContract.remove(recipeAddress).catch(() => {
+      // TODO: should error be handled like this?
+      setSelectedRecipe(recipeAddress);
+      addRecipeAddress(recipeAddress);
     });
-  };
-
-  const updateEditedRecipe = (recipe) => {
-    setEditedRecipe(recipe);
   };
 
   const startEditing = (existingRecipe) => {
@@ -207,7 +214,7 @@ const Recipes = (props) => {
       { editing &&
         <RecipeEditor
           recipe={editedRecipe}
-          onRecipeChanged={updateEditedRecipe}
+          onRecipeChanged={setEditedRecipe}
           measures={measures}
           commit={addEditedRecipe}
           stopEditing={stopEditing} /> }
