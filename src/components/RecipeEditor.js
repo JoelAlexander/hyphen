@@ -14,10 +14,12 @@ const RecipeEditor = ({
   stopEditing,
 }) => {
   const [name, setName] = useState(recipe ? recipe.name : '');
-  const [ingredients, setIngredients] = useState(
-    recipe ? recipe.ingredients : [['', '', 0], ['', '', 0]],
-  );
+  const [ingredients, setIngredients] = useState(recipe ? recipe.ingredients : [['', '', 0], ['', '', 0]]);
   const [steps, setSteps] = useState(recipe ? recipe.steps : ['']);
+
+  useEffect(()=> {
+    onRecipeChanged(getRecipe());
+  }, []);
 
   useEffect(() => {
     const updateParent = setInterval(() => onRecipeChanged(getRecipe()), 1000);

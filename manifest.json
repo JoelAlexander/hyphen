@@ -26,6 +26,11 @@
     },
     "counter": {
       "source": "Counter"
+    },
+    "itemshare": {
+      "source": "ENSItemShare",
+      "args": [ "ens", "resolver", "0xb7c549aa531c919ddf801ae4916be891abf21e246c598f4c811c3f9c69754f23" ],
+      "ownSubdomain": true
     }
   }
 }

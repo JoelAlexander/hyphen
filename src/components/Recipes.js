@@ -137,16 +137,13 @@ const Recipes = (props) => {
   };
 
   const startEditing = (existingRecipe) => {
-    let editedRecipe = null;
-    if (existingRecipe) {
-      editedRecipe = {
+    const editedRecipe = existingRecipe ? {
         name: existingRecipe.name,
         ingredients: existingRecipe.ingredients.map(([name, unit, amount]) => {
           return [name, unit, amount.toNumber()];
         }),
         steps: existingRecipe.steps,
-      };
-    }
+      } : null
     setEditing(true);
     setEditedRecipe(editedRecipe);
   };
@@ -171,41 +168,43 @@ const Recipes = (props) => {
 
   const displayRecipe = (editing && editedRecipe) || 
     (recipes && selectedRecipe !== null && loadedRecipes[selectedRecipe]);
-
+  
   return (
     <div>
-      <input
-        ref={searchInputRef}
-        type="text"
-        placeholder="Search for a recipe"
-        value={searchQuery}
-        onChange={e => handleSearch(e.target.value)}
-        onClick={() => handleSearch("")} />
-      <Overlay
-        show={searchResults.length > 0 && searchInputRef.current}
-        target={searchInputRef.current}
-        placement="bottom"
-        rootClose
-        onHide={() => setSearchResults([])} >
-        <Popover id="search-results-popover">
-          {searchResults.map((result, index) => (
-            <div
-              key={index}
-              onClick={() => {
-                setSearchQuery(result[1].name);
-                setSearchResults([]);
-                selectRecipe(result[0]);
-              }}
-              style={{
-                cursor: "pointer",
-                backgroundColor: highlightedSuggestion === index ? "#f0f0f0" : "transparent"
-              }}
-            >
-              {result[1].name}
-            </div>
-          ))}
-        </Popover>
-      </Overlay>
+      {!displayRecipe && (<>
+        <input
+          ref={searchInputRef}
+          type="text"
+          placeholder="Search for a recipe"
+          value={searchQuery}
+          onChange={e => handleSearch(e.target.value)}
+          onClick={() => handleSearch("")} />
+        <Overlay
+          show={searchResults.length > 0 && searchInputRef.current}
+          target={searchInputRef.current}
+          placement="bottom"
+          rootClose
+          onHide={() => setSearchResults([])} >
+          <Popover id="search-results-popover">
+            {searchResults.map((result, index) => (
+              <div
+                key={index}
+                onClick={() => {
+                  setSearchQuery(result[1].name);
+                  setSearchResults([]);
+                  selectRecipe(result[0]);
+                }}
+                style={{
+                  cursor: "pointer",
+                  backgroundColor: highlightedSuggestion === index ? "#f0f0f0" : "transparent"
+                }}
+              >
+                {result[1].name}
+              </div>
+            ))}
+          </Popover>
+        </Overlay>
+      </>)}
       { editing &&
         <RecipeEditor
           recipe={editedRecipe}
@@ -213,8 +212,7 @@ const Recipes = (props) => {
           measures={measures}
           commit={addEditedRecipe}
           stopEditing={stopEditing} /> }
-      { !editing && selectedRecipe === null &&
-        <button onClick={() => startEditing(null)}>New recipe</button>}
+      { !displayRecipe && <button onClick={() => startEditing(null)}>New recipe</button>}
       { displayRecipe &&
         <RecipeViewer
           recipe={displayRecipe}
