@@ -20,7 +20,7 @@ contract ENSItemShare {
         ens = _ens;
         resolver = _resolver;
         rootNode = _rootNode;
-        itemShare = new ItemShare();
+        itemShare = new ItemShare(address(this));
     }
 
     function addItem(string calldata metadata) external {
