@@ -4,6 +4,7 @@ import WalletConnectProvider from '@walletconnect/web3-provider';
 import React, { useState, useEffect } from 'react';
 import HyphenContext from './HyphenContext';
 import Splash from './Splash.js';
+import ItemShare from './ItemShare.js';
 import Account from './Account.js';
 import Counter from './Counter.js';
 import Recipes from './Recipes.js';
@@ -21,6 +22,7 @@ const ethers = require("ethers");
 
 const menuItems = {
   'Account': { emoji: '👤', component: Account },
+  'Item Share': { emoji: '🔗', component: ItemShare },
   'Counter': { emoji: '🔔', component: Counter },
   'Food': { 
     emoji: '🍽️',
