@@ -4,18 +4,18 @@ pragma solidity ^0.8.0;
 contract ItemShare {
 
   struct Item {
-      address owner;
-      address holder;
-      uint256 termEnd;
-      bool available;
+    address owner;
+    address holder;
+    uint256 termEnd;
+    bool available;
   }
 
   event ItemAdded(address indexed owner, uint256 indexed id);
   event ItemRemoved(address indexed owner, uint256 indexed id);
   event ItemRequested(address indexed owner, address indexed requester, uint256 indexed id, uint256 term);
   event RequestDenied(address indexed owner, address indexed requester, uint256 indexed id, uint256 term);
-  event RequestApproved(address indexed owner, address indexed holder, uint256 indexed id, uint256 termEnd);
-  event ItemReturned(address indexed owner, address indexed holder, uint256 indexed id, bool overdue, bool returnedByOwner);
+  event RequestApproved(address indexed owner, address indexed requester, uint256 indexed id, uint256 termEnd);
+  event ItemReturned(address indexed owner, address indexed requester, uint256 indexed id, bool overdue, bool returnedByOwner);
   event OwnershipTransferred(address indexed fromOwner, address indexed toOwner, uint256 indexed id);
 
   mapping(uint256 => Item) public items;
@@ -41,14 +41,15 @@ contract ItemShare {
 
   function removeItem(address owner, uint256 id) external onlyController {
     require(owner == items[id].owner, "Owner must be the current owner of the item");
+    require(owner == items[id].holder, "Owner must be the current holder of the item");
     delete items[id];
     emit ItemRemoved(owner, id);
   }
 
-  function changeOwnership(address owner, address newOwner, uint256 id) onlyController external {
-    require(owner == items[id].owner, "Owner must be the current owner of the item");
+  function transferOwnership(address newOwner, uint256 id) external {
+    require(msg.sender == items[id].owner, "Owner must be the current owner of the item");
     items[id].owner = newOwner;
-    emit OwnershipTransferred(owner, newOwner, id);
+    emit OwnershipTransferred(msg.sender, newOwner, id);
   }
 
   function requestItem(uint256 id, uint256 term) external {

@@ -40,10 +40,6 @@ contract ENSItemShare {
         ens.setSubnodeOwner(node, labelHash, address(0));
     }
 
-    function changeOwnership(address newOwner, uint256 id) external {
-        itemShare.changeOwnership(msg.sender, newOwner, id);
-    }
-
     function updateMetadata(uint256 id, string calldata metadata) external {
         require(msg.sender == itemShare.getItem(id).owner, "Must be the owner");
         bytes32 node = keccak256(abi.encodePacked(rootNode, keccak256(abi.encodePacked(id))));
