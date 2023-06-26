@@ -17,7 +17,6 @@ import Faq from './Faq.js';
 import Toast from './Toast';
 import './Hyphen.css';
 import './NavMenu.css';
-const ensContracts = require('@ensdomains/ens-contracts')
 const ethers = require("ethers");
 
 const menuItems = {
@@ -131,37 +130,32 @@ const Hyphen = ({ provider, configuration }) => {
 
   useEffect(() => {
     if (inProgressTransaction === null) {
-      return;
+      return
     }
 
     const [populateTransaction, resolve, reject] = inProgressTransaction;
     populateTransaction()
-      .catch(console.error)
-      .then((transactionRequest) => {
+      .then(transactionRequest => {
         return signer.sendTransaction(transactionRequest)
-          .catch(console.error)
-          .finally(() => setInProgressTransaction(null))
-          .then((transactionResponse) => {
-              const transactionHash = transactionResponse.hash;
-              setPendingTransactions((prev) => {
-                return [...prev, [transactionHash]];
-              });
-              return transactionResponse.wait()
-                .then((receipt) => {
-                  if (receipt.status) {
-                    return receipt;
-                  } else {
-                    return Promise.reject(receipt);
-                  }
-                })
-                .then(resolve, reject)
-                .finally(() => {
-                  setPendingTransactions((prev) => {
-                    return [...prev].filter(hash => hash != transactionHash);
-                  });
-                });
+          .then(transactionResponse => {
+            const transactionHash = transactionResponse.hash
+            setPendingTransactions((prev) => {
+              return [...prev, [transactionHash]]
             });
-      });
+            return transactionResponse.wait().then((receipt) => {
+              if (receipt.status) {
+                return receipt
+              } else {
+                return Promise.reject(receipt)
+              }
+            }).finally(() => {
+              setPendingTransactions(prev => {
+                return [...prev].filter(hash => hash != transactionHash)
+              })
+            })
+          })
+      }).then(resolve, reject)
+      .finally(() => setInProgressTransaction(null))
   }, [inProgressTransaction]);
 
   const enqueueTransaction = (populateTransaction) => {

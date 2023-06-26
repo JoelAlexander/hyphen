@@ -15,35 +15,25 @@ contract ItemShare {
   event ItemRequested(address indexed owner, address indexed requester, uint256 indexed id, uint256 term);
   event RequestDenied(address indexed owner, address indexed requester, uint256 indexed id, uint256 term);
   event RequestApproved(address indexed owner, address indexed requester, uint256 indexed id, uint256 termEnd);
-  event ItemReturned(address indexed owner, address indexed requester, uint256 indexed id, bool overdue, bool returnedByOwner);
+  event ItemReturned(address indexed owner, address indexed requester, uint256 indexed id, bool overdue);
   event OwnershipTransferred(address indexed fromOwner, address indexed toOwner, uint256 indexed id);
 
   mapping(uint256 => Item) public items;
   mapping(uint256 => mapping(address => uint256)) requests;
-  address public controller;
 
-  constructor(address _controller) {
-    controller = _controller;
-  }
-
-  modifier onlyController {
-    require(msg.sender == controller, "Only controller can call this function");
-    _;
-  }
-
-  function addItem(address owner) external onlyController returns (uint256) {
-    uint256 id = uint256(keccak256(abi.encodePacked(msg.sender, block.number)));
+  function createItem() external returns (uint256) {
+    uint256 id = uint256(keccak256(abi.encodePacked(address(this), msg.sender, block.number)));
     require(items[id].owner == address(0), "Item must not already exist");
-    items[id] = Item({owner: owner, holder: owner, termEnd: 0, available: true});
-    emit ItemAdded(owner, id);
+    items[id] = Item({owner: msg.sender, holder: msg.sender, termEnd: 0, available: true});
+    emit ItemAdded(msg.sender, id);
     return id;
   }
 
-  function removeItem(address owner, uint256 id) external onlyController {
-    require(owner == items[id].owner, "Owner must be the current owner of the item");
-    require(owner == items[id].holder, "Owner must be the current holder of the item");
+  function deleteItem(uint256 id) external {
+    require(msg.sender == items[id].owner, "Owner must be the current owner of the item");
+    require(msg.sender == items[id].holder, "Owner must be the current holder of the item");
     delete items[id];
-    emit ItemRemoved(owner, id);
+    emit ItemRemoved(msg.sender, id);
   }
 
   function transferOwnership(address newOwner, uint256 id) external {
@@ -64,7 +54,7 @@ contract ItemShare {
     require(term == requests[id][requester], "Approved term must match term proposed by requester");
     uint256 termEnd = block.number + term;
     items[id].holder = requester;
-    items[id].termEnd = termEnd;
+    items[id].termEnd = term == 0 ? 0 : termEnd;
     items[id].available = false;
     requests[id][requester] = 0;
     emit RequestApproved(msg.sender, requester, id, termEnd);
@@ -80,14 +70,14 @@ contract ItemShare {
   function returnItem(uint256 id) external {
     address owner = items[id].owner;
     address holder = items[id].holder;
-    bool isPastDue = block.number > items[id].termEnd;
-    bool isSelfReturn = owner == holder;
-    require(msg.sender == items[id].holder || (msg.sender == owner && isPastDue),
+    uint256 termEnd = items[id].termEnd;
+    bool isPastDue = (block.number > termEnd) && termEnd != 0;
+    require(msg.sender == holder || (msg.sender == owner && isPastDue),
       "Must be the holder of the item or the owner returning a past due item");
     items[id].holder = owner;
     items[id].available = true;
     items[id].termEnd = 0;
-    emit ItemReturned(owner, holder, id, isPastDue && !isSelfReturn, msg.sender == owner);
+    emit ItemReturned(owner, holder, id, isPastDue);
   }
 
   function getItem(uint256 id) public view returns (Item memory) {

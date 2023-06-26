@@ -1,18 +1,31 @@
 import React, { useState, useEffect, useContext } from 'react'
-import ItemShare from 'contracts/ItemShare.sol/ItemShare.json'
 import HyphenContext from './HyphenContext'
+const ethers = require("ethers");
+
+const ZeroAddress = "0x0000000000000000000000000000000000000000"
 
 const ENSItemShare = () => {
   const context = useContext(HyphenContext)
-  const ensItemShareContract = context.getContract('itemshare.hyphen')
-  const [itemShareContract, setItemShareContract] = useState(null)
+  const itemShareContract = context.getContract('itemshare.hyphen')
+  const ensItemShareContract = context.getContract('itemsharemetadata.hyphen')
   const [items, setItems] = useState({})
-  const [yourItems, setYourItems] = useState([])
-  const [yourHeldItems, setYourHeldItems] = useState([])
   const [requests, setRequests] = useState({})
+  const [yourItems, setYourItems] = useState(new Set())
+  const [yourHeldItems, setYourHeldItems] = useState(new Set())
+  const [liveFeedItems, setLiveFeedItems] = useState(new Set())
   const [newOwner, setNewOwner] = useState('')
   const [metadata, setMetadata] = useState('')
 
+  const computeItemId = (blockNumber) => {
+    return itemShareContract.resolvedAddress.then(contractAddress => {
+      const packedData = ethers.utils.solidityPack(
+        ['address', 'address', 'uint'],
+        [contractAddress, context.address, blockNumber])
+      console.log(packedData)
+      const hash = ethers.utils.keccak256(packedData)
+      return ethers.BigNumber.from(hash)
+    })
+  }
 
   const mergeAndSortEvents = (events) => {
     const allEvents = [].concat(...events);
@@ -44,15 +57,6 @@ const ENSItemShare = () => {
   }
 
   useEffect(() => {
-    ensItemShareContract.itemShare()
-      .then((address) => setItemShareContract(context.getContract(address, ItemShare.abi)))
-  }, [])
-
-  useEffect(() => {
-    if (!itemShareContract) {
-      return
-    }
-
     const yourRemovedItemsFilter = itemShareContract.filters.ItemRemoved(context.address)
     const yourRemovedItemsEvents = itemShareContract.queryFilter(yourRemovedItemsFilter, 0, context.blockNumber)
 
@@ -74,8 +78,8 @@ const ENSItemShare = () => {
     const requestsApprovedFromYouFilter = itemShareContract.filters.RequestApproved(context.address)
     const requestsApprovedFromYouEvents = itemShareContract.queryFilter(requestsApprovedFromYouFilter, 0, context.blockNumber)
 
-    const requestsApprovedToYouFilter = itemShareContract.filters.RequestApproved(null, context.address);
-    const requestsApprovedToYouEvents = itemShareContract.queryFilter(requestsApprovedToYouFilter, 0, context.blockNumber);
+    const requestsApprovedToYouFilter = itemShareContract.filters.RequestApproved(null, context.address)
+    const requestsApprovedToYouEvents = itemShareContract.queryFilter(requestsApprovedToYouFilter, 0, context.blockNumber)
 
     const ownershipTransferredFromYouFilter = itemShareContract.filters.OwnershipTransferred(context.address)
     const ownershipTransferredFromYouEvents = itemShareContract.queryFilter(ownershipTransferredFromYouFilter, 0, context.blockNumber)
@@ -83,56 +87,64 @@ const ENSItemShare = () => {
     const ownershipTransferredToYouFilter = itemShareContract.filters.OwnershipTransferred(null, context.address)
     const ownershipTransferredToYouEvents = itemShareContract.queryFilter(ownershipTransferredToYouFilter, 0, context.blockNumber)
 
-    const returnsToYouFilter = itemShareContract.filters.ItemReturned(context.address);
-    const returnsToYouEvents = itemShareContract.queryFilter(returnsToYouFilter, 0, context.blockNumber);
+    const returnsToYouFilter = itemShareContract.filters.ItemReturned(context.address)
+    const returnsToYouEvents = itemShareContract.queryFilter(returnsToYouFilter, 0, context.blockNumber)
 
     const returnsFromYouFilter = itemShareContract.filters.ItemReturned(null, context.address);
-    const returnsFromYouEvents = itemShareContract.queryFilter(returnsFromYouFilter, 0, context.blockNumber);
+    const returnsFromYouEvents = itemShareContract.queryFilter(returnsFromYouFilter, 0, context.blockNumber)
+
+    const recentAdditionsFilter = itemShareContract.filters.ItemAdded()
+    const recentAdditionEvents = itemShareContract.queryFilter(recentAdditionsFilter, 0, context.blockNumber)
+
+    const recentRemovalsFilter = itemShareContract.filters.ItemRemoved()
+    const recentRemovalEvents = itemShareContract.queryFilter(recentRemovalsFilter, 0, context.blockNumber)
+
+    const recentRequestsFilter = itemShareContract.filters.ItemRequested()
+    const recentRequestEvents = itemShareContract.queryFilter(recentRequestsFilter, 0, context.blockNumber)
+
+    const recentReturnsFilter = itemShareContract.filters.ItemReturned()
+    const recentReturnEvents = itemShareContract.queryFilter(recentReturnsFilter, 0, context.blockNumber)
+
+    const recentOwnershipTransferredFilter = itemShareContract.filters.ItemReturned()
+    const recentOwnershipTransferredEvents = itemShareContract.queryFilter(recentOwnershipTransferredFilter, 0, context.blockNumber)
 
     Promise.all([yourAddedItemsEvents, yourRemovedItemsEvents, requestsApprovedToYouEvents, requestsApprovedFromYouEvents, returnsToYouEvents, returnsFromYouEvents])
         .then(mergeAndSortEvents)
         .then(events => {
-            const yourItems = events.reduce((result, event) => {
-                const id = event.args.id.toString()
-                const isAdd = (event.event == 'ItemAdded') ||
-                  (event.event == 'RequestApproved' && context.address == event.args.requester) ||
-                  (event.event == 'ItemReturned' && context.address == event.args.owner)
-                const isRemove = (event.event == 'ItemRemoved') ||
-                  (event.event == 'RequestApproved' && context.address == event.args.owner) ||
-                  (event.event == 'ItemReturned' && context.address == event.args.requester)
-                const selfEvent = event.args.owner == event.args.requester
-                if (isAdd && !selfEvent) {
-                  return [id, ...result]
-                } else if (isRemove && !selfEvent) {
-                    return result.filter(_id => id != _id)
-                } else {
-                  return result
-                }
-            }, [])
-            setYourHeldItems(yourItems)
-            return yourItems
+          setYourHeldItems(events.reduce((result, event) => {
+              const id = event.args.id.toString()
+              const isAdd = (event.event == 'ItemAdded') ||
+                (event.event == 'RequestApproved' && context.address == event.args.requester) ||
+                (event.event == 'ItemReturned' && context.address == event.args.owner)
+              const isRemove = (event.event == 'ItemRemoved') ||
+                (event.event == 'RequestApproved' && context.address == event.args.owner) ||
+                (event.event == 'ItemReturned' && context.address == event.args.requester)
+              const selfEvent = event.args.owner == event.args.requester
+              if (isAdd && !selfEvent) {
+                result.add(id)
+              } else if (isRemove && !selfEvent) {
+                result.delete(id)
+              }
+              return result
+          }, new Set(yourHeldItems)))
         })
 
     Promise.all([yourRemovedItemsEvents, yourAddedItemsEvents, ownershipTransferredFromYouEvents, ownershipTransferredToYouEvents])
       .then(mergeAndSortEvents)
       .then(events => {
-        const yourItems = events.reduce((result, event) => {
+        setYourItems(events.reduce((result, event) => {
           const id = event.args.id.toString()
           const isTransfer = event.event == 'OwnershipTransferred'
           const isSelfTransfer = isTransfer && (event.args.toOwner == event.args.fromOwner)
           const isTransferTo = isTransfer && !isSelfTransfer && (event.args.toOwner == context.address)
           const isTransferFrom = isTransfer && !isSelfTransfer && (event.args.fromOwner == context.address)
-          const added = event.event === 'ItemAdded' || isTransferTo
-          const removed = event.event === 'ItemRemoved' || isTransferFrom
-          if (added) {
-            return [id, ...result]
-          } else if (removed) {
-            return result.filter(_id => id != _id)
+          if (event.event === 'ItemAdded' || isTransferTo) {
+            result.add(id)
+          } else if (event.event === 'ItemRemoved' || isTransferFrom) {
+            result.delete(id)
           }
           return result
-        }, [])
-        setYourItems(yourItems)
-        return yourItems
+        }, new Set(yourItems)))
       })
 
     Promise.all([requestsToYouEvents, requestsFromYouEvents, requestsApprovedToYouEvents, requestsApprovedFromYouEvents, requestsDeniedToYouEvents, requestsDeniedFromYouEvents])
@@ -150,26 +162,50 @@ const ENSItemShare = () => {
             return result
           }, {}))
       })
-  }, [itemShareContract])
+
+    Promise.all([recentAdditionEvents, recentRemovalEvents, recentRequestEvents, recentReturnEvents, recentOwnershipTransferredEvents])
+      .then(mergeAndSortEvents)
+      .then(events => {
+        setLiveFeedItems(events.reduce((result, event) => {
+          result.add(event.args.id.toString())
+          return result
+        }, new Set(liveFeedItems)))
+      })
+  }, [])
 
   useEffect(() => {
     yourItems.forEach(loadItem)
     yourHeldItems.forEach(loadItem)
-  }, [yourItems, yourHeldItems])
+    liveFeedItems.forEach(loadItem)
+  }, [yourItems, yourHeldItems, liveFeedItems])
 
   useEffect(() => {
-    if (!itemShareContract) {
-      return
+    const updateItemMetadata = (_id, newMetadata) => {
+      const id = _id.toString()
+      return prev => {
+        const { metadata, ...remaining } = prev[id]
+        return { ...prev, [id]: { metadata: newMetadata , ...remaining }} }
+    } 
+
+    const updateItemData = (_id, updateData) => {
+      const id = _id.toString()
+      return prev => {
+        const { prevData, ...remaining } = prev[id]
+        return { ...prev, [id]: { data: updateData(prevData) , ...remaining }} }
     }
 
     const addId = (_id) => {
       const id = _id.toString()
-      return prev => { return [id, ...prev] }
+      return prev => { return new Set(prev).add(id) }
     }
 
     const removeId = (_id) => {
       const id = _id.toString()
-      return prev => { return prev.filter(__id => __id != id) }
+      return prev => {
+        const newSet = new Set(prev)
+        newSet.delete(id)
+        return newSet
+      }
     }
 
     const addRequest = (_id, requester, term) => {
@@ -187,19 +223,13 @@ const ENSItemShare = () => {
       }
     }
 
-    const removeAllRequests = (_id) => {
-      const id = _id.toString()
-      return prev => {
-        const {[id]: _, ...items} = prev
-        return {...items}
-      }
-    }
-
     const itemAddedListener = (owner, id) => {
+      console.log(`ID Added: ${id}`)
       if (owner == context.address) {
         setYourItems(addId(id))
         setYourHeldItems(addId(id))
       }
+      setLiveFeedItems(addId(id))
     }
 
     const itemRemovedListener = (owner, id) => {
@@ -207,18 +237,22 @@ const ENSItemShare = () => {
         setYourItems(removeId(id))
         setYourHeldItems(removeId(id))
       }
-      setRequests(removeAllRequests(id))
+      setLiveFeedItems(removeId(id))
+      setItems(updateItemData(id, _ => { return {owner: ZeroAddress, holder: ZeroAddress, termEnd: "0", available: false} }))
     }
 
     const itemRequestedListener = (_, requester, id, term) => {
+      setLiveFeedItems(addId(id))
       setRequests(addRequest(id, requester, term))
     }
 
     const requestApprovedListener = (_, requester, id, __) => {
+      setLiveFeedItems(addId(id))
       setRequests(removeRequest(id, requester))
     }
 
     const requestDeniedListener = (_, requester, id, __) => {
+      setLiveFeedItems(addId(id))
       setRequests(removeRequest(id, requester))
     }
 
@@ -231,6 +265,9 @@ const ENSItemShare = () => {
           setYourHeldItems(removeId(id))
         }
       }
+
+      setLiveFeedItems(addId(id))
+      setItems(updateItemData(id, prev => { return { holder: owner, termEnd: "0", available: true, ...prev } }))
     }
 
     const ownershipTransferredListener = (fromOwner, toOwner, id) => {
@@ -244,6 +281,14 @@ const ENSItemShare = () => {
           setYourItems(removeId(id))
         }
       }
+
+      setLiveFeedItems(addId(id))
+      setItems(updateItemData(id, prev => { return { owner: newOwner, ...prev } }))
+    }
+
+    const metadataUpdatedListener = (id, newMetadata) => {
+      setLiveFeedItems(addId(id))
+      setItems(updateItemMetadata(id, newMetadata))
     }
 
     itemShareContract.on("ItemAdded", itemAddedListener)
@@ -253,6 +298,7 @@ const ENSItemShare = () => {
     itemShareContract.on("RequestDenied", requestDeniedListener)
     itemShareContract.on("ItemReturned", itemReturnedListener)
     itemShareContract.on("OwnershipTransferred", ownershipTransferredListener)
+    ensItemShareContract.on("MetadataUpdated", metadataUpdatedListener)
 
     return () => {
       itemShareContract.off("ItemAdded", itemAddedListener)
@@ -262,11 +308,16 @@ const ENSItemShare = () => {
       itemShareContract.off("RequestDenied", requestDeniedListener)
       itemShareContract.off("ItemReturned", itemReturnedListener)
       itemShareContract.off("OwnershipTransferred", ownershipTransferredListener)
+      ensItemShareContract.off("MetadataUpdated", metadataUpdatedListener)
     }
   }, [itemShareContract])
 
-  const handleAddItem = () => {
-    ensItemShareContract.addItem(metadata)
+  const handleCreateItem = () => {
+    itemShareContract.createItem()
+      .then((result) => computeItemId(result.blockNumber).then(id => {
+        console.log(`Adding metadata for ${id.toString()}`)
+        return ensItemShareContract.addItemMetadata(id, metadata)
+      }))
       .finally(() => setMetadata(''))
   }
 
@@ -274,8 +325,12 @@ const ENSItemShare = () => {
     setMetadata(event.target.value)
   }
 
-  const handleRemoveItem = (id) => {
-    ensItemShareContract.removeItem(id)
+  const handleDeleteItem = (id) => {
+    const {_, metadata} = items[id]
+    if (metadata) {
+      ensItemShareContract.removeItemMetadata(id)
+    }
+    itemShareContract.deleteItem(id)
   }
 
   const handleRequestItem = (id) => {
@@ -302,79 +357,67 @@ const ENSItemShare = () => {
     itemShareContract.returnItem(id)
   }
 
-  const yourItemsSet = new Set(yourItems)
+  const getLoadedItemsAndRequests = (ids) => {
+    return Array.from(ids).reverse().map(id => [id, items[id], requests[id]])
+      .filter(([_, item, __]) => item && item.data && item.metadata)
+  }
+
+  const Item = ({id, item, requests}) => {
+    const isRequestable = item.data.owner !== ZeroAddress
+    const isMyItem = item.data.owner === context.address
+    const isHeldItem = item.data.holder === context.address
+    return (
+      <div>
+        <p>Item ID: {id}</p>
+        <p>Item Owner: {item.data.owner}</p>
+        <p>Metadata: {item.metadata}</p>
+        {isMyItem &&
+          <div>
+            <button onClick={() => handleDeleteItem(id)}>Remove Item</button>
+            <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
+            <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
+          </div>
+        }
+        {isHeldItem && !item.data.available &&
+          <div>
+            <button onClick={() => handleReturnItem(id)}>Return Item</button>
+          </div>
+        }
+        {isRequestable && item.data.available && <button onClick={() => handleRequestItem(id)}>Request Item for 100 blocks</button>}
+        {requests && [].concat(Object.entries(requests).map(([requester, term]) => (
+            <div key={`request-${id}-${requester}`}>
+                <p>Requester: {requester}</p>
+                <p>Term: {term.toString()}</p>
+                { isMyItem && <button onClick={() => handleApproveRequest(id, requester, term)}>Approve Request</button> }
+                { isMyItem && <button onClick={() => handleDenyRequest(id, requester, term)}>Deny Request</button> }
+            </div>
+          )))}
+      </div>
+    )
+  }
 
   return (
     <div className="ens-item-share">
       <p>ENSItemShare contract address: {ensItemShareContract.address}</p>
       <p>ItemShare contract address: {itemShareContract ? itemShareContract.address : 'Loading...'}</p>
       <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter metadata" />
-      <button onClick={handleAddItem}>Add Item</button>
-      <h1>Requests for your items</h1>
+      <button onClick={handleCreateItem}>Create Item</button>
+      <h1>Live Feed Items</h1>
       <div>
-      {yourItems
-        .map(id => {
-          const requesters = requests[id]
-          if (requesters) {
-            return [].concat(Object.entries(requesters).map(([requester, term]) => (
-              <div key={id.toString()}>
-                  <p>Item ID: {id.toString()}</p>
-                  <p>Requester: {requester}</p>
-                  <p>Term: {term.toString()}</p>
-                  <button onClick={() => handleApproveRequest(id, requester, term)}>Approve Request</button>
-                  <button onClick={() => handleDenyRequest(id, requester, term)}>Deny Request</button>
-              </div>
-            )))
-          }
-        })
+      {getLoadedItemsAndRequests(liveFeedItems)
+        .map(([id, item, requests]) => (<Item key={`livefeeditem-${id}`} id={id} item={item} requests={requests} />))
       }
       </div>
       <h1>Your Items</h1>
       <div>
-      {yourItems
-        .map(id => [id, items[id]])
-        .filter(([_, item]) => item)
-        .map(([id, item]) => (
-            <div key={id.toString()}>
-                <p>Item ID: {id.toString()}</p>
-                <p>Item Owner: {item.data.owner}</p>
-                <p>Metadata: {item.metadata}</p>
-                {item.data.owner === context.address &&
-                  <div>
-                    <button onClick={() => handleRemoveItem(id)}>Remove Item</button>
-                    <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
-                    <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
-                  </div>
-                }
-                <button onClick={() => handleRequestItem(id)}>Request Item for 100 blocks</button>
-            </div>
-          )
-        )
+      {getLoadedItemsAndRequests(yourItems)
+        .map(([id, item, requests]) => (<Item key={`youritem-${id}`} id={id} item={item} requests={requests} />))
       }
       </div>
       <h1>Your Held Items</h1>
       <div>
-      {yourHeldItems
-        .map(id => [id, items[id]])
-        .filter(([_, item]) => item)
-        .map(([id, item]) => (
-            <div key={id.toString()}>
-                <p>Item ID: {id.toString()}</p>
-                <p>Item Owner: {item.data.owner}</p>
-                <p>Metadata: {item.metadata}</p>
-                {item.data.owner === context.address &&
-                  <div>
-                    <button onClick={() => handleRemoveItem(id)}>Remove Item</button>
-                  </div>
-                }
-                {item.data.termEnd !== 0 &&
-                  <div>
-                    <button onClick={() => handleReturnItem(id)}>Return Item</button>
-                  </div>
-                }
-            </div>
-          )
-        )
+      {getLoadedItemsAndRequests(yourHeldItems)
+        .map(([id, item, requests]) => (<Item key={`yourhelditem-${id}`} id={id} item={item} requests={requests} />))
       }
       </div>
     </div>
