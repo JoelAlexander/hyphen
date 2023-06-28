@@ -286,7 +286,6 @@ const Hyphen = ({ provider, configuration }) => {
 
   return (
     <HyphenContext.Provider value={{
-      blockNumber: blockNumber,
       configuration: configuration,
       provider: provider,
       lookupAddress: lookupAddress,

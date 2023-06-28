@@ -45,15 +45,22 @@ const ENSItemShare = () => {
     });
   };
 
-  const loadItem = async (id) => {
-    if (items[id.toString()]) {
-      return
-    }
-
-    const data = await itemShareContract.getItem(id)
-    const metadata = await ensItemShareContract.getMetadata(id)
-    const newItem = { data: data, metadata: metadata }
-    setItems(prevItems => ({ ...prevItems, [id.toString()]: newItem }))
+  const loadItems = (ids) => {
+    const toLoad = Array.from(ids).filter(id => items[id] === undefined)
+    setItems(prev => {
+      const { ...newItems } = prev
+      toLoad.forEach(id => newItems[id] = null)
+      return newItems
+    })
+    toLoad.reduce((promiseChain, id) => {
+      return promiseChain.then(() => {
+        return Promise.all([itemShareContract.getItem(id), ensItemShareContract.getMetadata(id)])
+          .then(([data, metadata]) => {
+            const newItem = { data: data, metadata: metadata }
+            setItems(prev => ({ ...prev, [id]: newItem }))
+          })
+      })
+    }, Promise.resolve())
   }
 
   useEffect(() => {
@@ -174,10 +181,16 @@ const ENSItemShare = () => {
   }, [])
 
   useEffect(() => {
-    yourItems.forEach(loadItem)
-    yourHeldItems.forEach(loadItem)
-    liveFeedItems.forEach(loadItem)
-  }, [yourItems, yourHeldItems, liveFeedItems])
+    loadItems(yourItems)
+  }, [yourItems])
+
+  useEffect(() => {
+    loadItems(yourHeldItems)
+  }, [yourHeldItems])
+
+  useEffect(() => {
+    loadItems(liveFeedItems)
+  }, [liveFeedItems])
 
   useEffect(() => {
     const updateItemMetadata = (_id, newMetadata) => {
@@ -238,7 +251,7 @@ const ENSItemShare = () => {
         setYourHeldItems(removeId(id))
       }
       setLiveFeedItems(removeId(id))
-      setItems(updateItemData(id, _ => { return {owner: ZeroAddress, holder: ZeroAddress, termEnd: "0", available: false} }))
+      setItems(updateItemData(id, _ => { return {owner: ZeroAddress, holder: ZeroAddress, termEnd: 0, available: false} }))
     }
 
     const itemRequestedListener = (_, requester, id, term) => {
@@ -246,9 +259,10 @@ const ENSItemShare = () => {
       setRequests(addRequest(id, requester, term))
     }
 
-    const requestApprovedListener = (_, requester, id, __) => {
+    const requestApprovedListener = (_, requester, id, termEnd) => {
       setLiveFeedItems(addId(id))
       setRequests(removeRequest(id, requester))
+      setItems(updateItemData(id, prev => { return { ...prev, holder: requester, termEnd: termEnd, available: false } }))
     }
 
     const requestDeniedListener = (_, requester, id, __) => {
@@ -267,7 +281,7 @@ const ENSItemShare = () => {
       }
 
       setLiveFeedItems(addId(id))
-      setItems(updateItemData(id, prev => { return { holder: owner, termEnd: "0", available: true, ...prev } }))
+      setItems(updateItemData(id, prev => { return { ...prev, holder: owner, termEnd: 0, available: true } }))
     }
 
     const ownershipTransferredListener = (fromOwner, toOwner, id) => {
@@ -283,7 +297,7 @@ const ENSItemShare = () => {
       }
 
       setLiveFeedItems(addId(id))
-      setItems(updateItemData(id, prev => { return { owner: newOwner, ...prev } }))
+      setItems(updateItemData(id, prev => { return { ...prev, owner: newOwner } }))
     }
 
     const metadataUpdatedListener = (id, newMetadata) => {
@@ -333,8 +347,8 @@ const ENSItemShare = () => {
     itemShareContract.deleteItem(id)
   }
 
-  const handleRequestItem = (id) => {
-    itemShareContract.requestItem(id, 100)
+  const handleRequestItem = (id, term) => {
+    itemShareContract.requestItem(id, term)
   }
 
   const handleApproveRequest = (id, requester, term) => {
@@ -363,9 +377,16 @@ const ENSItemShare = () => {
   }
 
   const Item = ({id, item, requests}) => {
-    const isRequestable = item.data.owner !== ZeroAddress
-    const isMyItem = item.data.owner === context.address
-    const isHeldItem = item.data.holder === context.address
+    const [term, setTerm] = React.useState(0);
+
+    const handleTermChange = (e) => {
+      setTerm(e.target.value);
+    };
+
+    const isRequestable = item.data.owner !== ZeroAddress;
+    const isMyItem = item.data.owner === context.address;
+    const isHeldItem = item.data.holder === context.address;
+    
     return (
       <div>
         <p>Item ID: {id}</p>
@@ -383,7 +404,12 @@ const ENSItemShare = () => {
             <button onClick={() => handleReturnItem(id)}>Return Item</button>
           </div>
         }
-        {isRequestable && item.data.available && <button onClick={() => handleRequestItem(id)}>Request Item for 100 blocks</button>}
+        {isRequestable && item.data.available && 
+          <div>
+            <input type="number" value={term} onChange={handleTermChange} placeholder="Enter number of blocks" />
+            <button onClick={() => handleRequestItem(id, term)}>Request Item for {term} blocks</button>
+          </div>
+        }
         {requests && [].concat(Object.entries(requests).map(([requester, term]) => (
             <div key={`request-${id}-${requester}`}>
                 <p>Requester: {requester}</p>
