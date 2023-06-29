@@ -2,8 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
 import MutableStringSet from "./MutableStringSet";
 import RecipeSpaceDetail from "./RecipeSpaceDetail";
-import RecipeHub from 'contracts/RecipeHub.sol/RecipeHub.json';
-import RecipeSpace from 'contracts/RecipeSpace.sol/RecipeSpace.json';
+import RecipeHub from '../../artifacts/contracts/RecipeHub.sol/RecipeHub.json';
+import RecipeSpace from '../../artifacts/contracts/RecipeSpace.sol/RecipeSpace.json';
 const ethers = require("ethers");
 
 const RecipePreparation = (props) => {

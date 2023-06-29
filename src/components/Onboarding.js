@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { openDB } from 'idb';
 import Toast from './Toast';
-import WalletConnectProvider from '@walletconnect/web3-provider';
 import Blockies from 'react-blockies';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 import HyphenContext from './HyphenContext';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import HyphenContext from './HyphenContext';
 import { AddressSet } from '@local-blockchain-toolbox/contract-primitives';
-import Recipe from 'contracts/Recipe.sol/Recipe.json';
+import Recipe from '../../artifacts/contracts/Recipe.sol/Recipe.json';
 import RecipeViewer from './RecipeViewer';
 import RecipeEditor from "./RecipeEditor";
 import Overlay from 'react-bootstrap/Overlay';

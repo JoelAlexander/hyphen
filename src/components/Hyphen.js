@@ -1,9 +1,6 @@
-import Cookies from "js-cookie";
 import { hot } from 'react-hot-loader';
-import WalletConnectProvider from '@walletconnect/web3-provider';
 import React, { useState, useEffect } from 'react';
 import HyphenContext from './HyphenContext';
-import Splash from './Splash.js';
 import ItemShare from './ItemShare.js';
 import Account from './Account.js';
 import Counter from './Counter.js';
@@ -268,7 +265,6 @@ const Hyphen = ({ provider, configuration }) => {
   };
 
   const isInFlightTransactions = pendingTransactions.length !== 0;
-  const appStyles = false ? { pointerEvents: 'none', opacity: '0.5' } : {};
   const statusBar = signer && name ?
     <StatusBar
       logout={logout}
@@ -312,7 +308,7 @@ const Hyphen = ({ provider, configuration }) => {
             paddingRight: '2em' }}>
             <div className="main-content">
               {(!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} /> ||
-                (ActiveComponent && <div style={appStyles}><ActiveComponent /></div>) ||
+                (ActiveComponent && <ActiveComponent />) ||
                 <NavMenu
                   items={currentMenu}
                   onSelectMenu={handleSelectMenu} />}

@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
-import { StringSet } from '@local-blockchain-toolbox/contract-primitives';
-const ethers = require("ethers");
 
 const MutableStringSet = ({ contractAddress }) => {
   const [contents, setContents] = useState([]);

@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react'
 import HyphenContext from './HyphenContext'
+import { Tab, Tabs } from 'react-bootstrap'
+import './ItemShare.css'
+import { CSSTransition } from 'react-transition-group'
 const ethers = require("ethers");
 
 const ZeroAddress = "0x0000000000000000000000000000000000000000"
@@ -13,8 +16,10 @@ const ENSItemShare = () => {
   const [yourItems, setYourItems] = useState(new Set())
   const [yourHeldItems, setYourHeldItems] = useState(new Set())
   const [liveFeedItems, setLiveFeedItems] = useState(new Set())
-  const [newOwner, setNewOwner] = useState('')
+
+  const [showInput, setShowInput] = useState(false);
   const [metadata, setMetadata] = useState('')
+  const [newOwner, setNewOwner] = useState('')
 
   const computeItemId = (blockNumber) => {
     return itemShareContract.resolvedAddress.then(contractAddress => {
@@ -327,6 +332,7 @@ const ENSItemShare = () => {
   }, [itemShareContract])
 
   const handleCreateItem = () => {
+    setShowInput(false);
     itemShareContract.createItem()
       .then((result) => computeItemId(result.blockNumber).then(id => {
         console.log(`Adding metadata for ${id.toString()}`)
@@ -374,6 +380,11 @@ const ENSItemShare = () => {
   const getLoadedItemsAndRequests = (ids) => {
     return Array.from(ids).reverse().map(id => [id, items[id], requests[id]])
       .filter(([_, item, __]) => item && item.data && item.metadata)
+  }
+
+
+  function handleStartCreateItem() {
+    setShowInput(true);
   }
 
   const Item = ({id, item, requests}) => {
@@ -427,25 +438,52 @@ const ENSItemShare = () => {
       <p>ENSItemShare contract address: {ensItemShareContract.address}</p>
       <p>ItemShare contract address: {itemShareContract ? itemShareContract.address : 'Loading...'}</p>
       <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter metadata" />
-      <button onClick={handleCreateItem}>Create Item</button>
-      <h1>Live Feed Items</h1>
-      <div>
-      {getLoadedItemsAndRequests(liveFeedItems)
-        .map(([id, item, requests]) => (<Item key={`livefeeditem-${id}`} id={id} item={item} requests={requests} />))
-      }
-      </div>
-      <h1>Your Items</h1>
-      <div>
-      {getLoadedItemsAndRequests(yourItems)
-        .map(([id, item, requests]) => (<Item key={`youritem-${id}`} id={id} item={item} requests={requests} />))
-      }
-      </div>
-      <h1>Your Held Items</h1>
-      <div>
-      {getLoadedItemsAndRequests(yourHeldItems)
-        .map(([id, item, requests]) => (<Item key={`yourhelditem-${id}`} id={id} item={item} requests={requests} />))
-      }
-      </div>
+      
+      <Tabs defaultActiveKey="yourItems" id="uncontrolled-tab-example">
+        <Tab eventKey="yourItems" title="Your Items">
+          <h1>Currently Borrowing</h1>
+          <div>
+          {getLoadedItemsAndRequests(yourHeldItems)
+            .map(([id, item, requests]) => (<Item key={`yourhelditem-${id}`} id={id} item={item} requests={requests} />))
+          }
+          </div>
+          <h1>Your Items</h1>
+          <div>
+          {getLoadedItemsAndRequests(yourItems)
+            .map(([id, item, requests]) => (<Item key={`youritem-${id}`} id={id} item={item} requests={requests} />))
+          }
+          </div>
+          <CSSTransition
+            in={!showInput}
+            timeout={300}
+            classNames="fade"
+            unmountOnExit
+          >
+            <button className="floating-button" onClick={handleStartCreateItem}>
+              +
+            </button>
+          </CSSTransition>
+          <CSSTransition
+            in={showInput}
+            timeout={300}
+            classNames="fade"
+            unmountOnExit
+          >
+            <div className="popover-input">
+              <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter metadata" />
+              <button onClick={handleCreateItem}>Submit</button>
+            </div>
+          </CSSTransition>
+        </Tab>
+        <Tab eventKey="explore" title="Explore">
+          <h1>Live Feed Items</h1>
+          <div>
+          {getLoadedItemsAndRequests(liveFeedItems)
+            .map(([id, item, requests]) => (<Item key={`livefeeditem-${id}`} id={id} item={item} requests={requests} />))
+          }
+          </div>
+        </Tab>
+      </Tabs>
     </div>
   )
 }
