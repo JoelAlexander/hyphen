@@ -55,17 +55,19 @@ const ENSItemShare = () => {
     setItems(prev => {
       const { ...newItems } = prev
       toLoad.forEach(id => newItems[id] = null)
+      console.log(`Loading ${toLoad.length} items`)
       return newItems
     })
-    toLoad.reduce((promiseChain, id) => {
-      return promiseChain.then(() => {
-        return Promise.all([itemShareContract.getItem(id), ensItemShareContract.getMetadata(id)])
-          .then(([data, metadata]) => {
-            const newItem = { data: data, metadata: metadata }
-            setItems(prev => ({ ...prev, [id]: newItem }))
-          })
+    ensItemShareContract.getItemsAndMetadata(toLoad)
+      .then(loaded => {
+        const loadedItems = toLoad.map((id, i) => [id, loaded[i]])
+        setItems(prev => {
+          const { ...newItems } = prev
+          loadedItems.forEach(([id, item]) => newItems[id] = item)
+          console.log(`Load(ing/ed) total items: ${Object.keys(newItems).size}`)
+          return newItems
+        })
       })
-    }, Promise.resolve())
   }
 
   useEffect(() => {

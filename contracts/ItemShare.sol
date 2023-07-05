@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-contract ItemShare {
+struct Item {
+  address owner;
+  address holder;
+  uint256 termEnd;
+  bool available;
+}
 
-  struct Item {
-    address owner;
-    address holder;
-    uint256 termEnd;
-    bool available;
-  }
+contract ItemShare {
 
   event ItemAdded(address indexed owner, uint256 indexed id);
   event ItemRemoved(address indexed owner, uint256 indexed id);
@@ -82,5 +82,13 @@ contract ItemShare {
 
   function getItem(uint256 id) public view returns (Item memory) {
     return items[id];
+  }
+
+  function getItems(uint256[] memory ids) public view returns (Item[] memory) {
+    Item[] memory returnItems = new Item[](ids.length);
+    for (uint256 i = 0; i < ids.length; i++) {
+      returnItems[i] = getItem(ids[i]);
+    }
+    return returnItems;
   }
 }
