@@ -1,5 +1,5 @@
 import { hot } from 'react-hot-loader';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import HyphenContext from './HyphenContext';
 import ItemShare from './ItemShare.js';
 import Account from './Account.js';
@@ -15,6 +15,14 @@ import Toast from './Toast';
 import './Hyphen.css';
 import './NavMenu.css';
 const ethers = require("ethers");
+
+// Mocking the helper function
+const getAddressForENSName = async (name) => {
+  // Implement the actual logic here
+  return '0x' + name;
+};
+
+
 
 const menuItems = {
   'Account': { emoji: '👤', component: Account },
@@ -61,7 +69,6 @@ const NavMenu = ({ items, onSelectMenu }) => (
 );
 
 const Hyphen = ({ provider, configuration }) => {
-
   const [menuStack, setMenuStack] = useState([]);
   const [entries, setEntries] = useState([]);
   const [blockNumber, setBlockNumber] = useState(null);

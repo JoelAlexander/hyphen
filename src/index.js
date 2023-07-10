@@ -1,13 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import Hyphen from './components/Hyphen';
+import HyphenLoader from './components/HyphenLoader';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'purecss/build/pure.css';
 import './styles.css';
-import { ENS, FIFSRegistrar, PublicResolver, ReverseRegistrar } from '@ensdomains/ens-contracts';
+require('./../manifest.json');
 
 const ethers = require("ethers");
-const manifest = require('./../manifest.json');
 const configuration = require('./../configuration.json');
 
 const provider = new ethers.providers.StaticJsonRpcProvider(
@@ -17,7 +16,7 @@ const provider = new ethers.providers.StaticJsonRpcProvider(
 
 function runApp(serviceWorkerRegistration) {
   ReactDOM.render(
-    <Hyphen provider={provider} configuration={({...configuration, contracts: contracts, serviceWorkerRegistration: serviceWorkerRegistration })} />,
+    <HyphenLoader provider={provider} configuration={configuration} contracts={contracts} />,
     document.getElementById('root'));
 }
 
