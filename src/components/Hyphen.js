@@ -173,12 +173,18 @@ const Hyphen = ({ provider, configuration }) => {
   };
 
   const getContract = (address, abi) => {
-    if (connectedContracts[address]) {
-      return connectedContracts[address];
-    }
-
     if (!abi) {
       abi = configuration.contracts[address];
+    }
+
+    // Use resolved address to avoid unnecessary name lookups
+    // upon interaction.
+    if (configuration.resolvedAddresses[address]) {
+      address = configuration.resolvedAddresses[address]
+    }
+
+    if (connectedContracts[address]) {
+      return connectedContracts[address];
     }
 
     const contractInterface = new ethers.utils.Interface(abi);

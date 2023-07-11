@@ -52,6 +52,9 @@ const ENSItemShare = () => {
 
   const loadItems = (ids) => {
     const toLoad = Array.from(ids).filter(id => items[id] === undefined)
+    if (toLoad.length === 0) {
+      return
+    }
     setItems(prev => {
       const { ...newItems } = prev
       toLoad.forEach(id => newItems[id] = null)
@@ -64,7 +67,7 @@ const ENSItemShare = () => {
         setItems(prev => {
           const { ...newItems } = prev
           loadedItems.forEach(([id, item]) => newItems[id] = item)
-          console.log(`Load(ing/ed) total items: ${Object.keys(newItems).size}`)
+          console.log(`Loaded ${Object.keys(newItems).length} total items`)
           return newItems
         })
       })
@@ -381,7 +384,7 @@ const ENSItemShare = () => {
 
   const getLoadedItemsAndRequests = (ids) => {
     return Array.from(ids).reverse().map(id => [id, items[id], requests[id]])
-      .filter(([_, item, __]) => item && item.data && item.metadata)
+      .filter(([_, item, __]) => item && item.item && item.metadata)
   }
 
 
@@ -396,14 +399,14 @@ const ENSItemShare = () => {
       setTerm(e.target.value);
     };
 
-    const isRequestable = item.data.owner !== ZeroAddress;
-    const isMyItem = item.data.owner === context.address;
-    const isHeldItem = item.data.holder === context.address;
+    const isRequestable = item.item.owner !== ZeroAddress;
+    const isMyItem = item.item.owner === context.address;
+    const isHeldItem = item.item.holder === context.address;
     
     return (
       <div>
         <p>Item ID: {id}</p>
-        <p>Item Owner: {item.data.owner}</p>
+        <p>Item Owner: {item.item.owner}</p>
         <p>Metadata: {item.metadata}</p>
         {isMyItem &&
           <div>
@@ -412,12 +415,12 @@ const ENSItemShare = () => {
             <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
           </div>
         }
-        {isHeldItem && !item.data.available &&
+        {isHeldItem && !item.item.available &&
           <div>
             <button onClick={() => handleReturnItem(id)}>Return Item</button>
           </div>
         }
-        {isRequestable && item.data.available && 
+        {isRequestable && item.item.available && 
           <div>
             <input type="number" value={term} onChange={handleTermChange} placeholder="Enter number of blocks" />
             <button onClick={() => handleRequestItem(id, term)}>Request Item for {term} blocks</button>
@@ -437,10 +440,6 @@ const ENSItemShare = () => {
 
   return (
     <div className="ens-item-share">
-      <p>ENSItemShare contract address: {ensItemShareContract.address}</p>
-      <p>ItemShare contract address: {itemShareContract ? itemShareContract.address : 'Loading...'}</p>
-      <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter metadata" />
-      
       <Tabs defaultActiveKey="yourItems" id="uncontrolled-tab-example">
         <Tab eventKey="yourItems" title="Your Items">
           <h1>Currently Borrowing</h1>
