@@ -69,44 +69,45 @@ const NavMenu = ({ items, onSelectMenu }) => (
 );
 
 const Hyphen = ({ provider, configuration }) => {
-  const [menuStack, setMenuStack] = useState([]);
-  const [entries, setEntries] = useState([]);
-  const [blockNumber, setBlockNumber] = useState(null);
-  const [toastVisible, setToastVisible] = useState(false);
-  const [signer, setSigner] = useState(null);
-  const [address, setAddress] = useState(null);
-  const [name, setName] = useState(null);
-  const [houseWallet, setHouseWallet] = useState(null);
-  const [unsentTransactions, setUnsentTransactions] = useState([]);
-  const [inProgressTransaction, setInProgressTransaction] = useState(null);
-  const [pendingTransactions, setPendingTransactions] = useState([]);
-  const [connectedContracts, setConnectedContracts] = useState({});
-  const [isPolling, setIsPolling] = useState(true);
-  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(12);
-  const [activityToasts, setActivityToasts] = useState([]);
+  const [menuStack, setMenuStack] = useState([])
+  const [entries, setEntries] = useState([])
+  const [blockNumber, setBlockNumber] = useState(null)
+  const [toastVisible, setToastVisible] = useState(false)
+  const [signer, setSigner] = useState(null)
+  const [address, setAddress] = useState(null)
+  const [name, setName] = useState(null)
+  const [houseWallet, setHouseWallet] = useState(null)
+  const [unsentTransactions, setUnsentTransactions] = useState([])
+  const [inProgressTransaction, setInProgressTransaction] = useState(null)
+  const [pendingTransactions, setPendingTransactions] = useState([])
+  const [connectedContracts, setConnectedContracts] = useState({})
+  const [isPolling, setIsPolling] = useState(true)
+  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(12)
+  const [activityToasts, setActivityToasts] = useState([])
+  const [addressCache, setAddressCache] = useState({})
 
   useEffect(() => {
     provider.on('poll', (pollId, blockNumber) => {
       setBlockNumber(blockNumber);
-    });
+    })
     return () => {
       provider.off('poll');
-    };
-  }, []);
+    }
+  }, [])
 
   useEffect(() => {
     if (activityToasts.length > 0) {
       const timer = setTimeout(() => {
-        setActivityToasts(activityToasts.slice(1));
-      }, 2000);
-      return () => clearTimeout(timer);
+        setActivityToasts(activityToasts.slice(1))
+      }, 2000)
+      return () => clearTimeout(timer)
     }
-  }, [activityToasts]);
+  }, [activityToasts])
 
   useEffect(() => {
     provider.polling = isPolling;
     provider.pollingInterval = pollingIntervalSeconds * 1000;
-  }, [isPolling, pollingIntervalSeconds]);
+  }, [isPolling, pollingIntervalSeconds])
 
   useEffect(() => {
     const handlePopState = (event) => {
@@ -114,17 +115,17 @@ const Hyphen = ({ provider, configuration }) => {
         handleBack();
         event.preventDefault();
       }
-    };
+    }
 
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
-    };
-  });
+    }
+  })
 
   useEffect(() => {
     if (unsentTransactions.length === 0 || inProgressTransaction !== null) {
-      return;
+      return
     }
 
     const [[populateTransaction, resolve, reject], ...rest] = unsentTransactions;
@@ -145,7 +146,7 @@ const Hyphen = ({ provider, configuration }) => {
             const transactionHash = transactionResponse.hash
             setPendingTransactions((prev) => {
               return [...prev, [transactionHash]]
-            });
+            })
             return transactionResponse.wait().then((receipt) => {
               if (receipt.status) {
                 return receipt
@@ -160,17 +161,23 @@ const Hyphen = ({ provider, configuration }) => {
           })
       }).then(resolve, reject)
       .finally(() => setInProgressTransaction(null))
-  }, [inProgressTransaction]);
+  }, [inProgressTransaction])
 
   const enqueueTransaction = (populateTransaction) => {
     return new Promise((resolve, reject) => {
       setUnsentTransactions(previousUnsetTransactions => [...previousUnsetTransactions, [populateTransaction, resolve, reject]]);
-    });
-  };
+    })
+  }
 
-  const lookupAddress = (address) => {
-    return provider.lookupAddress(address);
-  };
+  const lookupAddress = async (address) => {
+    if (addressCache[address]) {
+      return addressCache[address]
+    } else {
+      const result = await provider.lookupAddress(address)
+      setAddressCache(prevState => ({...prevState, [address]: result}))
+      return result
+    }
+  }
 
   const getContract = (address, abi) => {
     if (!abi) {

@@ -1,11 +1,77 @@
 import React, { useState, useEffect, useContext } from 'react'
 import HyphenContext from './HyphenContext'
+import Blockies from 'react-blockies';
 import { Tab, Tabs } from 'react-bootstrap'
 import './ItemShare.css'
 import { CSSTransition } from 'react-transition-group'
 const ethers = require("ethers");
 
 const ZeroAddress = "0x0000000000000000000000000000000000000000"
+
+const Item = (
+  {id, item, requests, actions }) => {
+  const [handleDeleteItem, handleTransferOwnership, handleReturnItem, handleRequestItem, handleApproveRequest, handleDenyRequest] = [...actions]
+  const context = useContext(HyphenContext)
+  const [term, setTerm] = React.useState(0)
+  const [ensName, setEnsName] = React.useState('')
+  const [newOwner, setNewOwner] = useState('')
+
+  const handleTermChange = (e) => {
+    setTerm(e.target.value)
+  }
+
+  const handleNewOwnerChange = (event) => {
+    setNewOwner(event.target.value)
+  }
+
+  const isRequestable = item.item.owner !== ZeroAddress;
+  const isMyItem = item.item.owner === context.address;
+  const isHeldItem = item.item.holder === context.address;
+
+  React.useEffect(() => {
+    async function fetchENSName() {
+      let ensName = await context.lookupAddress(item.item.owner);
+      setEnsName(ensName || item.item.owner);
+    }
+    fetchENSName();
+  }, [item.item.owner]);
+
+  return (
+    <div>
+      <div style={{display: 'flex', alignItems: 'center'}}>
+        <Blockies seed={id} />
+        <p>{item.metadata}</p>
+      </div>
+      <p>{ensName}</p>
+      {isMyItem &&
+        <div>
+          <button onClick={() => handleDeleteItem(id)}>Remove Item</button>
+          <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
+          <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
+        </div>
+      }
+      {isHeldItem && !item.item.available && !isMyItem &&
+        <div>
+          <button onClick={() => handleReturnItem(id)}>Return Item</button>
+        </div>
+      }
+      {isRequestable && item.item.available && 
+        <div>
+          <input type="number" value={term} onChange={handleTermChange} placeholder="Enter number of blocks" />
+          <button onClick={() => handleRequestItem(id, term)}>Request Item for {term} blocks</button>
+        </div>
+      }
+      {requests && [].concat(Object.entries(requests).map(([requester, term]) => (
+          <div key={`request-${id}-${requester}`}>
+              <p>Requester: {requester}</p>
+              <p>Term: {term.toString()}</p>
+              { isMyItem && <button onClick={() => handleApproveRequest(id, requester, term)}>Approve Request</button> }
+              { isMyItem && <button onClick={() => handleDenyRequest(id, requester, term)}>Deny Request</button> }
+          </div>
+        )))}
+    </div>
+  )
+}
 
 const ENSItemShare = () => {
   const context = useContext(HyphenContext)
@@ -19,7 +85,7 @@ const ENSItemShare = () => {
 
   const [showInput, setShowInput] = useState(false);
   const [metadata, setMetadata] = useState('')
-  const [newOwner, setNewOwner] = useState('')
+  
 
   const computeItemId = (blockNumber) => {
     return itemShareContract.resolvedAddress.then(contractAddress => {
@@ -374,68 +440,19 @@ const ENSItemShare = () => {
     itemShareContract.transferOwnership(newOwner, id)
   }
 
-  const handleNewOwnerChange = (event) => {
-    setNewOwner(event.target.value)
-  }
-
   const handleReturnItem = (id) => {
     itemShareContract.returnItem(id)
   }
+
+  const itemActions = [handleDeleteItem, handleTransferOwnership, handleReturnItem, handleRequestItem, handleApproveRequest, handleDenyRequest]
 
   const getLoadedItemsAndRequests = (ids) => {
     return Array.from(ids).reverse().map(id => [id, items[id], requests[id]])
       .filter(([_, item, __]) => item && item.item && item.metadata)
   }
 
-
   function handleStartCreateItem() {
     setShowInput(true);
-  }
-
-  const Item = ({id, item, requests}) => {
-    const [term, setTerm] = React.useState(0);
-
-    const handleTermChange = (e) => {
-      setTerm(e.target.value);
-    };
-
-    const isRequestable = item.item.owner !== ZeroAddress;
-    const isMyItem = item.item.owner === context.address;
-    const isHeldItem = item.item.holder === context.address;
-    
-    return (
-      <div>
-        <p>Item ID: {id}</p>
-        <p>Item Owner: {item.item.owner}</p>
-        <p>Metadata: {item.metadata}</p>
-        {isMyItem &&
-          <div>
-            <button onClick={() => handleDeleteItem(id)}>Remove Item</button>
-            <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
-            <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
-          </div>
-        }
-        {isHeldItem && !item.item.available &&
-          <div>
-            <button onClick={() => handleReturnItem(id)}>Return Item</button>
-          </div>
-        }
-        {isRequestable && item.item.available && 
-          <div>
-            <input type="number" value={term} onChange={handleTermChange} placeholder="Enter number of blocks" />
-            <button onClick={() => handleRequestItem(id, term)}>Request Item for {term} blocks</button>
-          </div>
-        }
-        {requests && [].concat(Object.entries(requests).map(([requester, term]) => (
-            <div key={`request-${id}-${requester}`}>
-                <p>Requester: {requester}</p>
-                <p>Term: {term.toString()}</p>
-                { isMyItem && <button onClick={() => handleApproveRequest(id, requester, term)}>Approve Request</button> }
-                { isMyItem && <button onClick={() => handleDenyRequest(id, requester, term)}>Deny Request</button> }
-            </div>
-          )))}
-      </div>
-    )
   }
 
   return (
@@ -445,13 +462,13 @@ const ENSItemShare = () => {
           <h1>Currently Borrowing</h1>
           <div>
           {getLoadedItemsAndRequests(yourHeldItems)
-            .map(([id, item, requests]) => (<Item key={`yourhelditem-${id}`} id={id} item={item} requests={requests} />))
+            .map(([id, item, requests]) => (<Item key={`yourhelditem-${id}`} id={id} item={item} requests={requests} actions={itemActions} />))
           }
           </div>
           <h1>Your Items</h1>
           <div>
           {getLoadedItemsAndRequests(yourItems)
-            .map(([id, item, requests]) => (<Item key={`youritem-${id}`} id={id} item={item} requests={requests} />))
+            .map(([id, item, requests]) => (<Item key={`youritem-${id}`} id={id} item={item} requests={requests} actions={itemActions} />))
           }
           </div>
           <CSSTransition
@@ -480,7 +497,7 @@ const ENSItemShare = () => {
           <h1>Live Feed Items</h1>
           <div>
           {getLoadedItemsAndRequests(liveFeedItems)
-            .map(([id, item, requests]) => (<Item key={`livefeeditem-${id}`} id={id} item={item} requests={requests} />))
+            .map(([id, item, requests]) => (<Item key={`livefeeditem-${id}`} id={id} item={item} requests={requests} actions={itemActions} />))
           }
           </div>
         </Tab>
