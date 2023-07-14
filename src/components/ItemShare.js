@@ -12,8 +12,9 @@ const Item = (
   {id, item, requests, actions }) => {
   const [handleDeleteItem, handleTransferOwnership, handleReturnItem, handleRequestItem, handleApproveRequest, handleDenyRequest] = [...actions]
   const context = useContext(HyphenContext)
-  const [term, setTerm] = React.useState(0)
-  const [ensName, setEnsName] = React.useState('')
+  const [term, setTerm] = useState(0)
+  const [ownerEnsName, setOwnerEnsName] = useState('')
+  const [holderEnsName, setHolderEnsName] = useState('')
   const [newOwner, setNewOwner] = useState('')
 
   const handleTermChange = (e) => {
@@ -24,17 +25,30 @@ const Item = (
     setNewOwner(event.target.value)
   }
 
-  const isRequestable = item.item.owner !== ZeroAddress;
-  const isMyItem = item.item.owner === context.address;
-  const isHeldItem = item.item.holder === context.address;
+  const termEnd = item.item.termEnd
+  const isAvailable = item.item.available
+  const isActiveItem = item.item.owner !== ZeroAddress
+  const isMyItem = item.item.owner === context.address
+  const isHeldItem = item.item.holder === context.address
+  const isBorrowed = item.item.owner !== item.item.holder
+  const isLockedByOwner = isActiveItem && !isBorrowed && !isAvailable
+  const isLockedIndefinitelyByOwner = isLockedByOwner && termEnd != 0
 
   React.useEffect(() => {
     async function fetchENSName() {
-      let ensName = await context.lookupAddress(item.item.owner);
-      setEnsName(ensName || item.item.owner);
+      let ensName = await context.lookupAddress(item.item.owner)
+      setOwnerEnsName(ensName || item.item.owner)
     }
-    fetchENSName();
-  }, [item.item.owner]);
+    fetchENSName()
+  }, [item.item.owner])
+
+  React.useEffect(() => {
+    async function fetchENSName() {
+      let ensName = await context.lookupAddress(item.item.holder)
+      setHolderEnsName(ensName || item.item.holder)
+    }
+    fetchENSName()
+  }, [item.item.holder])
 
   return (
     <div>
@@ -42,20 +56,26 @@ const Item = (
         <Blockies seed={id} />
         <p>{item.metadata}</p>
       </div>
-      <p>{ensName}</p>
-      {isMyItem &&
+      <h4>Owned by</h4>
+      <p>{ownerEnsName}</p>
+      { isBorrowed && <>
+        <h4>Borrowed by</h4>
+        <p>{holderEnsName}</p>
+      </>}
+      {/* TODO: Implement ownership transfer UI */}
+      {/* {isMyItem &&
         <div>
           <button onClick={() => handleDeleteItem(id)}>Remove Item</button>
           <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
           <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
         </div>
-      }
-      {isHeldItem && !item.item.available && !isMyItem &&
+      } */}
+      {isHeldItem && !item.item.available &&
         <div>
           <button onClick={() => handleReturnItem(id)}>Return Item</button>
         </div>
       }
-      {isRequestable && item.item.available && 
+      {item.item.available && !isMyItem &&
         <div>
           <input type="number" value={term} onChange={handleTermChange} placeholder="Enter number of blocks" />
           <button onClick={() => handleRequestItem(id, term)}>Request Item for {term} blocks</button>
@@ -85,7 +105,6 @@ const ENSItemShare = () => {
 
   const [showInput, setShowInput] = useState(false);
   const [metadata, setMetadata] = useState('')
-  
 
   const computeItemId = (blockNumber) => {
     return itemShareContract.resolvedAddress.then(contractAddress => {
@@ -272,15 +291,21 @@ const ENSItemShare = () => {
     const updateItemMetadata = (_id, newMetadata) => {
       const id = _id.toString()
       return prev => {
-        const { metadata, ...remaining } = prev[id]
-        return { ...prev, [id]: { metadata: newMetadata , ...remaining }} }
+        if (!prev[id]) {
+          return prev
+        }
+        const { metadata, ..._ } = prev[id]
+        return { ...prev, [id]: { metadata: newMetadata , ..._ }} }
     } 
 
-    const updateItemData = (_id, updateData) => {
+    const updateItemData = (_id, updateItem) => {
       const id = _id.toString()
       return prev => {
-        const { prevData, ...remaining } = prev[id]
-        return { ...prev, [id]: { data: updateData(prevData) , ...remaining }} }
+        if (!prev[id]) {
+          return prev
+        }
+        const { item, ..._ } = prev[id]
+        return { ...prev, [id]: { item: updateItem(item) , ..._ }} }
     }
 
     const addId = (_id) => {
@@ -319,6 +344,10 @@ const ENSItemShare = () => {
         setYourHeldItems(addId(id))
       }
       setLiveFeedItems(addId(id))
+
+      if (owner != context.address) {
+        context.addActivityToast(owner, `${owner} has added an item`)
+      }
     }
 
     const itemRemovedListener = (owner, id) => {
@@ -330,20 +359,29 @@ const ENSItemShare = () => {
       setItems(updateItemData(id, _ => { return {owner: ZeroAddress, holder: ZeroAddress, termEnd: 0, available: false} }))
     }
 
-    const itemRequestedListener = (_, requester, id, term) => {
+    const itemRequestedListener = (owner, requester, id, term) => {
       setLiveFeedItems(addId(id))
       setRequests(addRequest(id, requester, term))
+      if (owner == context.address) {
+        context.addActivityToast(requester, `${requester} has requested your item ${id} for ${term} blocks`)
+      }
     }
 
-    const requestApprovedListener = (_, requester, id, termEnd) => {
+    const requestApprovedListener = (owner, requester, id, termEnd) => {
       setLiveFeedItems(addId(id))
       setRequests(removeRequest(id, requester))
       setItems(updateItemData(id, prev => { return { ...prev, holder: requester, termEnd: termEnd, available: false } }))
+      if (requester == context.address) {
+        context.addActivityToast(owner, `${owner} has approved your request to borrow item ${id} until ${termEnd}`)
+      }
     }
 
-    const requestDeniedListener = (_, requester, id, __) => {
+    const requestDeniedListener = (owner, requester, id, term) => {
       setLiveFeedItems(addId(id))
       setRequests(removeRequest(id, requester))
+      if (requester == context.address) {
+        context.addActivityToast(owner, `${owner} has denied your request to borrow item ${id} for ${term} blocks`)
+      }
     }
 
     const itemReturnedListener = (owner, requester, id) => {
@@ -351,6 +389,7 @@ const ENSItemShare = () => {
       if (!isSelfTransfer) {
         if (owner === context.address) {
           setYourHeldItems(addId(id))
+          context.addActivityToast(requester, `${requester} has returned your item ${id}`)
         } else if (requester === context.address) {
           setYourHeldItems(removeId(id))
         }
@@ -365,6 +404,7 @@ const ENSItemShare = () => {
       if (!isSelfTransfer) {
         if (toOwner === context.address) {
           setYourItems(addId(id))
+          context.addActivityToast(fromOwner, `${fromOwner} has transferred item ${id} to you`)
         }
 
         if (fromOwner === context.address) {
@@ -376,9 +416,12 @@ const ENSItemShare = () => {
       setItems(updateItemData(id, prev => { return { ...prev, owner: newOwner } }))
     }
 
-    const metadataUpdatedListener = (id, newMetadata) => {
+    const metadataUpdatedListener = (owner, id, newMetadata) => {
       setLiveFeedItems(addId(id))
       setItems(updateItemMetadata(id, newMetadata))
+      if (owner != context.address) {
+        context.addActivityToast(owner, `${owner} has changed item ${id} metadata to ${newMetadata}`)
+      }
     }
 
     itemShareContract.on("ItemAdded", itemAddedListener)
@@ -403,13 +446,17 @@ const ENSItemShare = () => {
   }, [itemShareContract])
 
   const handleCreateItem = () => {
-    setShowInput(false);
+    setShowInput(false)
     itemShareContract.createItem()
       .then((result) => computeItemId(result.blockNumber).then(id => {
         console.log(`Adding metadata for ${id.toString()}`)
         return ensItemShareContract.addItemMetadata(id, metadata)
       }))
       .finally(() => setMetadata(''))
+  }
+
+  const handleCancelCreateItem = () => {
+    setShowInput(false)
   }
 
   const handleMetadataChange = (event) => {
@@ -455,55 +502,67 @@ const ENSItemShare = () => {
     setShowInput(true);
   }
 
-  return (
+  function handleKeyPress(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if(window.confirm('Are you sure you want to submit this item?')) {
+        handleCreateItem();
+      }
+    }
+  }
+  
+  const createItem = (keyPrefix) => ([id, item, requests]) =>
+    (<Item key={`${keyPrefix}-${id}`} id={id} item={item} requests={requests} actions={itemActions} />)
+
+  const borrowedItemsHydrated = getLoadedItemsAndRequests(yourHeldItems)
+    .filter(([_, item, __]) => item.item.owner != context.address)
+    .map(createItem("yourhelditem"))
+
+  const yourItemsHydrated = getLoadedItemsAndRequests(yourItems)
+    .map(createItem("youritem"))
+
+  const liveFeedItemsHydrated = getLoadedItemsAndRequests(liveFeedItems)
+    .map(createItem("livefeeditem"))
+
+  return (<>
+    <div className="popover-container">
+      <CSSTransition in={!showInput} timeout={300} classNames="fade" unmountOnExit>
+        <button className="floating-button" onClick={handleStartCreateItem}>+</button>
+      </CSSTransition>
+      <CSSTransition in={showInput} timeout={300} classNames="fade" unmountOnExit>
+        <div className="popover-input">
+          <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter metadata" onKeyPress={handleKeyPress}/>
+          <button onClick={handleCancelCreateItem} className="cancel-button">x</button>
+        </div>
+      </CSSTransition>
+    </div>
     <div className="ens-item-share">
       <Tabs defaultActiveKey="yourItems" id="uncontrolled-tab-example">
         <Tab eventKey="yourItems" title="Your Items">
-          <h1>Currently Borrowing</h1>
-          <div>
-          {getLoadedItemsAndRequests(yourHeldItems)
-            .map(([id, item, requests]) => (<Item key={`yourhelditem-${id}`} id={id} item={item} requests={requests} actions={itemActions} />))
-          }
-          </div>
-          <h1>Your Items</h1>
-          <div>
-          {getLoadedItemsAndRequests(yourItems)
-            .map(([id, item, requests]) => (<Item key={`youritem-${id}`} id={id} item={item} requests={requests} actions={itemActions} />))
-          }
-          </div>
-          <CSSTransition
-            in={!showInput}
-            timeout={300}
-            classNames="fade"
-            unmountOnExit
-          >
-            <button className="floating-button" onClick={handleStartCreateItem}>
-              +
-            </button>
-          </CSSTransition>
-          <CSSTransition
-            in={showInput}
-            timeout={300}
-            classNames="fade"
-            unmountOnExit
-          >
-            <div className="popover-input">
-              <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter metadata" />
-              <button onClick={handleCreateItem}>Submit</button>
+          {borrowedItemsHydrated.length > 0 && <>
+            <h1>Currently Borrowing</h1>
+            <div>
+              {borrowedItemsHydrated}
             </div>
-          </CSSTransition>
+          </>}
+          {yourItemsHydrated.length > 0 && <>
+            <h1>Your Items</h1>
+            <div>
+              {yourItemsHydrated}
+            </div>
+          </> || <p>Nothing to show yet.  To get started, add or request to borrow an item.</p>}
         </Tab>
         <Tab eventKey="explore" title="Explore">
-          <h1>Live Feed Items</h1>
-          <div>
-          {getLoadedItemsAndRequests(liveFeedItems)
-            .map(([id, item, requests]) => (<Item key={`livefeeditem-${id}`} id={id} item={item} requests={requests} actions={itemActions} />))
-          }
-          </div>
+          {liveFeedItemsHydrated.length > 0 && <>
+            <h1>Recent activity</h1>
+            <div>
+              {liveFeedItemsHydrated}
+            </div>
+          </> || <p>Nothing to show yet.  To get started, add an item.</p>}
         </Tab>
       </Tabs>
     </div>
-  )
+  </>)
 }
 
 export default ENSItemShare

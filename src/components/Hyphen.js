@@ -1,28 +1,20 @@
-import { hot } from 'react-hot-loader';
-import React, { useState, useEffect, useRef } from 'react';
-import HyphenContext from './HyphenContext';
-import ItemShare from './ItemShare.js';
-import Account from './Account.js';
-import Counter from './Counter.js';
-import Recipes from './Recipes.js';
-import RecipeSettings from './RecipeSettings.js';
-import RecipePreparation from './RecipePreparation.js';
-import StatusBar from './StatusBar.js';
-import Onboarding from './Onboarding';
-import ActivityToast from './ActivityToast';
-import Faq from './Faq.js';
-import Toast from './Toast';
-import './Hyphen.css';
-import './NavMenu.css';
-const ethers = require("ethers");
-
-// Mocking the helper function
-const getAddressForENSName = async (name) => {
-  // Implement the actual logic here
-  return '0x' + name;
-};
-
-
+import { hot } from 'react-hot-loader'
+import React, { useState, useEffect, useRef } from 'react'
+import HyphenContext from './HyphenContext'
+import ItemShare from './ItemShare.js'
+import Account from './Account.js'
+import Counter from './Counter.js'
+import Recipes from './Recipes.js'
+import RecipeSettings from './RecipeSettings.js'
+import RecipePreparation from './RecipePreparation.js'
+import StatusBar from './StatusBar.js'
+import Onboarding from './Onboarding'
+import ActivityToast from './ActivityToast'
+import Faq from './Faq.js'
+import Toast from './Toast'
+import './Hyphen.css'
+import './NavMenu.css'
+const ethers = require("ethers")
 
 const menuItems = {
   'Account': { emoji: '👤', component: Account },
@@ -37,19 +29,18 @@ const menuItems = {
     },
   },
   'Help': { emoji: '❓', component: Faq }
-};
+}
 
 const getSubMenu = (path) => {
-  if (path.length === 0) return menuItems;
-
-  return path.reduce((obj, key) => (obj && obj[key] && obj[key].submenu) ? obj[key].submenu : null, menuItems);
-};
+  if (path.length === 0) return menuItems
+  return path.reduce((obj, key) => (obj && obj[key] && obj[key].submenu) ? obj[key].submenu : null, menuItems)
+}
 
 const getComponent = (path) => {
   const lastKey = path[path.length - 1]
   const submenu = getSubMenu(path.slice(0, -1))
-  return (submenu && submenu[lastKey] && submenu[lastKey].component) ? submenu[lastKey].component : null;
-};
+  return (submenu && submenu[lastKey] && submenu[lastKey].component) ? submenu[lastKey].component : null
+}
 
 const NavMenu = ({ items, onSelectMenu }) => (
   <div className="nav-menu">
@@ -66,7 +57,7 @@ const NavMenu = ({ items, onSelectMenu }) => (
       </div>
     ))}
   </div>
-);
+)
 
 const Hyphen = ({ provider, configuration }) => {
   const [menuStack, setMenuStack] = useState([])
@@ -88,10 +79,10 @@ const Hyphen = ({ provider, configuration }) => {
 
   useEffect(() => {
     provider.on('poll', (pollId, blockNumber) => {
-      setBlockNumber(blockNumber);
+      setBlockNumber(blockNumber)
     })
     return () => {
-      provider.off('poll');
+      provider.off('poll')
     }
   }, [])
 
@@ -113,13 +104,13 @@ const Hyphen = ({ provider, configuration }) => {
     const handlePopState = (event) => {
       if (canGoBack()) {
         handleBack();
-        event.preventDefault();
+        event.preventDefault()
       }
     }
 
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handlePopState)
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('popstate', handlePopState)
     }
   })
 
@@ -131,7 +122,7 @@ const Hyphen = ({ provider, configuration }) => {
     const [[populateTransaction, resolve, reject], ...rest] = unsentTransactions;
     setInProgressTransaction([populateTransaction, resolve, reject]);
     setUnsentTransactions(rest);
-  }, [unsentTransactions, inProgressTransaction]);
+  }, [unsentTransactions, inProgressTransaction])
 
   useEffect(() => {
     if (inProgressTransaction === null) {
@@ -165,7 +156,7 @@ const Hyphen = ({ provider, configuration }) => {
 
   const enqueueTransaction = (populateTransaction) => {
     return new Promise((resolve, reject) => {
-      setUnsentTransactions(previousUnsetTransactions => [...previousUnsetTransactions, [populateTransaction, resolve, reject]]);
+      setUnsentTransactions(previousUnsetTransactions => [...previousUnsetTransactions, [populateTransaction, resolve, reject]])
     })
   }
 
@@ -181,7 +172,7 @@ const Hyphen = ({ provider, configuration }) => {
 
   const getContract = (address, abi) => {
     if (!abi) {
-      abi = configuration.contracts[address];
+      abi = configuration.contracts[address]
     }
 
     // Use resolved address to avoid unnecessary name lookups
@@ -191,42 +182,42 @@ const Hyphen = ({ provider, configuration }) => {
     }
 
     if (connectedContracts[address]) {
-      return connectedContracts[address];
+      return connectedContracts[address]
     }
 
-    const contractInterface = new ethers.utils.Interface(abi);
-    const contract = new ethers.Contract(address, abi, signer ? signer : provider);
+    const contractInterface = new ethers.utils.Interface(abi)
+    const contract = new ethers.Contract(address, abi, signer ? signer : provider)
     const returnedContract = new Proxy({}, {
       get: (target, prop) => {
         try {
-          const functionFragment = contractInterface.getFunction(prop);
+          const functionFragment = contractInterface.getFunction(prop)
           if (functionFragment.stateMutability === 'view' ) {
             return (...args) => {
-              return contract.callStatic[prop](...args);
+              return contract.callStatic[prop](...args)
             };
           } else {
             return (...args) => {
               return enqueueTransaction(() => {
-                return contract.populateTransaction[prop](...args);
+                return contract.populateTransaction[prop](...args)
               });
             };
           }
         } catch {
-          return contract[prop];
+          return contract[prop]
         }
       },
-    });
-    connectedContracts[address] = returnedContract;
-    return returnedContract;
+    })
+    connectedContracts[address] = returnedContract
+    return returnedContract
   };
 
   const handleSelectMenu = (label) => {
-    window.history.pushState({}, '');
-    setMenuStack([...menuStack, label]);
+    window.history.pushState({}, '')
+    setMenuStack([...menuStack, label])
   };
 
   const canGoBack = () => {
-    return menuStack.length > 0;
+    return menuStack.length > 0
   }
 
   const handleBack = () => {
@@ -234,70 +225,70 @@ const Hyphen = ({ provider, configuration }) => {
     if (newMenuStack.length > 0) {
       newMenuStack.pop()
     }
-    setMenuStack(newMenuStack);
-  };
+    setMenuStack(newMenuStack)
+  }
 
   const addMessage = (message) => {
     const newEntries = entries.slice();
-    newEntries.unshift({type: "message", key: newEntries.length, message: message});
-    setEntries(newEntries);
-  };
+    newEntries.unshift({type: "message", key: newEntries.length, message: message})
+    setEntries(newEntries)
+  }
 
   const onTransactionResponse = (transactionResponse) => {
-    const newEntries = entries.slice();
-    newEntries.unshift({type: "transaction", key: transactionResponse.hash, transactionResponse: transactionResponse});
-    setEntries(newEntries);
-  };
+    const newEntries = entries.slice()
+    newEntries.unshift({type: "transaction", key: transactionResponse.hash, transactionResponse: transactionResponse})
+    setEntries(newEntries)
+  }
 
   const onTransactionReceipt = (transactionReceipt) => {
     const newEntries = entries.slice();
-    const updateIndex = newEntries.findIndex((entry) => entry.key === transactionReceipt.transactionHash);
+    const updateIndex = newEntries.findIndex((entry) => entry.key === transactionReceipt.transactionHash)
     if (updateIndex != -1) {
-      const modified = newEntries[updateIndex];
-      modified.transactionReceipt = transactionReceipt;
-      newEntries[updateIndex] = modified;
+      const modified = newEntries[updateIndex]
+      modified.transactionReceipt = transactionReceipt
+      newEntries[updateIndex] = modified
     }
     setEntries(newEntries);
   };
 
   const logout = () => {
-    setMenuStack([]);
-    setContractCalls({});
-    setEntries([]);
-    setBlockNumber(null);
-    setToastVisible(false);
-    setConnectedContracts({});
+    setMenuStack([])
+    setContractCalls({})
+    setEntries([])
+    setBlockNumber(null)
+    setToastVisible(false)
+    setConnectedContracts({})
   };
 
   const executeTransaction = (transactionRequest) => {
     if (!signer) {
-      return Promise.reject("No signer");
+      return Promise.reject("No signer")
     }
 
     return enqueueTransaction(() => {
-      return signer.populateTransaction(transactionRequest);
-    });
-  };
+      return signer.populateTransaction(transactionRequest)
+    })
+  }
 
   const showToast = () => {
-    setToastVisible(true);
-    setTimeout(() => setToastVisible(false), 3000);
+    setToastVisible(true)
+    setTimeout(() => setToastVisible(false), 3000)
   };
 
-  const isInFlightTransactions = pendingTransactions.length !== 0;
+  const isInFlightTransactions = pendingTransactions.length !== 0
   const statusBar = signer && name ?
     <StatusBar
       logout={logout}
       syncing={isInFlightTransactions}
       address={address || 'logged-out'}
       blockNumber={blockNumber}
-      entries={entries} /> : null;
+      entries={entries} /> : null
 
-  const currentMenu = getSubMenu(menuStack);
-  const ActiveComponent = getComponent(menuStack);
+  const currentMenu = getSubMenu(menuStack)
+  const ActiveComponent = getComponent(menuStack)
 
   const addActivityToast = (address, message) => {
-    setActivityToasts(previousToasts => [...previousToasts, { address, message }]);
+    setActivityToasts(previousToasts => [...previousToasts, { address, message }])
   };
 
   return (
@@ -338,7 +329,7 @@ const Hyphen = ({ provider, configuration }) => {
         {toastVisible && <Toast />}
         {activityToasts.length > 0 && <ActivityToast toast={activityToasts[0]} />}
       </div>
-  </HyphenContext.Provider>);
-};
+  </HyphenContext.Provider>)
+}
 
-export default hot(module)(Hyphen);
+export default hot(module)(Hyphen)

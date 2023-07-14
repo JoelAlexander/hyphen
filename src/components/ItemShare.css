@@ -6,7 +6,6 @@
 
 .floating-button {
   position: absolute;
-  bottom: 5%;
   right: 5%;
   background-color: #007bff;
   color: white;
@@ -41,3 +40,28 @@
   transform: scale(0.9);
   transition: opacity 300ms, transform 300ms;
 }
+
+.tab-content {
+  overflow: auto;
+  height: 100%;
+}
+
+.popover-container {
+  position: absolute;
+  width: 100%;
+  top: 80.1%;
+  right: 19.1%;
+  z-index: 1;
+}
+
+.popover-input {
+  border-radius: 1em;
+  background-color: #377359;
+  padding: 1em;
+  position: absolute;
+  right: 25%;
+}
+
+.cancel-button {
+}
+
