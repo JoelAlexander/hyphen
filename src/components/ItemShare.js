@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react'
+import React, { useState, useEffect, useContext, useMemo } from 'react'
 import HyphenContext from './HyphenContext'
 import Blockies from 'react-blockies';
 import { Tab, Tabs } from 'react-bootstrap'
 import './ItemShare.css'
 import { CSSTransition } from 'react-transition-group'
+const BigNumber = require('bignumber.js')
 const ethers = require("ethers");
 
 const ZeroAddress = "0x0000000000000000000000000000000000000000"
@@ -16,6 +17,27 @@ const Item = (
   const [ownerEnsName, setOwnerEnsName] = useState('')
   const [holderEnsName, setHolderEnsName] = useState('')
   const [newOwner, setNewOwner] = useState('')
+  const [isRequestVisible, setIsRequestVisible] = useState(false);
+  const [isConfirmDialogVisible, setIsConfirmDialogVisible] = useState(false);
+  
+  const handleRequestClick = () => {
+    setIsRequestVisible(!isRequestVisible);
+  }
+  
+  const handleClearClick = () => {
+    setTerm(0);
+    setIsRequestVisible(false);
+  }
+  
+  const handleSubmitClick = () => {
+    setIsConfirmDialogVisible(true);
+  }
+  
+  const handleConfirm = () => {
+    setIsConfirmDialogVisible(false);
+    handleRequestItem(id, term);
+    handleClearClick();
+  }
 
   const handleTermChange = (e) => {
     setTerm(e.target.value)
@@ -50,48 +72,72 @@ const Item = (
     fetchENSName()
   }, [item.item.holder])
 
+  const generateColor = (id) => {
+    const maxHue = 360;
+    let bigNumber = new BigNumber(id);
+    let hue = bigNumber.modulo(maxHue).toNumber();
+    let saturation = bigNumber.modulo(30).toNumber() + 20; // Keep it within 20-50 for low saturation
+    let lightness = bigNumber.modulo(50).toNumber() + 50;
+    let color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    return color;
+  } 
+
   return (
-    <div>
-      <div style={{display: 'flex', alignItems: 'center'}}>
-        <Blockies seed={id} />
-        <p>{item.metadata}</p>
+    <div style={{ backgroundColor: generateColor(id), padding: '20px', borderRadius: '10px', margin: '10px 0'}}>
+      <div style={{display: 'flex'}}>
+        <Blockies scale={8} seed={id} />
+        <div style={{ marginLeft: '1em' }}>
+          <h2>{item.metadata}</h2>
+          <p>Owned by: <strong>{ownerEnsName}</strong></p>
+          { isBorrowed && <p>Borrowed by: <strong>{holderEnsName}</strong></p>}
+        </div>
       </div>
-      <h4>Owned by</h4>
-      <p>{ownerEnsName}</p>
-      { isBorrowed && <>
-        <h4>Borrowed by</h4>
-        <p>{holderEnsName}</p>
-      </>}
-      {/* TODO: Implement ownership transfer UI */}
-      {/* {isMyItem &&
-        <div>
-          <button onClick={() => handleDeleteItem(id)}>Remove Item</button>
-          <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
-          <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
-        </div>
-      } */}
-      {isHeldItem && !item.item.available &&
-        <div>
+      <div style={{display: 'flex'}}>
+        {isHeldItem && !item.item.available &&
           <button onClick={() => handleReturnItem(id)}>Return Item</button>
-        </div>
-      }
-      {item.item.available && !isMyItem &&
+        }
+        {item.item.available && !isMyItem &&
+          <div>
+            <button style={{ backgroundColor: 'darkgrey', color: 'white', borderRadius: '15px', padding: '10px', border: 'none'}} onClick={handleRequestClick}>Request to Borrow</button>
+            {isRequestVisible && 
+              <div>
+                <input type="range" min={1*7200} max={14*7200} value={term} onChange={handleTermChange} placeholder="Enter number of days" />
+                <button onClick={handleSubmitClick}>Submit Request</button>
+                <button onClick={handleClearClick}>Cancel</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+      {isConfirmDialogVisible &&
         <div>
-          <input type="number" value={term} onChange={handleTermChange} placeholder="Enter number of blocks" />
-          <button onClick={() => handleRequestItem(id, term)}>Request Item for {term} blocks</button>
+          <p>Are you sure you want to submit this request?</p>
+          <button onClick={handleConfirm}>Yes</button>
+          <button onClick={() => setIsConfirmDialogVisible(false)}>No</button>
         </div>
       }
-      {requests && [].concat(Object.entries(requests).map(([requester, term]) => (
+      <div>
+        {requests && [].concat(Object.entries(requests).map(([requester, term]) => (
           <div key={`request-${id}-${requester}`}>
-              <p>Requester: {requester}</p>
-              <p>Term: {term.toString()}</p>
-              { isMyItem && <button onClick={() => handleApproveRequest(id, requester, term)}>Approve Request</button> }
-              { isMyItem && <button onClick={() => handleDenyRequest(id, requester, term)}>Deny Request</button> }
+            <p>Requester: {requester}</p>
+            <p>Term: {term.toString()}</p>
+            { isMyItem && <button onClick={() => handleApproveRequest(id, requester, term)}>Approve Request</button> }
+            { isMyItem && <button onClick={() => handleDenyRequest(id, requester, term)}>Deny Request</button> }
           </div>
         )))}
+      </div>
     </div>
   )
 }
+
+/* TODO: Implement ownership transfer UI */
+/* {isMyItem &&
+  <div>
+    <button onClick={() => handleDeleteItem(id)}>Remove Item</button>
+    <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
+    <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
+  </div>
+} */
 
 const ENSItemShare = () => {
   const context = useContext(HyphenContext)
@@ -536,7 +582,7 @@ const ENSItemShare = () => {
         </div>
       </CSSTransition>
     </div>
-    <div className="ens-item-share">
+    <div className="item-share">
       <Tabs defaultActiveKey="yourItems" id="uncontrolled-tab-example">
         <Tab eventKey="yourItems" title="Your Items">
           {borrowedItemsHydrated.length > 0 && <>

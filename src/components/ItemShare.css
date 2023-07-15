@@ -1,7 +1,8 @@
-.ens-item-share {
+.item-share {
   position: relative;
   height: 100%;
   width: 100%;
+  line-height: 1;
 }
 
 .floating-button {
@@ -65,3 +66,6 @@
 .cancel-button {
 }
 
+.item-share p, .item-share h2 {
+  line-height: 1;
+}
