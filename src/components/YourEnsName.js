@@ -20,7 +20,7 @@ const YourEnsName = ({onNameSet}) => {
   }, []);
 
   const update = () => {
-    return context.lookupAddress(context.address).then(setName);
+    return context.getEnsName(context.address).then(setName);
   };
 
   const onEnteredLabelStringChanged = (event) => {

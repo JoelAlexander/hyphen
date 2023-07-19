@@ -160,9 +160,14 @@ const Hyphen = ({ provider, configuration }) => {
     })
   }
 
-  const lookupAddress = async (address) => {
-    if (addressCache[address]) {
-      return addressCache[address]
+  const getCachedEnsName = (address) => {
+    return addressCache[address]
+  }
+
+  const getEnsName = async (address) => {
+    const cached = getCachedEnsName(address)
+    if (cached) {
+      return Promise.resolve(cached)
     } else {
       const result = await provider.lookupAddress(address)
       setAddressCache(prevState => ({...prevState, [address]: result}))
@@ -258,7 +263,15 @@ const Hyphen = ({ provider, configuration }) => {
     setBlockNumber(null)
     setToastVisible(false)
     setConnectedContracts({})
-  };
+    setSigner(null)
+    setAddress(null)
+    setName(null)
+    setHouseWallet(null)
+    setUnsentTransactions([])
+    setInProgressTransaction(null)
+    setPendingTransactions([])
+    setActivityToasts([])
+  }
 
   const executeTransaction = (transactionRequest) => {
     if (!signer) {
@@ -295,7 +308,8 @@ const Hyphen = ({ provider, configuration }) => {
     <HyphenContext.Provider value={{
       configuration: configuration,
       provider: provider,
-      lookupAddress: lookupAddress,
+      getEnsName: getEnsName,
+      getCachedEnsName: getCachedEnsName,
       getContract: getContract,
       executeTransaction: executeTransaction,
       signer: signer,

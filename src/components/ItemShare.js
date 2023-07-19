@@ -1,42 +1,53 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react'
+import React, { useState, useEffect, useContext, useRef } from 'react'
 import HyphenContext from './HyphenContext'
-import Blockies from 'react-blockies';
+import Address from './Address'
+import Blockies from 'react-blockies'
 import { Tab, Tabs } from 'react-bootstrap'
+import Overlay from 'react-bootstrap/Overlay'
+import Popover from 'react-bootstrap/Popover'
 import './ItemShare.css'
 import { CSSTransition } from 'react-transition-group'
 const BigNumber = require('bignumber.js')
-const ethers = require("ethers");
+const ethers = require("ethers")
 
 const ZeroAddress = "0x0000000000000000000000000000000000000000"
+const BlocksPerDay = 86400 / 6
 
 const Item = (
   {id, item, requests, actions }) => {
   const [handleDeleteItem, handleTransferOwnership, handleReturnItem, handleRequestItem, handleApproveRequest, handleDenyRequest] = [...actions]
   const context = useContext(HyphenContext)
-  const [term, setTerm] = useState(0)
+  const [term, setTerm] = useState(BlocksPerDay)
   const [ownerEnsName, setOwnerEnsName] = useState('')
   const [holderEnsName, setHolderEnsName] = useState('')
   const [newOwner, setNewOwner] = useState('')
-  const [isRequestVisible, setIsRequestVisible] = useState(false);
-  const [isConfirmDialogVisible, setIsConfirmDialogVisible] = useState(false);
+  const [isRequestVisible, setIsRequestVisible] = useState(false)
+  const [showOverflowPopover, setShowOverflowPopover] = useState(false)
+  const [selectedRequest, setSelectedRequest] = useState(null)
+  const [requestPopoverTarget, setRequestPopoverTarget] = useState(null)
+  const [target, setTarget] = useState(null)
+  const ref = useRef(null)
   
   const handleRequestClick = () => {
-    setIsRequestVisible(!isRequestVisible);
+    setIsRequestVisible(true)
+    setSelectedRequest(null)
   }
   
   const handleClearClick = () => {
-    setTerm(0);
-    setIsRequestVisible(false);
+    setTerm(BlocksPerDay)
+    setIsRequestVisible(false)
   }
-  
+
   const handleSubmitClick = () => {
-    setIsConfirmDialogVisible(true);
+    if (window.confirm('Are you sure you want to submit this request?')) {
+      handleRequestItem(id, term)
+      handleClearClick()
+    }
   }
   
   const handleConfirm = () => {
-    setIsConfirmDialogVisible(false);
-    handleRequestItem(id, term);
-    handleClearClick();
+    handleRequestItem(id, term)
+    handleClearClick()
   }
 
   const handleTermChange = (e) => {
@@ -58,7 +69,7 @@ const Item = (
 
   React.useEffect(() => {
     async function fetchENSName() {
-      let ensName = await context.lookupAddress(item.item.owner)
+      let ensName = await context.getEnsName(item.item.owner)
       setOwnerEnsName(ensName || item.item.owner)
     }
     fetchENSName()
@@ -66,42 +77,114 @@ const Item = (
 
   React.useEffect(() => {
     async function fetchENSName() {
-      let ensName = await context.lookupAddress(item.item.holder)
+      let ensName = await context.getEnsName(item.item.holder)
       setHolderEnsName(ensName || item.item.holder)
     }
     fetchENSName()
   }, [item.item.holder])
 
   const generateColor = (id) => {
-    const maxHue = 360;
-    let bigNumber = new BigNumber(id);
-    let hue = bigNumber.modulo(maxHue).toNumber();
-    let saturation = bigNumber.modulo(30).toNumber() + 20; // Keep it within 20-50 for low saturation
-    let lightness = bigNumber.modulo(50).toNumber() + 50;
-    let color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    return color;
+    const maxHue = 360
+    let bigNumber = new BigNumber(id)
+    let hue = bigNumber.modulo(maxHue).toNumber()
+    let saturation = bigNumber.modulo(30).toNumber() + 20
+    let lightness = bigNumber.modulo(50).toNumber() + 50
+    let color = `hsl(${hue}, ${saturation}%, ${lightness}%)`
+    return color
   } 
 
+  const computeTime = (blocks) => {
+    const seconds = blocks * 6
+    if (seconds < 60) {
+        return 'less than one minute'
+    }
+
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (days > 0) {
+      const remainingHours = hours % 24
+      return `${days} day${days == 1 ? '' : 's'}${remainingHours > 0 ? `, ${remainingHours} hour${remainingHours == 1 ? '' : 's'}` : ''}`
+    } else if (hours > 0) {
+      const remainingMinutes = minutes % 60
+      return `${hours} hour${hours == 1 ? '' : 's'}${remainingMinutes > 0 ? `, ${remainingMinutes} minute${remainingMinutes == 1 ? '' : 's'}` : ''}`
+    } else {
+        return `${minutes} minute${minutes == 1 ? '' : 's'}`
+    }
+  }
+
+  const backgroundColor = generateColor(id)
+  const requestEntries = requests ? Object.entries(requests) : []
+
   return (
-    <div style={{ backgroundColor: generateColor(id), padding: '20px', borderRadius: '10px', margin: '10px 0'}}>
+    <div style={{ backgroundColor: backgroundColor, padding: '20px', borderRadius: '10px', margin: '10px 0'}}>
       <div style={{display: 'flex'}}>
         <Blockies scale={8} seed={id} />
         <div style={{ marginLeft: '1em' }}>
           <h2>{item.metadata}</h2>
-          <p>Owned by: <strong>{ownerEnsName}</strong></p>
-          { isBorrowed && <p>Borrowed by: <strong>{holderEnsName}</strong></p>}
+          <p>🏠 <strong>{isMyItem ? 'You' : ownerEnsName}</strong></p>
+          { isBorrowed && <p>🤲 <strong>{isHeldItem ? 'You' : holderEnsName}</strong></p>}
         </div>
+        { isMyItem &&
+          <div style={{ position: 'relative', float: 'right', marginLeft: 'auto' }} ref={ref}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" onClick={(event) => {
+              setShowOverflowPopover(!showOverflowPopover)
+              setTarget(event.target)
+            }}>
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="12" cy="5" r="1"></circle>
+              <circle cx="12" cy="19" r="1"></circle>
+            </svg>
+          </div>
+        }
       </div>
-      <div style={{display: 'flex'}}>
+      {
+        requestEntries.length > 0 &&
+        <div style={{ marginTop: '0.5em', display: 'flex', alignItems: 'center' }}>
+          <p>🙋&nbsp;</p>
+          {
+            requestEntries.map(([requester, term]) => {
+              const isSelectedRequest = selectedRequest && selectedRequest.requester === requester
+              var style = { display: "inline-block", marginRight: '.5em', lineHeight: '0',
+                borderStyle: 'solid', borderWidth: '2px', borderColor: isSelectedRequest ? 'yellow' : backgroundColor }
+              return (
+                <div key={`request-${id}-${requester}`} style={style}
+                  onClick={() => {
+                    if (isSelectedRequest) {
+                      setSelectedRequest(null)
+                    } else {
+                      setSelectedRequest({ requester: requester, term: term })
+                    }
+                  }}>
+                  <Blockies scale={4} seed={requester} />
+                </div>
+              )
+            })
+          }
+        </div>
+      }
+      { selectedRequest != null && !isRequestVisible && <div>
+        <Address address={selectedRequest.requester} />
+        <p>{computeTime(term)}</p>
+        {isMyItem && (
+          <button onClick={() => handleApproveRequest(id, selectedRequest.requester, selectedRequest.term)}>Approve</button>
+        )}
+        {isMyItem && (
+          <button onClick={() => handleDenyRequest(id, selectedRequest.requester, selectedRequest.term)}>Deny</button>
+        )}
+      </div>}
+      <div style={{display: 'flex', marginTop: '0.5em'}}>
         {isHeldItem && !item.item.available &&
           <button onClick={() => handleReturnItem(id)}>Return Item</button>
         }
         {item.item.available && !isMyItem &&
           <div>
-            <button style={{ backgroundColor: 'darkgrey', color: 'white', borderRadius: '15px', padding: '10px', border: 'none'}} onClick={handleRequestClick}>Request to Borrow</button>
+            {!isRequestVisible && <button onClick={handleRequestClick}>Request to Borrow</button>}
             {isRequestVisible && 
               <div>
-                <input type="range" min={1*7200} max={14*7200} value={term} onChange={handleTermChange} placeholder="Enter number of days" />
+                <input type="range" min={1*BlocksPerDay} max={14*BlocksPerDay} value={term} onChange={handleTermChange} placeholder="Enter number of days" />
+                <p>{computeTime(term)}</p>
                 <button onClick={handleSubmitClick}>Submit Request</button>
                 <button onClick={handleClearClick}>Cancel</button>
               </div>
@@ -109,35 +192,25 @@ const Item = (
           </div>
         }
       </div>
-      {isConfirmDialogVisible &&
-        <div>
-          <p>Are you sure you want to submit this request?</p>
-          <button onClick={handleConfirm}>Yes</button>
-          <button onClick={() => setIsConfirmDialogVisible(false)}>No</button>
-        </div>
-      }
-      <div>
-        {requests && [].concat(Object.entries(requests).map(([requester, term]) => (
-          <div key={`request-${id}-${requester}`}>
-            <p>Requester: {requester}</p>
-            <p>Term: {term.toString()}</p>
-            { isMyItem && <button onClick={() => handleApproveRequest(id, requester, term)}>Approve Request</button> }
-            { isMyItem && <button onClick={() => handleDenyRequest(id, requester, term)}>Deny Request</button> }
+      <Overlay show={showOverflowPopover} target={target} placement="bottom" container={ref.current} rootClose
+        onHide={() => setShowOverflowPopover(false)}>
+        <Popover id={`popover-contained-${id}`} title="Menu">
+          <div>
+            <button onClick={() => {
+              const confirmDelete = window.confirm('Are you sure you want to delete this item?');
+              if (confirmDelete) {
+                handleDeleteItem(id);
+                setShowOverflowPopover(false);
+              }
+            }}>
+              Remove Item
+            </button>
           </div>
-        )))}
-      </div>
+        </Popover>
+      </Overlay>
     </div>
   )
 }
-
-/* TODO: Implement ownership transfer UI */
-/* {isMyItem &&
-  <div>
-    <button onClick={() => handleDeleteItem(id)}>Remove Item</button>
-    <input type="text" value={newOwner} onChange={handleNewOwnerChange} placeholder="Enter new owner's address" />
-    <button onClick={() => handleTransferOwnership(id)}>Transfer Ownership</button>
-  </div>
-} */
 
 const ENSItemShare = () => {
   const context = useContext(HyphenContext)

@@ -66,6 +66,21 @@
 .cancel-button {
 }
 
-.item-share p, .item-share h2 {
-  line-height: 1;
+.item-share p {
+  line-height: 1.4;
+  margin-bottom: 0em;
+}
+
+.item-share h2 {
+  line-height: 1.1;
+  margin-bottom: 0em;
+}
+
+.item-share button {
+  background-color: #474747;
+  color: white;
+  border-radius: 1em;
+  padding: 1em;
+  border: none;
+  margin-right: .5em;
 }
