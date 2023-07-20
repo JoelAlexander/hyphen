@@ -7,18 +7,19 @@
 
 .floating-button {
   position: absolute;
-  right: 5%;
+  left: 68.2%;
   background-color: #007bff;
   color: white;
   border: none;
   border-radius: 50%;
-  width: 56px;
-  height: 56px;
+  width: 2em;
+  height: 2em;
   display: flex;
   justify-content: center;
   align-items: center;
   transition: 0.3s ease;
   cursor: pointer;
+  font-size: 4em;
 }
 
 .fade-enter {
@@ -48,11 +49,12 @@
 }
 
 .popover-container {
+  display: flex;
   position: absolute;
   width: 100%;
   top: 80.1%;
-  right: 19.1%;
   z-index: 1;
+  justify-content: center;
 }
 
 .popover-input {
@@ -60,7 +62,6 @@
   background-color: #377359;
   padding: 1em;
   position: absolute;
-  right: 25%;
 }
 
 .cancel-button {

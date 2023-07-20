@@ -650,7 +650,7 @@ const ENSItemShare = () => {
       </CSSTransition>
       <CSSTransition in={showInput} timeout={300} classNames="fade" unmountOnExit>
         <div className="popover-input">
-          <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter metadata" onKeyPress={handleKeyPress}/>
+          <input type="text" value={metadata} onChange={handleMetadataChange} placeholder="Enter item name" onKeyPress={handleKeyPress}/>
           <button onClick={handleCancelCreateItem} className="cancel-button">x</button>
         </div>
       </CSSTransition>
