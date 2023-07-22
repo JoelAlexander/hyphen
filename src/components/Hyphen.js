@@ -302,10 +302,11 @@ const Hyphen = ({ provider, configuration }) => {
 
   const addActivityToast = (address, message) => {
     setActivityToasts(previousToasts => [...previousToasts, { address, message }])
-  };
+  }
 
   return (
     <HyphenContext.Provider value={{
+      blockNumber: blockNumber,
       configuration: configuration,
       provider: provider,
       getEnsName: getEnsName,

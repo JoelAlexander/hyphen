@@ -19,7 +19,7 @@
   align-items: center;
   transition: 0.3s ease;
   cursor: pointer;
-  font-size: 4em;
+  font-size: 2em;
 }
 
 .fade-enter {
