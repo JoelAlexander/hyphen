@@ -286,7 +286,7 @@ const Hyphen = ({ provider, configuration }) => {
   const showToast = () => {
     setToastVisible(true)
     setTimeout(() => setToastVisible(false), 3000)
-  };
+  }
 
   const isInFlightTransactions = pendingTransactions.length !== 0
   const statusBar = signer && name ?

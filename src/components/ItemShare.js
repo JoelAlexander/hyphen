@@ -7,7 +7,6 @@ import Overlay from 'react-bootstrap/Overlay'
 import Popover from 'react-bootstrap/Popover'
 import './ItemShare.css'
 import { CSSTransition } from 'react-transition-group'
-const BigNumber = require('bignumber.js')
 const ethers = require("ethers")
 
 const ZeroAddress = "0x0000000000000000000000000000000000000000"
@@ -107,10 +106,10 @@ const Item = (
 
   const generateColor = (id) => {
     const maxHue = 360
-    let bigNumber = new BigNumber(id)
-    let hue = bigNumber.modulo(maxHue).toNumber()
-    let saturation = bigNumber.modulo(30).toNumber() + 20
-    let lightness = bigNumber.modulo(50).toNumber() + 50
+    let bigNumber = ethers.BigNumber.from(id)
+    let hue = bigNumber.mod(maxHue).toNumber()
+    let saturation = bigNumber.mod(30).toNumber() + 20
+    let lightness = bigNumber.mod(50).toNumber() + 50
     let color = `hsl(${hue}, ${saturation}%, ${lightness}%)`
     return color
   } 
@@ -261,12 +260,116 @@ const ENSItemShare = () => {
   const ensItemShareContract = context.getContract('itemsharemetadata.hyphen')
   const [items, setItems] = useState({})
   const [requests, setRequests] = useState({})
+  const [pendingItems, setPendingItems] = useState({})
+  const [pendingRequests, setPendingRequests] = useState({})
   const [yourItems, setYourItems] = useState(new Set())
   const [yourHeldItems, setYourHeldItems] = useState(new Set())
   const [liveFeedItems, setLiveFeedItems] = useState(new Set())
 
   const [showInput, setShowInput] = useState(false);
   const [metadata, setMetadata] = useState('')
+
+  const addItem = (_id, owner) => {
+    const id = _id.toString()
+    return prev => {
+      return { [id]: { item: {owner: owner, holder: owner, termEnd: 0, available: true} }, ...prev }
+    }
+  }
+
+  const updateItemData = (_id, updateItem) => {
+    const id = _id.toString()
+    return prev => {
+      if (!prev[id]) {
+        return prev
+      }
+      const { item, ..._ } = prev[id]
+      return { ...prev, [id]: { item: updateItem(item) , ..._ }} }
+  }
+
+  const returnItem = (id) => {
+    return updateItemData(id, prev => { return { ...prev, holder: prev.owner, termEnd: ethers.BigNumber.from(0), available: true } })
+  }
+
+  const approveRequest = (id, requester, _termEnd) => {
+    const termEnd = ethers.BigNumber.from(_termEnd)
+    return updateItemData(id, prev => { return { ...prev, holder: requester, termEnd: termEnd, available: false } })
+  }
+
+  const transferOwnership = (newOwner) => {
+    return updateItemData(id, prev => { return { ...prev, owner: newOwner } })
+  }
+
+  const removeItem = (_id) => {
+    const id = _id.toString()
+    return prev => {
+      const {[id]: _, ...rest} = prev
+      return rest
+    }
+  }
+
+  const updateItemMetadata = (_id, newMetadata) => {
+    const id = _id.toString()
+    return prev => {
+      if (!prev[id]) {
+        return prev
+      }
+      const { metadata, ..._ } = prev[id]
+      return { ...prev, [id]: { metadata: newMetadata , ..._ }} }
+  }
+
+  const addRequest = (_id, requester, _term) => {
+    const term = ethers.BigNumber.from(_term)
+    const id = _id.toString()
+    return prev => {
+      return { ...prev, [id]: { ...prev[id], [requester]: { term: term, blockNumber: context.blockNumber }}}
+    }
+  }
+
+  const removeRequest = (_id, requester) => {
+    const id = _id.toString()
+    return prev => {
+      const {[id]: existingRequests, ...items} = prev
+      if (existingRequests) {
+        const { [requester]: _, ...requesters} = existingRequests
+        return {[id]: {...requesters}, ...items}
+      } else {
+        return {[id]: {}, ...items}
+      }
+    }
+  }
+
+  const addId = (_id) => {
+    const id = _id.toString()
+    return prev => { return new Set(prev).add(id) }
+  }
+
+  const removeId = (_id) => {
+    const id = _id.toString()
+    return prev => {
+      const newSet = new Set(prev)
+      newSet.delete(id)
+      return newSet
+    }
+  }
+
+  const newPendingItem = (newId, metadata) => {
+    setPendingItems(addItem(newId, context.address))
+    setPendingItems(updateItemMetadata(newId, metadata))
+  }
+
+  const updatePendingItem = (id, update) => {
+    const item = items[id]
+    if (item) {
+      setPendingItems(prev => {
+        prev[id] = item
+        return update(prev)
+      })
+    }
+  }
+
+  const removePendingItem = (id) => {
+    setPendingItems(removeItem(id))
+  }
 
   const computeItemId = (blockNumber) => {
     return itemShareContract.resolvedAddress.then(contractAddress => {
@@ -418,7 +521,7 @@ const ENSItemShare = () => {
           events.reduce((result, event) => {
             const id = event.args.id.toString()
             if (event.event === 'ItemRequested') {
-              result[id] = { [event.args.requester]: { term: event.args.term, blockNumber: event.blockNumber }, ...result[id] }
+              result[id] = { ...result[id], [event.args.requester]: { term: event.args.term, blockNumber: event.blockNumber } }
             } else if (event.event === 'RequestApproved' || event.event === 'RequestDenied') {
               const existingRequests = result[id]
               if (existingRequests) {
@@ -453,108 +556,54 @@ const ENSItemShare = () => {
   }, [liveFeedItems])
 
   useEffect(() => {
-    const updateItemMetadata = (_id, newMetadata) => {
-      const id = _id.toString()
-      return prev => {
-        if (!prev[id]) {
-          return prev
-        }
-        const { metadata, ..._ } = prev[id]
-        return { ...prev, [id]: { metadata: newMetadata , ..._ }} }
-    } 
-
-    const updateItemData = (_id, updateItem) => {
-      const id = _id.toString()
-      return prev => {
-        if (!prev[id]) {
-          return prev
-        }
-        const { item, ..._ } = prev[id]
-        return { ...prev, [id]: { item: updateItem(item) , ..._ }} }
-    }
-
-    const addId = (_id) => {
-      const id = _id.toString()
-      return prev => { return new Set(prev).add(id) }
-    }
-
-    const removeId = (_id) => {
-      const id = _id.toString()
-      return prev => {
-        const newSet = new Set(prev)
-        newSet.delete(id)
-        return newSet
-      }
-    }
-
-    const addRequest = (_id, requester, term) => {
-      const id = _id.toString()
-      return prev => {
-        return { ...prev, [id]: { ...prev[id], [requester]: { term: term, blockNumber: context.blockNumber }}}
-      }
-    }
-
-    const removeRequest = (_id, requester) => {
-      const id = _id.toString()
-      return prev => {
-        const {[id]: existingRequests, ...items} = prev
-        if (existingRequests) {
-          const { [requester]: _, ...requesters} = existingRequests
-          return {[id]: {...requesters}, ...items}
-        } else {
-          return {[id]: {}, ...items}
-        }
-      }
-    }
-
     const itemAddedListener = (owner, id) => {
-      console.log(`ID Added: ${id}`)
+      setItems(addItem(id, owner))
+      setLiveFeedItems(addId(id))
       if (owner == context.address) {
         setYourItems(addId(id))
         setYourHeldItems(addId(id))
-      }
-      setLiveFeedItems(addId(id))
-
-      if (owner != context.address) {
+      } else {
         context.addActivityToast(owner, `${owner} has added an item`)
       }
     }
 
     const itemRemovedListener = (owner, id) => {
+      setItems(removeItem(id))
+      setLiveFeedItems(removeId(id))
       if (owner == context.address) {
         setYourItems(removeId(id))
         setYourHeldItems(removeId(id))
       }
-      setLiveFeedItems(removeId(id))
-      setItems(updateItemData(id, _ => { return {owner: ZeroAddress, holder: ZeroAddress, termEnd: 0, available: false} }))
     }
 
     const itemRequestedListener = (owner, requester, id, term) => {
-      setLiveFeedItems(addId(id))
       setRequests(addRequest(id, requester, term))
+      setLiveFeedItems(addId(id))
       if (owner == context.address) {
         context.addActivityToast(requester, `${requester} has requested your item ${id} for ${term} blocks`)
       }
     }
 
     const requestApprovedListener = (owner, requester, id, termEnd) => {
-      setLiveFeedItems(addId(id))
+      setItems(approveRequest(id, requester, termEnd))
       setRequests(removeRequest(id, requester))
-      setItems(updateItemData(id, prev => { return { ...prev, holder: requester, termEnd: termEnd, available: false } }))
+      setLiveFeedItems(addId(id))
       if (requester == context.address) {
         context.addActivityToast(owner, `${owner} has approved your request to borrow item ${id} until ${termEnd}`)
       }
     }
 
     const requestDeniedListener = (owner, requester, id, term) => {
-      setLiveFeedItems(addId(id))
       setRequests(removeRequest(id, requester))
+      setLiveFeedItems(addId(id))
       if (requester == context.address) {
         context.addActivityToast(owner, `${owner} has denied your request to borrow item ${id} for ${term} blocks`)
       }
     }
 
     const itemReturnedListener = (owner, requester, id) => {
+      setItems(returnItem(id))
+      setLiveFeedItems(addId(id))
       const isSelfTransfer = owner === requester
       if (!isSelfTransfer) {
         if (owner === context.address) {
@@ -564,12 +613,12 @@ const ENSItemShare = () => {
           setYourHeldItems(removeId(id))
         }
       }
-
-      setLiveFeedItems(addId(id))
-      setItems(updateItemData(id, prev => { return { ...prev, holder: owner, termEnd: 0, available: true } }))
     }
 
     const ownershipTransferredListener = (fromOwner, toOwner, id) => {
+      setItems(transferOwnership(toOwner))
+      setLiveFeedItems(addId(id))
+
       const isSelfTransfer = fromOwner === toOwner
       if (!isSelfTransfer) {
         if (toOwner === context.address) {
@@ -581,9 +630,6 @@ const ENSItemShare = () => {
           setYourItems(removeId(id))
         }
       }
-
-      setLiveFeedItems(addId(id))
-      setItems(updateItemData(id, prev => { return { ...prev, owner: newOwner } }))
     }
 
     const metadataUpdatedListener = (owner, id, newMetadata) => {
@@ -615,16 +661,6 @@ const ENSItemShare = () => {
     }
   }, [itemShareContract])
 
-  const handleCreateItem = () => {
-    setShowInput(false)
-    itemShareContract.createItem()
-      .then((result) => computeItemId(result.blockNumber).then(id => {
-        console.log(`Adding metadata for ${id.toString()}`)
-        return ensItemShareContract.addItemMetadata(id, metadata)
-      }))
-      .finally(() => setMetadata(''))
-  }
-
   const handleCancelCreateItem = () => {
     setShowInput(false)
   }
@@ -633,50 +669,96 @@ const ENSItemShare = () => {
     setMetadata(event.target.value)
   }
 
+  const handleCreateItem = () => {
+    setShowInput(false)
+    const metadataToSet = metadata
+    itemShareContract.createItem()
+      .then(result => {
+        const newId = computeItemId(result.blockNumber)
+        newPendingItem(newId, metadataToSet)
+        return ensItemShareContract.addItemMetadata(newId, metadataToSet)
+          .finally(() => {
+            removePendingItem(newId)
+          })
+      }).finally(() => {
+        setMetadata('')
+      })
+  }
+
   const handleDeleteItem = (id) => {
-    const {_, metadata} = items[id]
-    if (metadata) {
-      ensItemShareContract.removeItemMetadata(id)
-    }
+    setItems(removeItem(id))
+    removePendingItem(id)
+    setYourItems(removeId(id))
+    setLiveFeedItems(removeId(id))
+    setYourHeldItems(removeId(id))
+    ensItemShareContract.removeItemMetadata(id)
     itemShareContract.deleteItem(id)
   }
 
   const handleRequestItem = (id, term) => {
+    setPendingRequests(addRequest(id, context.address, term))
     itemShareContract.requestItem(id, term)
+      .finally(() => {
+        setPendingRequests(removeRequest(id, context.address))
+      })
   }
 
-  const handleApproveRequest = (id, requester, term) => {
+  const handleApproveRequest = (id, requester, _term) => {
+    const term = ethers.BigNumber.from(_term)
+    const termEnd = term.eq(0) ? term : term.add(context.blockNumber)
+    updatePendingItem(id, approveRequest(id, requester, termEnd))
+    setRequests(removeRequest(id, requester))
     itemShareContract.approveRequest(requester, id, term)
+      .finally(() => {
+        removePendingItem(id)
+      })
   }
 
   const handleDenyRequest = (id, requester, term) => {
+    setRequests(removeRequest(id, requester))
     itemShareContract.denyRequest(requester, id, term)
   }
 
-  const handleTransferOwnership = (id) => {
+  const handleTransferOwnership = (id, newOwner) => {
+    updatePendingItem(id, transferOwnership(newOwner))
     itemShareContract.transferOwnership(newOwner, id)
+      .finally(() => {
+        removePendingItem(id)
+      })
   }
 
   const handleReturnItem = (id) => {
+    updatePendingItem(id, returnItem(id))
     itemShareContract.returnItem(id)
+      .finally(() => {
+        removePendingItem(id)
+      })
   }
 
   const itemActions = [handleDeleteItem, handleTransferOwnership, handleReturnItem, handleRequestItem, handleApproveRequest, handleDenyRequest]
 
   const getLoadedItemsAndRequests = (ids) => {
-    return Array.from(ids).reverse().map(id => [id, items[id], requests[id]])
+    const itemsInView = { ...items, ...pendingItems }
+    const requestsInView = { 
+      ...requests,
+      ...Object.keys(pendingRequests).reduce((acc, id) => {
+        acc[id] = {...requests[id], ...pendingRequests[id]}
+        return acc
+      }, {})
+    }
+    return Array.from(ids).reverse().map(id => [id, itemsInView[id], requestsInView[id]])
       .filter(([_, item, __]) => item && item.item && item.metadata)
   }
 
   function handleStartCreateItem() {
-    setShowInput(true);
+    setShowInput(true)
   }
 
   function handleKeyPress(event) {
     if (event.key === 'Enter') {
-      event.preventDefault();
+      event.preventDefault()
       if(window.confirm('Are you sure you want to submit this item?')) {
-        handleCreateItem();
+        handleCreateItem()
       }
     }
   }
