@@ -22,14 +22,14 @@ const Item = (
   const [newOwner, setNewOwner] = useState('')
   const [isRequestVisible, setIsRequestVisible] = useState(false)
   const [showOverflowPopover, setShowOverflowPopover] = useState(false)
-  const [selectedRequest, setSelectedRequest] = useState(null)
+  const [selectedRequester, setSelectedRequester] = useState(null)
   const [requestPopoverTarget, setRequestPopoverTarget] = useState(null)
   const [target, setTarget] = useState(null)
   const ref = useRef(null)
   
   const handleRequestClick = () => {
     setIsRequestVisible(true)
-    setSelectedRequest(null)
+    setSelectedRequester(null)
   }
   
   const handleClearClick = () => {
@@ -175,16 +175,16 @@ const Item = (
       <p>🙋&nbsp;</p>
       {
         requestEntries.map(([requester, request]) => {
-          const isSelectedRequest = selectedRequest && selectedRequest.requester === requester
+          const isSelectedRequest = selectedRequest === requester
           var style = { display: "inline-block", marginRight: '.5em', lineHeight: '0',
             borderStyle: 'solid', borderWidth: '2px', borderColor: isSelectedRequest ? 'yellow' : backgroundColor }
           return (
             <div key={`request-${id}-${requester}`} style={style}
               onClick={() => {
                 if (isSelectedRequest) {
-                  setSelectedRequest(null)
+                  setSelectedRequester(null)
                 } else {
-                  setSelectedRequest({ requester: requester, term: request.term })
+                  setSelectedRequester(requester)
                 }
               }}>
               <Blockies scale={4} seed={requester} />
@@ -195,18 +195,20 @@ const Item = (
     </div>
   }</>
 
+  const selectedRequest = requests && selectedRequester ? requests[selectedRequester] : null
   const selectedRequestDetail = <>{
-    selectedRequest != null && !isRequestVisible &&
+    selectedRequest && !isRequestVisible &&
     <div style={{ display: 'flex', alignItems: 'center' }}>
       <div style={{ marginRight: '.5em' }}>
-        <strong><Address address={selectedRequest.requester} /></strong>
+        <strong><Address address={selectedRequester} /></strong>
         <p>Requested to borrow for <strong>{computeTime(selectedRequest.term)}</strong></p>
       </div>
       {isMyItem && (
         <button style={{ marginRight: '.5em' }} onClick={() => {
           const confirm = window.confirm('Are you sure you want to approve this request?')
           if (confirm) {
-            handleApproveRequest(id, selectedRequest.requester, selectedRequest.term)
+            handleApproveRequest(id, selectedRequester, selectedRequest.term)
+            setSelectedRequester(null)
           }
         }}>Approve</button>
       )}
@@ -214,7 +216,8 @@ const Item = (
         <button style={{ marginRight: '.5em' }} onClick={() => {
           const confirm = window.confirm('Are you sure you want to deny this request?')
           if (confirm) {
-            handleDenyRequest(id, selectedRequest.requester, selectedRequest.term)
+            handleDenyRequest(id, selectedRequester, selectedRequest.term)
+            setSelectedRequester(null)
           }
         }}>Deny</button>
       )}
@@ -350,7 +353,7 @@ const ENSItemShare = () => {
         const { [requester]: _, ...requesters} = existingRequests
         return {[id]: {...requesters}, ...items}
       } else {
-        return {[id]: {}, ...items}
+        return {[id]: undefined, ...items}
       }
     }
   }
@@ -384,15 +387,10 @@ const ENSItemShare = () => {
     }
   }
 
-  const removePendingItem = (id) => {
-    setPendingItems(removeItem(id))
-  }
-
   const computeItemId = (ordinal) => {
     const packedData = ethers.utils.solidityPack(
-      ['address', 'address', 'uint'],
+      ['address', 'address', 'uint256'],
       [itemShareContract.address, context.address, ordinal])
-    console.log(packedData)
     const hash = ethers.utils.keccak256(packedData)
     return ethers.BigNumber.from(hash)
   }
@@ -416,7 +414,7 @@ const ENSItemShare = () => {
   };
 
   const loadItems = (ids) => {
-    const toLoad = Array.from(ids).filter(id => items[id] === undefined)
+    const toLoad = Array.from(ids).filter(id => items[id] === undefined && pendingItems[id] === undefined)
     if (toLoad.length === 0) {
       return
     }
@@ -565,15 +563,15 @@ const ENSItemShare = () => {
 
   useEffect(() => {
     loadItems(yourItems)
-  }, [yourItems])
+  }, [yourItems, pendingItems])
 
   useEffect(() => {
     loadItems(yourHeldItems)
-  }, [yourHeldItems])
+  }, [yourHeldItems, pendingItems])
 
   useEffect(() => {
     loadItems(liveFeedItems)
-  }, [liveFeedItems])
+  }, [liveFeedItems, pendingItems])
 
   useEffect(() => {
     const itemAddedListener = (owner, id) => {
@@ -695,16 +693,19 @@ const ENSItemShare = () => {
     const newId = computeItemId(myItemCount)
     setMyItemCount(myItemCount.add(1))
     newPendingItem(newId, metadataToSet)
+    setYourItems(addId(newId))
+    setYourHeldItems(addId(newId))
+    setLiveFeedItems(addId(newId))
     ensItemShareContract.createItem(metadataToSet)
       .finally(() => {
         setMetadata('')
-        removePendingItem(newId)
+        setPendingItems(removeItem(newId))
       })
   }
 
   const handleDeleteItem = (id) => {
     setItems(removeItem(id))
-    removePendingItem(id)
+    setPendingItems(removeItem(id))
     setYourItems(removeId(id))
     setLiveFeedItems(removeId(id))
     setYourHeldItems(removeId(id))
@@ -727,7 +728,7 @@ const ENSItemShare = () => {
     setRequests(removeRequest(id, requester))
     itemShareContract.approveRequest(requester, id, term)
       .finally(() => {
-        removePendingItem(id)
+        setPendingItems(removeItem(id))
       })
   }
 
@@ -740,7 +741,7 @@ const ENSItemShare = () => {
     updatePendingItem(id, transferOwnership(newOwner))
     itemShareContract.transferOwnership(newOwner, id)
       .finally(() => {
-        removePendingItem(id)
+        setPendingItems(removeItem(id))
       })
   }
 
@@ -748,7 +749,7 @@ const ENSItemShare = () => {
     updatePendingItem(id, returnItem(id))
     itemShareContract.returnItem(id)
       .finally(() => {
-        removePendingItem(id)
+        setPendingItems(removeItem(id))
       })
   }
 

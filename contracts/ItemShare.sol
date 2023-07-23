@@ -23,9 +23,11 @@ contract ItemShare {
   mapping(uint256 => mapping(address => uint256)) requests;
 
   function createItem() external returns (uint256) {
-    uint256 id = uint256(keccak256(abi.encodePacked(address(this), tx.origin, itemCount[tx.origin]++)));
+    uint256 ordinal = itemCount[tx.origin];
+    uint256 id = uint256(keccak256(abi.encodePacked(address(this), tx.origin, ordinal)));
     require(items[id].owner == address(0), "Item must not already exist");
     items[id] = Item({owner: tx.origin, holder: tx.origin, termEnd: 0, available: true});
+    itemCount[tx.origin]++;
     emit ItemAdded(tx.origin, id);
     return id;
   }
