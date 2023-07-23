@@ -140,7 +140,13 @@ const Item = (
   }</>
 
   const returnButtonText = isBorrowed ? 'Return Item' : 'Unlock Item'
-  const returnItemButton = <div><button onClick={() => handleReturnItem(id)}>{returnButtonText}</button></div>
+  const returnItemButton = <div><button onClick={() => {
+      const confirm = window.confirm('Are you sure you want to return this item?')
+      if (confirm) {
+        handleReturnItem(id)
+      }
+    }}>{returnButtonText}</button>
+  </div>
   const myRequestDetail = <>{!isRequestVisible && <>
     <p>You are requesting for {myRequestTerm && computeTime(myRequestTerm.toNumber())}</p>
     <button onClick={handleRequestClick}>Change request</button>
@@ -168,7 +174,7 @@ const Item = (
     <div style={{ marginTop: '0.5em', display: 'flex', alignItems: 'center' }}>
       <p>🙋&nbsp;</p>
       {
-        requestEntries.map(([requester, term]) => {
+        requestEntries.map(([requester, request]) => {
           const isSelectedRequest = selectedRequest && selectedRequest.requester === requester
           var style = { display: "inline-block", marginRight: '.5em', lineHeight: '0',
             borderStyle: 'solid', borderWidth: '2px', borderColor: isSelectedRequest ? 'yellow' : backgroundColor }
@@ -178,7 +184,7 @@ const Item = (
                 if (isSelectedRequest) {
                   setSelectedRequest(null)
                 } else {
-                  setSelectedRequest({ requester: requester, term: term })
+                  setSelectedRequest({ requester: requester, term: request.term })
                 }
               }}>
               <Blockies scale={4} seed={requester} />
@@ -191,14 +197,26 @@ const Item = (
 
   const selectedRequestDetail = <>{
     selectedRequest != null && !isRequestVisible &&
-    <div>
-      <Address address={selectedRequest.requester} />
-      <p>{computeTime(selectedRequest.term)}</p>
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ marginRight: '.5em' }}>
+        <strong><Address address={selectedRequest.requester} /></strong>
+        <p>Requested to borrow for <strong>{computeTime(selectedRequest.term)}</strong></p>
+      </div>
       {isMyItem && (
-        <button onClick={() => handleApproveRequest(id, selectedRequest.requester, selectedRequest.term)}>Approve</button>
+        <button style={{ marginRight: '.5em' }} onClick={() => {
+          const confirm = window.confirm('Are you sure you want to approve this request?')
+          if (confirm) {
+            handleApproveRequest(id, selectedRequest.requester, selectedRequest.term)
+          }
+        }}>Approve</button>
       )}
       {isMyItem && (
-        <button onClick={() => handleDenyRequest(id, selectedRequest.requester, selectedRequest.term)}>Deny</button>
+        <button style={{ marginRight: '.5em' }} onClick={() => {
+          const confirm = window.confirm('Are you sure you want to deny this request?')
+          if (confirm) {
+            handleDenyRequest(id, selectedRequest.requester, selectedRequest.term)
+          }
+        }}>Deny</button>
       )}
     </div>
   }</>
@@ -242,13 +260,11 @@ const Item = (
 
   return (
     <div style={{ backgroundColor: backgroundColor, padding: '20px', borderRadius: '10px', margin: '10px 0'}}>
-      <div style={{display: 'flex'}}>
+      <div style={{display: 'flex', marginBottom: '.5em' }}>
         {itemDetail}
         {overflowMenuButton}
       </div>
-      <div style={{display: 'flex', marginTop: '0.5em'}}>
-        {relevantDetail}
-      </div>
+      {relevantDetail}
       {overflowMenu}
     </div>
   )
@@ -265,6 +281,7 @@ const ENSItemShare = () => {
   const [yourItems, setYourItems] = useState(new Set())
   const [yourHeldItems, setYourHeldItems] = useState(new Set())
   const [liveFeedItems, setLiveFeedItems] = useState(new Set())
+  const [myItemCount, setMyItemCount] = useState(0)
 
   const [showInput, setShowInput] = useState(false);
   const [metadata, setMetadata] = useState('')
@@ -371,15 +388,13 @@ const ENSItemShare = () => {
     setPendingItems(removeItem(id))
   }
 
-  const computeItemId = (blockNumber) => {
-    return itemShareContract.resolvedAddress.then(contractAddress => {
-      const packedData = ethers.utils.solidityPack(
-        ['address', 'address', 'uint'],
-        [contractAddress, context.address, blockNumber])
-      console.log(packedData)
-      const hash = ethers.utils.keccak256(packedData)
-      return ethers.BigNumber.from(hash)
-    })
+  const computeItemId = (ordinal) => {
+    const packedData = ethers.utils.solidityPack(
+      ['address', 'address', 'uint'],
+      [itemShareContract.address, context.address, ordinal])
+    console.log(packedData)
+    const hash = ethers.utils.keccak256(packedData)
+    return ethers.BigNumber.from(hash)
   }
 
   const mergeAndSortEvents = (events) => {
@@ -422,6 +437,11 @@ const ENSItemShare = () => {
         })
       })
   }
+
+  useEffect(() => {
+    itemShareContract.getItemCount(context.address)
+      .then(setMyItemCount)
+  }, [])
 
   useEffect(() => {
     const yourRemovedItemsFilter = itemShareContract.filters.ItemRemoved(context.address)
@@ -672,16 +692,13 @@ const ENSItemShare = () => {
   const handleCreateItem = () => {
     setShowInput(false)
     const metadataToSet = metadata
-    itemShareContract.createItem()
-      .then(result => {
-        const newId = computeItemId(result.blockNumber)
-        newPendingItem(newId, metadataToSet)
-        return ensItemShareContract.addItemMetadata(newId, metadataToSet)
-          .finally(() => {
-            removePendingItem(newId)
-          })
-      }).finally(() => {
+    const newId = computeItemId(myItemCount)
+    setMyItemCount(myItemCount.add(1))
+    newPendingItem(newId, metadataToSet)
+    ensItemShareContract.createItem(metadataToSet)
+      .finally(() => {
         setMetadata('')
+        removePendingItem(newId)
       })
   }
 

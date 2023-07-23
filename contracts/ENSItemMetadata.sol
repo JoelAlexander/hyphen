@@ -18,7 +18,7 @@ contract ENSItemMetadata {
   event MetadataUpdated(address indexed owner, uint256 indexed id, string metadata);
 
   modifier onlyItemOwner(uint256 id) {
-    require(msg.sender == itemShare.getItem(id).owner, "Must be the owner");
+    require(tx.origin == itemShare.getItem(id).owner, "Must be the owner");
     _;
   }
 
@@ -29,19 +29,29 @@ contract ENSItemMetadata {
     rootNode = _rootNode;
   }
 
+  function createItem(string calldata metadata) external {
+    uint256 id = itemShare.createItem();
+    this.addItemMetadata(id, metadata);
+  }
+
+  function deleteItem(uint256 id) external {
+    itemShare.deleteItem(id);
+    this.removeItemMetadata(id);
+  }
+
   function addItemMetadata(uint256 id, string calldata metadata) external onlyItemOwner(id) {
     bytes32 labelHash = keccak256(abi.encodePacked(id));
     bytes32 node = keccak256(abi.encodePacked(rootNode, labelHash));
     ens.setSubnodeOwner(rootNode, labelHash, address(this));
     ens.setResolver(node, address(resolver));
     resolver.setText(node, 'metadata', metadata);
-    emit MetadataUpdated(msg.sender, id, metadata);
+    emit MetadataUpdated(tx.origin, id, metadata);
   }
 
   function updateItemMetadata(uint256 id, string calldata metadata) external onlyItemOwner(id) {
     bytes32 node = keccak256(abi.encodePacked(rootNode, keccak256(abi.encodePacked(id))));
     resolver.setText(node, 'metadata', metadata);
-    emit MetadataUpdated(msg.sender, id, metadata);
+    emit MetadataUpdated(tx.origin, id, metadata);
   }
 
   function removeItemMetadata(uint256 id) external onlyItemOwner(id) {
@@ -50,7 +60,7 @@ contract ENSItemMetadata {
     resolver.setText(node, 'metadata', '');
     ens.setResolver(node, address(0));
     ens.setSubnodeOwner(node, labelHash, address(0));
-    emit MetadataUpdated(msg.sender, id, '');
+    emit MetadataUpdated(tx.origin, id, '');
   }
 
   function getMetadata(uint256 id) public view returns (string memory) {
