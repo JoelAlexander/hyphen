@@ -34,6 +34,9 @@
       "source": "ENSItemMetadata",
       "args": [ "itemshare.hyphen", "ens", "resolver", "0xff4872e0d85bfbc80ed2b111bd6148a031815fc35754782b42ed36b485e9ec3c" ],
       "ownSubdomain": true
+    },
+    "thumbs": {
+      "source": "Thumbs"
     }
   }
 }

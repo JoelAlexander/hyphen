@@ -85,3 +85,11 @@
   border: none;
   margin-right: .5em;
 }
+
+.nav-tabs.active {
+  background-color: green;
+}
+
+.nav-tabs.inactive {
+  background-color: red;
+}

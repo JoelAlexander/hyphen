@@ -5,6 +5,7 @@ import ItemShare from './ItemShare.js'
 import Account from './Account.js'
 import Counter from './Counter.js'
 import Recipes from './Recipes.js'
+import Thumbs from './Thumbs.js'
 import RecipeSettings from './RecipeSettings.js'
 import RecipePreparation from './RecipePreparation.js'
 import StatusBar from './StatusBar.js'
@@ -18,6 +19,7 @@ const ethers = require("ethers")
 
 const menuItems = {
   'Account': { emoji: '👤', component: Account },
+  'Thumbs': { emoji: '👍', component: Thumbs },
   'Item Share': { emoji: '🔗', component: ItemShare },
   'Counter': { emoji: '🔔', component: Counter },
   'Food': { 
@@ -73,17 +75,18 @@ const Hyphen = ({ provider, configuration }) => {
   const [pendingTransactions, setPendingTransactions] = useState([])
   const [connectedContracts, setConnectedContracts] = useState({})
   const [isPolling, setIsPolling] = useState(true)
-  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(12)
+  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(6)
   const [activityToasts, setActivityToasts] = useState([])
   const [addressCache, setAddressCache] = useState({})
 
   useEffect(() => {
-    provider.on('poll', (pollId, blockNumber) => {
-      setBlockNumber(blockNumber)
-    })
-    return () => {
-      provider.off('poll')
-    }
+    const intervalId = setInterval(async () => {
+      const latestBlockNumber = await provider.getBlockNumber()
+      console.log(`BlockNumber: ${latestBlockNumber}`)
+      setBlockNumber(_ => latestBlockNumber)
+    }, pollingIntervalSeconds * 1000)
+
+    return () => clearInterval(intervalId)
   }, [])
 
   useEffect(() => {

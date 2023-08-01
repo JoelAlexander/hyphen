@@ -1,0 +1,6 @@
+Item should not show pending request after request is approved
+Item should show current borrow term end
+Request detail should show estimated date of request (by block num)
+Emoji labels should be highlightable/clickable to reveal thier meaning
+Don't show request if already have a request.  Instead show the details of your request and "modify request" as a smaller link/button?
+Color the tabs legibly

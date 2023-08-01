@@ -54,6 +54,7 @@
     "http-server": "^14.1.0",
     "jest": "^27.5.1",
     "node-polyfill-webpack-plugin": "^1.1.4",
+    "react-datepicker": "^4.16.0",
     "react-test-renderer": "^17.0.2",
     "style-loader": "^3.3.1",
     "webpack": "^5.70.0",
