@@ -1,13 +1,11 @@
 import { hot } from 'react-hot-loader'
 import React, { useState, useEffect, useRef } from 'react'
+import {RouterProvider, Route, Link, createBrowserRouter, createRoutesFromElements } from 'react-router-dom'
 import HyphenContext from './HyphenContext'
 import ItemShare from './ItemShare.js'
 import Account from './Account.js'
 import Counter from './Counter.js'
-import Recipes from './Recipes.js'
 import Thumbs from './Thumbs.js'
-import RecipeSettings from './RecipeSettings.js'
-import RecipePreparation from './RecipePreparation.js'
 import StatusBar from './StatusBar.js'
 import Onboarding from './Onboarding'
 import ActivityToast from './ActivityToast'
@@ -18,19 +16,11 @@ import './NavMenu.css'
 const ethers = require("ethers")
 
 const menuItems = {
-  'Account': { emoji: '👤', component: Account },
-  'Thumbs': { emoji: '👍', component: Thumbs },
-  'Item Share': { emoji: '🔗', component: ItemShare },
-  'Counter': { emoji: '🔔', component: Counter },
-  'Food': { 
-    emoji: '🍽️',
-    submenu: {
-      'Meal planning': { emoji: '📅', component: RecipePreparation },
-      'Recipes': { emoji: '📚', component: Recipes },
-      'Settings': { emoji: '⚙️', component: RecipeSettings },
-    },
-  },
-  'Help': { emoji: '❓', component: Faq }
+  'Account': { emoji: '👤', component: Account, path: '/account' },
+  'Thumbs': { emoji: '👍', component: Thumbs, path: '/thumbs' },
+  'Item Share': { emoji: '🔗', component: ItemShare, path: '/tool-library' },
+  'Counter': { emoji: '🔔', component: Counter, path: '/counter' },
+  'Help': { emoji: '❓', component: Faq, path: '/help' }
 }
 
 const getSubMenu = (path) => {
@@ -47,16 +37,18 @@ const getComponent = (path) => {
 const NavMenu = ({ items, onSelectMenu }) => (
   <div className="nav-menu">
     {items && Object.entries(items).map(([label, item], index) => (
-      <div
-        key={index}
-        className="nav-menu-item"
-        onClick={() => onSelectMenu(label)}
-      >
-        <span role="img" aria-label={label}>
-          {item.emoji}
-        </span>
-        <p>{label}</p>
-      </div>
+      <Link to={item.path}>
+        <div
+          key={index}
+          className="nav-menu-item"
+          onClick={() => onSelectMenu(label)}
+        >
+          <span role="img" aria-label={label}>
+            {item.emoji}
+          </span>
+          <p>{label}</p>
+        </div>
+      </Link>
     ))}
   </div>
 )
@@ -236,29 +228,6 @@ const Hyphen = ({ provider, configuration }) => {
     setMenuStack(newMenuStack)
   }
 
-  const addMessage = (message) => {
-    const newEntries = entries.slice();
-    newEntries.unshift({type: "message", key: newEntries.length, message: message})
-    setEntries(newEntries)
-  }
-
-  const onTransactionResponse = (transactionResponse) => {
-    const newEntries = entries.slice()
-    newEntries.unshift({type: "transaction", key: transactionResponse.hash, transactionResponse: transactionResponse})
-    setEntries(newEntries)
-  }
-
-  const onTransactionReceipt = (transactionReceipt) => {
-    const newEntries = entries.slice();
-    const updateIndex = newEntries.findIndex((entry) => entry.key === transactionReceipt.transactionHash)
-    if (updateIndex != -1) {
-      const modified = newEntries[updateIndex]
-      modified.transactionReceipt = transactionReceipt
-      newEntries[updateIndex] = modified
-    }
-    setEntries(newEntries);
-  };
-
   const logout = () => {
     setMenuStack([])
     setContractCalls({})
@@ -307,6 +276,25 @@ const Hyphen = ({ provider, configuration }) => {
     setActivityToasts(previousToasts => [...previousToasts, { address, message }])
   }
 
+  // <Switch>
+  //   <Route path="/account" component={Account} />
+  //   <Route path="/thumbs" component={Thumbs} />
+  //   <Route path="/help" component={Faq} />
+  //   <Route exact path="/" component={NavMenu} />
+  // </Switch>
+
+  const onboarding = (!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} />
+  const navMenu = <NavMenu items={currentMenu} onSelectMenu={handleSelectMenu} />
+
+  const router = createBrowserRouter(
+    createRoutesFromElements(
+      <Route path='/' element={navMenu}>
+        <Route path='thumbs' element={<Thumbs />} />
+      </Route>
+    )
+  )
+
+
   return (
     <HyphenContext.Provider value={{
       blockNumber: blockNumber,
@@ -336,11 +324,7 @@ const Hyphen = ({ provider, configuration }) => {
             paddingLeft: '2em',
             paddingRight: '2em' }}>
             <div className="main-content">
-              {(!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} /> ||
-                (ActiveComponent && <ActiveComponent />) ||
-                <NavMenu
-                  items={currentMenu}
-                  onSelectMenu={handleSelectMenu} />}
+              {onboarding || <RouterProvider router={router} />}
             </div>
           </div>
         </div>

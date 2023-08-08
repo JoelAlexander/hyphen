@@ -1,23 +1,14 @@
-const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const NodePolyfillPlugin = require('node-polyfill-webpack-plugin');
-const WorkboxPlugin = require('workbox-webpack-plugin');
-const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin
 
 const HtmlWebpackPluginConfig = new HtmlWebpackPlugin({
   template: './src/index.html',
   filename: './index.html'
-});
+})
 
-const NodePolyfillPluginConfig = new NodePolyfillPlugin();
-
-const GenerateWorkboxServiceWorkerPluginConfig = new WorkboxPlugin.GenerateSW({
-  // these options encourage the ServiceWorkers to get in there fast
-  // and not allow any straggling "old" SWs to hang around
-  clientsClaim: true,
-  skipWaiting: true,
-  maximumFileSizeToCacheInBytes: 33554432
-});
+const NodePolyfillPluginConfig = new NodePolyfillPlugin()
 
 module.exports = {
   module: {
@@ -57,11 +48,15 @@ module.exports = {
   },
   plugins: [
     HtmlWebpackPluginConfig,
-    NodePolyfillPluginConfig,
-    GenerateWorkboxServiceWorkerPluginConfig
+    NodePolyfillPluginConfig
   ],
   experiments: {
     // futureDefaults: true,
     topLevelAwait: true
+  },
+  resolve: {
+    alias: {
+      'react-dom': '@hot-loader/react-dom'
+    }
   }
-};
+}
