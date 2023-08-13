@@ -36,7 +36,8 @@
       "ownSubdomain": true
     },
     "thumbs": {
-      "source": "Thumbs"
+      "source": "Thumbs",
+      "args": [ "0x0000000000000000000000000000000000000000" ]
     }
   }
 }

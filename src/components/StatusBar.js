@@ -10,19 +10,10 @@ const ethers = require("ethers");
 
 const StatusBar = ({ syncing, logout }) => {
   const [showModal, setShowModal] = useState(false);
-  const [balance, setBalance] = useState(false);
   const [target, setTarget] = useState(undefined);
 
   const context = useContext(HyphenContext);
   const address = context.address
-
-  useEffect(() => {
-    if (!context.signer) {
-      setBalance(null);
-      return;
-    }
-    context.signer.getBalance().then(setBalance);
-  }, [context.blockNumber]);
 
   const handleCloseModal = () => setShowModal(false);
   const handleOpenModal = (e) => {
@@ -34,7 +25,7 @@ const StatusBar = ({ syncing, logout }) => {
     <div className="status-bar">
       <AccountStatus
         address={address}
-        balance={balance}
+        balance={context.balance}
         onClick={handleOpenModal} />
       {syncing && <div className="bouncing-dots">
         <div className="dot"/>
