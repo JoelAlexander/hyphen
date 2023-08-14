@@ -1,7 +1,7 @@
 import { hot } from 'react-hot-loader'
 import React, { useState, useEffect } from 'react'
 import { usePromise } from 'react-use'
-import {Outlet, RouterProvider, Route, Link, createBrowserRouter, createRoutesFromElements, useNavigate, useLocation } from 'react-router-dom'
+import {Outlet, RouterProvider, Route, Link, createBrowserRouter, createRoutesFromElements, useLocation } from 'react-router-dom'
 import HyphenContext from './HyphenContext'
 import ItemShare from './ItemShare.js'
 import Account from './Account.js'
@@ -17,11 +17,12 @@ import './NavMenu.css'
 const ethers = require("ethers")
 
 const menuItems = {
-  'Account': { emoji: '👤', component: Account, path: '/account' },
-  'Thumbs': { emoji: '👍', component: Thumbs, path: '/thumbs' },
-  'Item Share': { emoji: '🔗', component: ItemShare, path: '/tool-library' },
-  'Counter': { emoji: '🔔', component: Counter, path: '/counter' },
-  'Help': { emoji: '❓', component: Faq, path: '/help' }
+  'Account': { emoji: '👤', path: '/account' },
+  'Terabytes': { emoji: '🔗', path: '/terabytes' },
+  'Thumbs': { emoji: '👍', path: '/thumbs' },
+  // 'Item Share': { emoji: '🔗', component: ItemShare, path: '/tool-library' },
+  // 'Counter': { emoji: '🔔', component: Counter, path: '/counter' },
+  // 'Help': { emoji: '❓', component: Faq, path: '/help' }
 }
 
 const getSubMenu = (path) => {
@@ -29,13 +30,7 @@ const getSubMenu = (path) => {
   return path.reduce((obj, key) => (obj && obj[key] && obj[key].submenu) ? obj[key].submenu : null, menuItems)
 }
 
-const getComponent = (path) => {
-  const lastKey = path[path.length - 1]
-  const submenu = getSubMenu(path.slice(0, -1))
-  return (submenu && submenu[lastKey] && submenu[lastKey].component) ? submenu[lastKey].component : null
-}
-
-const NavMenu = ({ items, onSelectMenu }) => {
+const NavMenu = ({ items }) => {
   return <div className="nav-menu">
     {items && Object.entries(items).map(([label, item], index) => (
       <Link key={index} to={item.path}>
@@ -51,9 +46,44 @@ const NavMenu = ({ items, onSelectMenu }) => {
   </div>
 }
 
+const HyphenOutlet = ({ entries, blockNumber, address, signer, name, setSigner, setAddress, setHouseWallet, setName, logout, isInFlightTransactions }) => {
+  const [menuStack, setMenuStack] = useState([])
+  const currentMenu = getSubMenu(menuStack)
+
+  const statusBar = signer && name ?
+    <StatusBar
+      logout={logout}
+      syncing={isInFlightTransactions}
+      address={address || 'logged-out'}
+      blockNumber={blockNumber}
+      entries={entries} /> : null
+
+  const location = useLocation()
+  const onboarding = (!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} />
+  const navMenu = location.pathname === '/' ? <NavMenu items={currentMenu} /> : null
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'inline-block', width: '100%' }}>
+        {statusBar}
+      </div>
+      <div style={{ display: 'inline-block', flex: '1', width: '100%', height: '100%' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          width: '100%',
+          height: '100%',
+          paddingLeft: '2em',
+          paddingRight: '2em' }}>
+          <div className="main-content">
+            {onboarding || navMenu || <Outlet />}
+          </div>
+        </div>
+      </div>
+    </div>)
+}
+
 const Hyphen = ({ provider, configuration }) => {
   const mounted = usePromise()
-  const [menuStack, setMenuStack] = useState([])
   const [entries, setEntries] = useState([])
   const [blockNumber, setBlockNumber] = useState(null)
   const [toastVisible, setToastVisible] = useState(false)
@@ -90,7 +120,7 @@ const Hyphen = ({ provider, configuration }) => {
     }
     mounted(signer.getBalance())
       .then((latestBalance) => setBalance(_ => latestBalance))
-  }, [blockNumber]);
+  }, [blockNumber, signer]);
 
   useEffect(() => {
     if (activityToasts.length > 0) {
@@ -105,20 +135,6 @@ const Hyphen = ({ provider, configuration }) => {
     provider.polling = isPolling;
     provider.pollingInterval = pollingIntervalSeconds * 1000;
   }, [isPolling, pollingIntervalSeconds])
-
-  useEffect(() => {
-    const handlePopState = (event) => {
-      if (canGoBack()) {
-        handleBack();
-        event.preventDefault()
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  })
 
   useEffect(() => {
     if (unsentTransactions.length === 0 || inProgressTransaction !== null) {
@@ -201,19 +217,19 @@ const Hyphen = ({ provider, configuration }) => {
     const contractInterface = new ethers.utils.Interface(abi)
     const contract = new ethers.Contract(address, abi, signer ? signer : provider)
     const returnedContract = new Proxy({}, {
-      get: (target, prop) => {
+      get: (_, prop) => {
         try {
           const functionFragment = contractInterface.getFunction(prop)
           if (functionFragment.stateMutability === 'view' ) {
             return (...args) => {
               return contract.callStatic[prop](...args)
-            };
+            }
           } else {
             return (...args) => {
               return enqueueTransaction(() => {
                 return contract.populateTransaction[prop](...args)
-              });
-            };
+              })
+            }
           }
         } catch {
           return contract[prop]
@@ -222,23 +238,7 @@ const Hyphen = ({ provider, configuration }) => {
     })
     connectedContracts[address] = returnedContract
     return returnedContract
-  };
-
-  // const handleSelectMenu = (label) => {
-  //   setMenuStack([...menuStack, label])
-  // }
-
-  // const canGoBack = () => {
-  //   return menuStack.length > 0
-  // }
-
-  // const handleBack = () => {
-  //   const newMenuStack = menuStack.slice();
-  //   if (newMenuStack.length > 0) {
-  //     newMenuStack.pop()
-  //   }
-  //   setMenuStack(newMenuStack)
-  // }
+  }
 
   const logout = () => {
     setMenuStack([])
@@ -272,51 +272,15 @@ const Hyphen = ({ provider, configuration }) => {
     setTimeout(() => setToastVisible(false), 3000)
   }
 
-  const isInFlightTransactions = pendingTransactions.length !== 0
-  const statusBar = signer && name ?
-    <StatusBar
-      logout={logout}
-      syncing={isInFlightTransactions}
-      address={address || 'logged-out'}
-      blockNumber={blockNumber}
-      entries={entries} /> : null
-
-  const currentMenu = getSubMenu(menuStack)
-
   const addActivityToast = (address, message) => {
     setActivityToasts(previousToasts => [...previousToasts, { address, message }])
   }
 
-  const HyphenOutlet = () => {
-    const location = useLocation()
-    const onboarding = (!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} />
-    const navMenu = location === '/' ? <NavMenu items={currentMenu} onSelectMenu={handleSelectMenu} /> : null
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div style={{ display: 'inline-block', width: '100%' }}>
-            {statusBar}
-          </div>
-          <div style={{ display: 'inline-block', flex: '1', width: '100%', height: '100%' }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              width: '100%',
-              height: '100%',
-              paddingLeft: '2em',
-              paddingRight: '2em' }}>
-              <div className="main-content">
-                {onboarding || navMenu || <Outlet />}
-              </div>
-            </div>
-          </div>
-          {toastVisible && <Toast />}
-          {activityToasts.length > 0 && <ActivityToast toast={activityToasts[0]} />}
-        </div>)
-  }
-
   const router = createBrowserRouter(
     createRoutesFromElements(
-      <Route path='/' element={<HyphenOutlet/>}>
+      <Route path='/' element={<HyphenOutlet entries={entries} blockNumber={blockNumber} address={address} signer={signer} name={name} setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} logout={logout} isInFlightTransactions={pendingTransactions.length !== 0} />}>
+        <Route path='account' element={<Account />} />
+        <Route path='terabytes' element={<Thumbs />} />
         <Route path='thumbs' element={<Thumbs />} />
       </Route>
     )
@@ -337,8 +301,10 @@ const Hyphen = ({ provider, configuration }) => {
     houseWallet: houseWallet,
     showToast: showToast,
     addActivityToast: addActivityToast
-  }}> 
+  }}>
     <RouterProvider router={router} />
+    {toastVisible && <Toast />}
+    {activityToasts.length > 0 && <ActivityToast toast={activityToasts[0]} />}
   </HyphenContext.Provider>)
 }
 

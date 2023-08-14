@@ -22,7 +22,7 @@ const mergeAndSortEvents = (events) => {
   })
 }
 
-const useThumbs = (contractAddress) => {
+const useThumbs = (contractAddress, startBlock, endBlock) => {
   const context = useContext(HyphenContext)
   const contract = context.getContract(contractAddress)
   const [topics, setTopics] = useState({})
@@ -151,7 +151,7 @@ const useThumbs = (contractAddress) => {
       .then(digestEvents)
   }
 
-  const loadBlockRange = (startBlock, endBlock) => {
+  useEffect(() => {
     const proposedFilter = contract.filters.Proposed()
     const proposedEvents = contract.queryFilter(proposedFilter, startBlock, endBlock)
   
@@ -163,7 +163,7 @@ const useThumbs = (contractAddress) => {
 
     Promise.all([proposedEvents, upEvents, downEvents])
       .then(digestEvents)
-  }
+  }, [])
 
   useEffect(() => {
     const proposedListener = (addr, topic, memo) => {
@@ -204,7 +204,6 @@ const useThumbs = (contractAddress) => {
   return {
     topics: topics,
     loadTopic: loadTopic,
-    loadBlockRange: loadBlockRange,
     propose: handlePropose,
     thumbsUp: handleThumbsUp,
     thumbsDown: handleThumbsDown
@@ -257,14 +256,9 @@ const Thumbs = () => {
   const OneDayBlocks = 14400
   const OneMonthBlocks = OneDayBlocks * 30
   const context = useContext(HyphenContext)
-  const { topics, loadBlockRange, propose, thumbsUp, thumbsDown } = useThumbs('thumbs.hyphen')
+  const { topics, propose, thumbsUp, thumbsDown } = useThumbs('thumbs.hyphen', context.blockNumber - OneMonthBlocks, context.blockNumber)
   const [date, setDate] = useState(null)
   const [isDatePickerVisible, setDatePickerVisible] = useState(false)
-
-  useEffect(() => {
-    const startBlock = Math.max(0, context.blockNumber - OneMonthBlocks)
-    loadBlockRange(startBlock, context.blockNumber);
-  }, []);
 
   const displayedTopics = Object.keys(topics)
     .filter(topic => topics[topic].memo.startsWith("Terabytes Meeting -"))
