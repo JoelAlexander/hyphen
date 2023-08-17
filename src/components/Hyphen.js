@@ -199,6 +199,10 @@ const Hyphen = ({ provider, configuration }) => {
     }
   }
 
+  const getResolvedAddress = (ensName) => {
+    return configuration.resolvedAddresses[ensName]
+  }
+
   const getContract = (address, abi) => {
     if (!abi) {
       abi = configuration.contracts[address]
@@ -290,6 +294,7 @@ const Hyphen = ({ provider, configuration }) => {
     blockNumber: blockNumber,
     configuration: configuration,
     provider: provider,
+    getResolvedAddress: getResolvedAddress,
     getEnsName: getEnsName,
     getCachedEnsName: getCachedEnsName,
     getContract: getContract,

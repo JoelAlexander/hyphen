@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react'
 import HyphenContext from './HyphenContext'
 import DatePicker from 'react-datepicker'
+import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json';
 import 'react-datepicker/dist/react-datepicker.css'
 import './ItemShare.css'
+import { ethers } from 'hardhat';
+import { solidityPack } from 'ethers/lib/utils';
+import context from 'react-bootstrap/esm/AccordionContext';
 
 const mergeAndSortEvents = (events) => {
   const allEvents = [].concat(...events)
@@ -22,104 +26,104 @@ const mergeAndSortEvents = (events) => {
   })
 }
 
-const useThumbs = (contractAddress, startBlock, endBlock) => {
-  const context = useContext(HyphenContext)
-  const contract = context.getContract(contractAddress)
-  const [topics, setTopics] = useState({})
+const updateProposed = (addr, topic, memo, blockNumber) => {
+  const topicString = topic.toString()
+  const proposal = { proposer: addr, blockNumber: blockNumber }
+  return (topics) => {
+    const existingTopic = topics[topicString]
+    if (existingTopic) {
+      return { ...topics,
+        [topicString]: {
+          ...existingTopic,
+          proposals: [...existingTopic.proposals, proposal],
+          memo: memo
+        }
+      }
+    } else {
+      return { ...topics, 
+        [topicString]: {
+          memo: memo,
+          proposals: [proposal],
+          thumbsUp: {},
+          thumbsDown: {},
+        }
+      }
+    }
+  }
+}
 
-  const updateProposed = (addr, topic, memo, blockNumber) => {
-    const topicString = topic.toString()
-    const proposal = { proposer: addr, blockNumber: blockNumber }
-    return (topics) => {
-      const existingTopic = topics[topicString]
-      if (existingTopic) {
+const updateThumbsUp = (addr, topic, memo, _blockNumber) => {
+  const topicString = topic.toString()
+  const blockNumber = _blockNumber
+  return (topics) => {
+    const newThumbsUp = { memo: memo, blockNumber: blockNumber }
+    const existingTopic = topics[topicString]
+    if (existingTopic) {
+      const existingThumbsForAddress = existingTopic.thumbsUp[addr]
+      if (existingThumbsForAddress) {
         return { ...topics,
           [topicString]: {
             ...existingTopic,
-            proposals: [...existingTopic.proposals, proposal],
-            memo: memo
+            thumbsUp: {
+              ...existingTopic.thumbsUp,
+              [addr]: [...existingThumbsForAddress, newThumbsUp]
+            }
           }
         }
       } else {
-        return { ...topics, 
+        return { ...topics,
           [topicString]: {
-            memo: memo,
-            proposals: [proposal],
-            thumbsUp: {},
-            thumbsDown: {},
+            ...existingTopic,
+            thumbsUp: {
+              ...existingTopic.thumbsUp,
+              [addr]: [newThumbsUp]
+            }
           }
         }
       }
     }
+    return topics
   }
+}
 
-  const updateThumbsUp = (addr, topic, memo, _blockNumber) => {
-    const topicString = topic.toString()
-    const blockNumber = _blockNumber
-    return (topics) => {
-      const newThumbsUp = { memo: memo, blockNumber: blockNumber }
-      const existingTopic = topics[topicString]
-      if (existingTopic) {
-        const existingThumbsForAddress = existingTopic.thumbsUp[addr]
-        if (existingThumbsForAddress) {
-          return { ...topics,
-            [topicString]: {
-              ...existingTopic,
-              thumbsUp: {
-                ...existingTopic.thumbsUp,
-                [addr]: [...existingThumbsForAddress, newThumbsUp]
-              }
+const updateThumbsDown = (addr, topic, memo, _blockNumber) => {
+  const blockNumber = _blockNumber
+  const topicString = topic.toString()
+  return (topics) => {
+    const newThumbsDown = { memo: memo, blockNumber: blockNumber }
+    const existingTopic = topics[topicString]
+    if (existingTopic) {
+      const existingThumbsForAddress = existingTopic.thumbsUp[addr]
+      if (existingThumbsForAddress) {
+        return { ...topics,
+          [topicString]: {
+            ...existingTopic,
+            thumbsDown: {
+              ...existingTopic.thumbsDown,
+              [addr]: [...existingThumbsForAddress, newThumbsDown]
             }
           }
-        } else {
-          return { ...topics,
-            [topicString]: {
-              ...existingTopic,
-              thumbsUp: {
-                ...existingTopic.thumbsUp,
-                [addr]: [newThumbsUp]
-              }
+        }
+      } else {
+        return { ...topics,
+          [topicString]: {
+            ...existingTopic,
+            thumbsDown: {
+              ...existingTopic.thumbsDown,
+              [addr]: [newThumbsDown]
             }
           }
         }
       }
-      return topics
     }
+    return topics
   }
-  
-  const updateThumbsDown = (addr, topic, memo, _blockNumber) => {
-    const blockNumber = _blockNumber
-    const topicString = topic.toString()
-    return (topics) => {
-      const newThumbsDown = { memo: memo, blockNumber: blockNumber }
-      const existingTopic = topics[topicString]
-      if (existingTopic) {
-        const existingThumbsForAddress = existingTopic.thumbsUp[addr]
-        if (existingThumbsForAddress) {
-          return { ...topics,
-            [topicString]: {
-              ...existingTopic,
-              thumbsDown: {
-                ...existingTopic.thumbsDown,
-                [addr]: [...existingThumbsForAddress, newThumbsDown]
-              }
-            }
-          }
-        } else {
-          return { ...topics,
-            [topicString]: {
-              ...existingTopic,
-              thumbsDown: {
-                ...existingTopic.thumbsDown,
-                [addr]: [newThumbsDown]
-              }
-            }
-          }
-        }
-      }
-      return topics
-    }
-  }
+}
+
+const useThumbsState = (contractAddress, startBlock, endBlock) => {
+  const context = useContext(HyphenContext)
+  const contract = context.getContract(contractAddress, ThumbsContract.abi)
+  const [topics, setTopics] = useState({})
 
   const digestEvents = (events) => {
     setTopics(mergeAndSortEvents(events).reduce((result, event) => {
@@ -189,24 +193,102 @@ const useThumbs = (contractAddress, startBlock, endBlock) => {
     }
   }, [context.blockNumber])
 
-  const handlePropose = (memo) => {
-    contract.propose(memo)
+  return {
+    topics: topics
+  }
+}
+
+const useThumbs = ({ contractAddress, handlePropose, handleThumbsUp, handleThumbsDown }) => {
+  const OneDayBlocks = 14400
+  const OneMonthBlocks = OneDayBlocks * 30
+  const context = useContext(HyphenContext)
+  const address = context.address
+  const { topics } = useThumbsState(contractAddress, context.blockNumber - OneMonthBlocks, context.blockNumber)
+  const { pendingProposals, setPendingProposals } = useState({})
+  const { pendingThumbsUp, setPendingThumbsUp } = useState({})
+  const { pendingThumbsDown, setPendingThumbsDown } = useState({})
+
+  const propose = (memo) => {
+    // TODO check the topic math
+    const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
+    const topic = ethers.utils.keccak256(ethers.utils.solidityPack(['string'], [memo]))
+    const proposal = { topic: topic, memo: memo, blockNumber: context.blockNumber }
+    setPendingProposals(prev => {
+      return { ...prev, [actionId]: proposal }
+    })
+    handlePropose(memo)
+      .finally(() => {
+        setPendingProposals(prev => {
+          const { [actionId]: _, remaining } = { ...prev }
+          return remaining
+        })
+      })
   }
 
-  const handleThumbsUp = (topic) => {
-    contract.thumbsUp(topic, "")
+  const thumbsUp = (topic, memo) => {
+    const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
+    const thumbUp = { topic: topic, memo: memo, blockNumber: context.blockNumber }
+    setPendingThumbsUp(prev => {
+      return { ...prev, [actionId]: thumbUp}
+    })
+    handleThumbsUp(memo)
+      .finally(() => {
+        setPendingThumbsUp(prev => {
+          const { [topic]: _, remaining } = { ...prev }
+          return remaining
+        })
+      })
   }
-  
-  const handleThumbsDown = (topic) => {
-    contract.thumbsDown(topic, "")
+
+  const thumbsDown = (topic, memo) => {
+    const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
+    const thumbDown = { topic: topic, memo: memo, blockNumber: context.blockNumber }
+    setPendingThumbsDown(prev => {
+      return { ...prev, [actionId]: thumbDown}
+    })
+    handleThumbsDown(memo)
+      .finally(() => {
+        setPendingThumbsDown(prev => {
+          const { [topic]: _, remaining } = { ...prev }
+          return remaining
+        })
+      })
   }
+
+  const mergeProposals = (topics) => {
+    return Object.values(pendingProposals)
+      .reduce(pendingProposal, result => {
+        updateProposed(address, pendingProposal.topic, pendingProposal.memo, pendingProposal.blockNumber)(result)
+      }, topics)
+  }
+
+  const mergeThumbsUp = (topics) => {
+    return Object.values(pendingThumbsUp)
+      .reduce(pendingThumb, result => {
+        updateThumbsUp(address, pendingThumb.topic, pendingThumb.memo, pendingThumb.blockNumber)(result)
+      }, topics)
+  }
+
+  const mergeThumbsDown = (topics) => {
+    return Object.values(pendingThumbsDown)
+      .reduce(pendingThumb, result => {
+        updateThumbsDown(address, pendingThumb.topic, pendingThumb.memo, pendingThumb.blockNumber)(result)
+      }, topics)
+  }
+
+  const mergePending = [
+    mergeProposals,
+    mergeThumbsUp,
+    mergeThumbsDown
+  ]
 
   return {
-    topics: topics,
-    loadTopic: loadTopic,
-    propose: handlePropose,
-    thumbsUp: handleThumbsUp,
-    thumbsDown: handleThumbsDown
+    topics: mergePending.reduce(mergeFunction, result => {
+      return mergeFunction(result)
+    }, topics),
+    propose,
+    thumbsUp,
+    thumbsDown
   }
 }
 
@@ -253,12 +335,14 @@ const MeetingProposal = ({ topic, topicData, thumbsUp, thumbsDown }) => {
 }
 
 const Thumbs = () => {
-  const OneDayBlocks = 14400
-  const OneMonthBlocks = OneDayBlocks * 30
   const context = useContext(HyphenContext)
-  const { topics, propose, thumbsUp, thumbsDown } = useThumbs('thumbs.hyphen', context.blockNumber - OneMonthBlocks, context.blockNumber)
+  const { topics, propose, thumbsUp, thumbsDown } = useThumbsState(context.getResolvedAddress('thumbs.hyphen'), context.blockNumber - OneMonthBlocks, context.blockNumber)
   const [date, setDate] = useState(null)
   const [isDatePickerVisible, setDatePickerVisible] = useState(false)
+
+  // const handlePropose = (memo) => {
+  //   contract.propose(memo)
+  // }
 
   const displayedTopics = Object.keys(topics)
     .filter(topic => topics[topic].memo.startsWith("Terabytes Meeting -"))
