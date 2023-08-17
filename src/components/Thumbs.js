@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react'
 import HyphenContext from './HyphenContext'
 import DatePicker from 'react-datepicker'
-import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json';
+import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json'
 import 'react-datepicker/dist/react-datepicker.css'
 import './ItemShare.css'
-import { ethers } from 'hardhat';
-import { solidityPack } from 'ethers/lib/utils';
-import context from 'react-bootstrap/esm/AccordionContext';
+import { solidityPack } from 'ethers/lib/utils'
+import context from 'react-bootstrap/esm/AccordionContext'
+const ethers = require("ethers")
 
 const mergeAndSortEvents = (events) => {
   const allEvents = [].concat(...events)
