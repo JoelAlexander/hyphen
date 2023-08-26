@@ -70,13 +70,12 @@ const HyphenOutlet = ({ entries, blockNumber, address, signer, name, setSigner, 
         <div style={{
           display: 'flex',
           justifyContent: 'center',
+          position: 'relative',
           width: '100%',
           height: '100%',
           paddingLeft: '2em',
           paddingRight: '2em' }}>
-          <div className="main-content">
-            {onboarding || navMenu || <Outlet />}
-          </div>
+          {onboarding || navMenu || <Outlet />}
         </div>
       </div>
     </div>)
@@ -97,7 +96,7 @@ const Hyphen = ({ provider, configuration }) => {
   const [pendingTransactions, setPendingTransactions] = useState([])
   const [connectedContracts, setConnectedContracts] = useState({})
   const [isPolling, setIsPolling] = useState(true)
-  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(6)
+  const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(2)
   const [activityToasts, setActivityToasts] = useState([])
   const [addressCache, setAddressCache] = useState({})
 
