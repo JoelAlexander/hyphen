@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react'
 import HyphenContext from './HyphenContext'
-import DatePicker from 'react-datepicker'
 import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json'
 import { Calendar, momentLocalizer } from 'react-big-calendar'
 import moment from 'moment'
-
 import 'react-big-calendar/lib/css/react-big-calendar.css'
-
-import { usePrevious } from "react-use"
 import 'react-datepicker/dist/react-datepicker.css'
 import './ItemShare.css'
-import './Thumbs.css'
 const ethers = require("ethers")
 
 const OneDayBlocks = 14400
