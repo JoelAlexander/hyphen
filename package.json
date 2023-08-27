@@ -53,6 +53,7 @@
     "html-webpack-plugin": "^5.5.0",
     "http-server": "^14.1.0",
     "jest": "^27.5.1",
+    "moment": "^2.29.4",
     "node-polyfill-webpack-plugin": "^1.1.4",
     "react-big-calendar": "^1.8.2",
     "react-datepicker": "^4.16.0",

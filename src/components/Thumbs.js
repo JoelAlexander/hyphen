@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react'
 import HyphenContext from './HyphenContext'
 import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json'
-import { Calendar, momentLocalizer } from 'react-big-calendar'
-import moment from 'moment'
-import 'react-big-calendar/lib/css/react-big-calendar.css'
+import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import './ItemShare.css'
+import moment from 'moment'
 const ethers = require("ethers")
 
 const OneDayBlocks = 14400
@@ -155,14 +154,6 @@ const useThumbsState = (contractAddress, startBlock, endBlock) => {
   const context = useContext(HyphenContext)
   const contract = context.getContract(contractAddress, ThumbsContract.abi)
   const [topics, setTopics] = useState({})
-
-  useEffect(() => {
-    console.log('context:', JSON.stringify(context));
-  }, [context]);
-
-  useEffect(() => {
-    console.log('topics:', JSON.stringify(topics));
-  }, [topics]);
 
   const digestEvents = (events) => {
     setTopics(mergeAndSortEvents(events).reduce((result, event) => {
@@ -337,14 +328,6 @@ const useThumbs = (contractAddress) => {
     })
   }
 
-  useEffect(() => {
-    console.log('topics:', JSON.stringify(topics));
-  }, [topics]);
-
-  useEffect(() => {
-    console.log('mergedTopics:', JSON.stringify(mergedTopics));
-  }, [mergedTopics]);
-
   return [
     mergedTopics,
     withPendingProposal,
@@ -407,7 +390,11 @@ const Thumbs = () => {
   const [currentMeetingIndex, setCurrentMeetingIndex] = useState(-1)
   const [date, setDate] = useState(null)
   const [isDatePickerVisible, setDatePickerVisible] = useState(false)
-  const localizer = momentLocalizer(moment)
+  const [meetingTitle, setMeetingTitle] = useState('')
+  const [fllChecked, setFllChecked] = useState(false)
+  const [ftcChecked, setFtcChecked] = useState(false)
+  const [startTime, setStartTime] = useState('5:30pm')
+  const [endTime, setEndTime] = useState('8:00pm')
 
   const propose = (memo) => {
     return withPendingProposal(memo, contract.propose(memo))
@@ -428,7 +415,7 @@ const Thumbs = () => {
   useEffect(() => {
     const filterAndSortTopics = (topics) => {
       return Object.entries(topics)
-        .filter(([_, topicData]) => topicData.memo.match(/\d{4}-\d{2}-\d{2}/))
+        .filter(([_, topicData]) => topicData.memo.match(/\d{2}-\d{2}-\d{4}/))
         .filter(([_, topicData]) => {
           const latestProposal = topicData.proposals[topicData.proposals.length - 1]
           const latestProposer = latestProposal ? latestProposal.proposer : null
@@ -438,7 +425,7 @@ const Thumbs = () => {
           return latestProposal && cancellingRecalls.length === 0
         })
         .map(([topic, topicData]) => {
-          const dateMatch = topicData.memo.match(/\d{4}-\d{2}-\d{2}/)
+          const dateMatch = topicData.memo.match(/\d{2}-\d{2}-\d{4}/)
           const date = new Date(dateMatch[0]);
           const formattedDate = `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
           return {
@@ -472,10 +459,51 @@ const Thumbs = () => {
     }
   }, [displayedTopics])
 
+  const getFullMeetingMemo = () => {
+    if (date) {
+      const meetingLabels = []
+      if(fllChecked) meetingLabels.push("FLL")
+      if(ftcChecked) meetingLabels.push("FTC")
+      const formattedMeetingLabels = meetingLabels.length ? `${meetingLabels.join(", ")}: ` : ""
+      return `${formattedMeetingLabels}${meetingTitle} ${startTime} - ${endTime} ${moment(date).format("MM-DD-YYYY")}`
+    } else {
+      return null
+    }
+  }
+
+  const getMeetingTitle = () => {
+    const meetingLabels = []
+    if(fllChecked) meetingLabels.push("FLL")
+    if(ftcChecked) meetingLabels.push("FTC")
+    const formattedMeetingLabels = meetingLabels.length ? `${meetingLabels.join(", ")}: ` : ""
+    return `${formattedMeetingLabels}${meetingTitle}`
+  }
+
+  const getMeetingSubtitle = () => {
+    if (date) {
+      const dateMoment = moment(date)
+      const weekday = moment.weekdays(dateMoment.weekday())
+      const month = moment.months(dateMoment.month())
+      return `${weekday} ${month} ${dateMoment.date()}`
+    } else {
+      return null
+    }
+  }
+
+  const getMeetingTime = () => {
+    if (date) {
+      return `${startTime} - ${endTime}`
+    } else {
+      return null
+    }
+  }
+
   const handleDateConfirm = () => {
     setDatePickerVisible(false)
-    propose(`Terabytes Meeting ${date.toISOString().slice(0, 10)}`)
-  }
+    if (date) {
+      propose(getFullMeetingMemo())
+    }
+};
 
   const handleCancelPickDate = () => {
     setDatePickerVisible(false)
@@ -506,9 +534,14 @@ const Thumbs = () => {
               thumbsDown={thumbsDown}
               recall={recall}
             />
+            
           </div>
         })
     : null
+
+  const timeIncrements = [
+    '5:00pm', '5:30pm', '6:00pm', '6:30pm', '7:00pm', '7:30pm', '8:00pm', '8:30pm', '9:00pm'
+  ]
 
   const events = displayedTopics.map(topic => ({
     title: topic.topicData.memo,
@@ -524,18 +557,28 @@ const Thumbs = () => {
       <div style={{display: 'flex', position: 'relative', alignItems: 'center', height: '100%', width: '100%', flexDirection: 'row' }}>
         <button onClick={handlePrevious} disabled={currentMeetingIndex <= 0}>Previous</button>
         <div style={{display: 'flex', position: 'relative', height: '100%', width: '100%', flexDirection: 'column' }}>
-          <div style={{display: 'flex', position: 'absolute', height: '100%', width: '100%', justifyContent: 'center', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.5s', transform: `translateY(${isDatePickerVisible ? '0%' : '-100%'})`}}>
-            <Calendar
-              localizer={localizer}
-              events={events}
-              startAccessor="start"
-              endAccessor="end"
-              style={{ width: '100%', height: '16em' }}
-              views={['month']}
-              onSelectSlot={event => setDate(new Date(event.start))}
-              onSelectEvent={event => setDate(new Date(event.start))}
-              selectable
-            />
+          <div style={{display: 'flex', flexDirection: 'column', position: 'absolute', height: '100%', width: '100%', justifyContent: 'center', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.5s', transform: `translateY(${isDatePickerVisible ? '0%' : '-100%'})`}}>
+            <h1>{getMeetingTitle()}</h1>
+            <h2>{getMeetingSubtitle()}</h2>
+            <h3>{getMeetingTime()}</h3>
+            <input type="text" value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} placeholder="Meeting Title" />
+            <div style={{display: 'flex', flexDirection: 'row' }}>
+              <label>
+                <input type="checkbox" checked={fllChecked} onChange={() => setFllChecked(!fllChecked)} /> FLL
+              </label>
+              <label>
+                <input type="checkbox" checked={ftcChecked} onChange={() => setFtcChecked(!ftcChecked)} /> FTC
+              </label>
+            </div>
+            <DatePicker selected={date} onChange={setDate} inline />
+            <div style={{display: 'flex', flexDirection: 'row' }}>
+              <select value={startTime} onChange={e => setStartTime(e.target.value)}>
+                {timeIncrements.map(time => <option key={time} value={time}>{time}</option>)}
+              </select>
+              <select value={endTime} onChange={e => setEndTime(e.target.value)}>
+                {timeIncrements.map(time => <option key={time} value={time}>{time}</option>)}
+              </select>
+            </div>
           </div>
           <div style={{display: 'flex', position: 'absolute', height: '100%', width: '100%', transition: 'transform 0.5s', transform: `translateY(${isDatePickerVisible ? '100%' : '0%'})` }}>
             <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', justifyContent: 'center', height: '100%', width: '100%', overflow: 'hidden' }}>
