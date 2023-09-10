@@ -1,4 +1,5 @@
 .onboarding-container {
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -52,7 +53,6 @@
 .onboarding-content h1,
 .onboarding-content h3 {
   color: #373a47;
-  margin-bottom: 1em;
 }
 
 .onboarding-content button {
@@ -82,6 +82,10 @@
 
 .onboarding-content p {
   color: #0077cc;
+}
+
+.onboarding-content p.error {
+  color: #f62601;
 }
 
 @keyframes spin {

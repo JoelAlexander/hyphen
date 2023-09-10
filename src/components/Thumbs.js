@@ -3,7 +3,6 @@ import HyphenContext from './HyphenContext'
 import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import './ItemShare.css'
 import moment from 'moment'
 const ethers = require("ethers")
 
@@ -341,6 +340,29 @@ const MeetingProposal = ({ topic, topicData, thumbsUp, thumbsDown, recall }) => 
   const context = useContext(HyphenContext)
   const [RSVP, setRSVP] = useState(false)
 
+  const extractLabels = () => {
+      const splitByColon = topicData.memo.split(":")
+      if (splitByColon.length > 1) {
+          return splitByColon[0]
+      }
+      return ""
+  }
+
+  const extractTitle = () => {
+      const splitByColon = topicData.memo.split(":")
+      const splitByDash = splitByColon[1].split("-")
+      return splitByDash[0].trim()
+  }
+
+  const extractTime = () => {
+      const splitByDash = topicData.memo.split("-")
+      return splitByDash[1].split(" ")[1] + " - " + splitByDash[2].split(" ")[1]
+  };
+
+  const extractDate = () => {
+      return topicData.memo.split(" ").slice(-1)[0]
+  }
+
   const vote = (address) => {
     const thumbsUpVotes = topicData.thumbsUp[address] || []
     const thumbsDownVotes = topicData.thumbsDown[address] || []
@@ -360,25 +382,36 @@ const MeetingProposal = ({ topic, topicData, thumbsUp, thumbsDown, recall }) => 
   const firstProposal = topicData.proposals[0]
   const isOriginalProposer = firstProposal ? firstProposal.proposer == context.address : false
 
-  return (<div style={{ display: 'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center' }}>
-    <h2>{topicData.title}</h2>
-    <h3>{topicData.date}</h3>
-    {isConfirmed 
-      ? <p><span role="img" aria-label="check-mark">✅</span> This meeting is confirmed</p> 
-      : <p><span role="img" aria-label="cross-mark">❌</span> This meeting is not yet confirmed</p>}
-    {!RSVP && userVote && <p onClick={() => setRSVP(true)}>Your response: {userVote}</p>}
-    {!RSVP && !userVote && <button onClick={() => setRSVP(true)}>RSVP</button>}
-    {RSVP && (
-      <div style={{ display: 'flex', flexDirection:'row' }}>
-        <button onClick={() => {thumbsUp(topic, ""); setRSVP(false)}}>✅</button>
-        <button onClick={() => {thumbsDown(topic, ""); setRSVP(false)}}>❌</button>
-        <button onClick={() => setRSVP(false)}>x</button>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px', border: '1px solid #e1e1e1', borderRadius: '5px', maxWidth: '400px', margin: 'auto' }}>
+      <h2>{extractLabels()} | {extractTitle()}</h2>
+      <h3>{extractDate()}</h3>
+      <h4>{extractTime()}</h4>
+
+      <div style={{ margin: '20px 0', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}>
+          {isConfirmed 
+              ? <p><span role="img" aria-label="check-mark">✅</span> This meeting is confirmed</p> 
+              : <p><span role="img" aria-label="cross-mark">❌</span> This meeting is not yet confirmed</p>}
+          {!RSVP && userVote && <p onClick={() => setRSVP(true)}>Your response: {userVote}</p>}
+          {!RSVP && !userVote && <button onClick={() => setRSVP(true)}>RSVP</button>}
+          {RSVP && (
+              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+                  <button onClick={() => { thumbsUp(topic, ""); setRSVP(false) }}>✅</button>
+                  <button onClick={() => { thumbsDown(topic, ""); setRSVP(false) }}>❌</button>
+                  <button onClick={() => setRSVP(false)}>x</button>
+              </div>
+          )}
       </div>
-    )}
-    <p>Coming: {attendees}</p>
-    <p>Not coming: {absentees}</p>
-    {isOriginalProposer && <button onClick={() => recall(topicData.memo)}>Cancel proposed meeting</button>}
-  </div>)
+      
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: '20px' }}>
+          <p>Coming: {attendees}</p>
+          <p>Not coming: {absentees}</p>
+      </div>
+      
+      {isOriginalProposer && 
+          <button style={{ background: 'red', color: 'white' }} onClick={() => recall(topicData.memo)}>Cancel proposed meeting</button>}
+  </div>
+);
 }
 
 const Thumbs = () => {
@@ -388,11 +421,12 @@ const Thumbs = () => {
   const [ topics, withPendingProposal, withPendingThumbsUp, withPendingThumbsDown, withPendingRecall] = useThumbs(thumbsAddress)
   const [displayedTopics, setDisplayedTopics] = useState([])
   const [currentMeetingIndex, setCurrentMeetingIndex] = useState(-1)
-  const [date, setDate] = useState(null)
   const [isDatePickerVisible, setDatePickerVisible] = useState(false)
-  const [meetingTitle, setMeetingTitle] = useState('')
-  const [fllChecked, setFllChecked] = useState(false)
-  const [ftcChecked, setFtcChecked] = useState(false)
+  const [date, setDate] = useState(moment().toDate())
+  const [meetingTitle, setMeetingTitle] = useState('Team Meeting')
+  const [meetingTitleError, setMeetingTitleError] = useState(false)
+  const [fllChecked, setFllChecked] = useState(true)
+  const [ftcChecked, setFtcChecked] = useState(true)
   const [startTime, setStartTime] = useState('5:30pm')
   const [endTime, setEndTime] = useState('8:00pm')
 
@@ -445,17 +479,12 @@ const Thumbs = () => {
   }, [topics])
 
   useEffect(() => {
-    if (currentMeetingIndex == -1 && displayedTopics.length > 0) {
-      const today = new Date();
-      const index = displayedTopics.findIndex(
-        ({ topicData }) =>
-          new Date(topicData.date) >= today
-      )
-      if (index > -1) {
-        setCurrentMeetingIndex(index)
-      } else {
-        setCurrentMeetingIndex(displayedTopics.length - 1)
-      }
+    const today = new Date();
+    const index = displayedTopics.findIndex(({ topicData }) => new Date(topicData.date) >= today)
+    if (index > -1) {
+      setCurrentMeetingIndex(index)
+    } else {
+      setCurrentMeetingIndex(displayedTopics.length - 1)
     }
   }, [displayedTopics])
 
@@ -465,7 +494,7 @@ const Thumbs = () => {
       if(fllChecked) meetingLabels.push("FLL")
       if(ftcChecked) meetingLabels.push("FTC")
       const formattedMeetingLabels = meetingLabels.length ? `${meetingLabels.join(", ")}: ` : ""
-      return `${formattedMeetingLabels}${meetingTitle} ${startTime} - ${endTime} ${moment(date).format("MM-DD-YYYY")}`
+      return `${formattedMeetingLabels}${meetingTitle} ${startTime} - ${endTime} ${moment(date).valueOf()}`
     } else {
       return null
     }
@@ -491,7 +520,7 @@ const Thumbs = () => {
   }
 
   const getMeetingTime = () => {
-    if (date) {
+    if (startTime || endTime) {
       return `${startTime} - ${endTime}`
     } else {
       return null
@@ -499,15 +528,16 @@ const Thumbs = () => {
   }
 
   const handleDateConfirm = () => {
-    setDatePickerVisible(false)
-    if (date) {
+    if (meetingTitle && date) {
+      setDatePickerVisible(false)
       propose(getFullMeetingMemo())
     }
-};
+  }
 
   const handleCancelPickDate = () => {
     setDatePickerVisible(false)
     setDate(null)
+    setMeetingTitle("")
   }
 
   const handlePrevious = () => {
@@ -522,22 +552,17 @@ const Thumbs = () => {
     }
   }
 
-  const visibleProposals = currentMeetingIndex > -1 ?
-    [currentMeetingIndex - 1, currentMeetingIndex, currentMeetingIndex + 1]
-        .filter(i => i >= 0 && i < displayedTopics.length)
-        .map(i => {
-          return <div key={`meeting-proposal-${i}`} style={{width: '100%', position: 'absolute', transition: 'transform 0.5s', transform: `translateX(${(i - currentMeetingIndex)*100}%)`}}>
-            <MeetingProposal
-              topic={displayedTopics[i].topic}
-              topicData={displayedTopics[i].topicData}
-              thumbsUp={thumbsUp}
-              thumbsDown={thumbsDown}
-              recall={recall}
-            />
-            
-          </div>
-        })
-    : null
+  const activeProposal = currentMeetingIndex !== -1 && displayedTopics[currentMeetingIndex] ?
+    <div style={{display: 'flex', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', justifyContent: 'center', width: '100%', overflow: 'hidden' }}>
+        <MeetingProposal topic={displayedTopics[currentMeetingIndex].topic}
+          topicData={displayedTopics[currentMeetingIndex].topicData}
+          thumbsUp={thumbsUp}
+          thumbsDown={thumbsDown}
+          recall={recall}
+        />
+      </div>
+    </div> : null
 
   const timeIncrements = [
     '5:00pm', '5:30pm', '6:00pm', '6:30pm', '7:00pm', '7:30pm', '8:00pm', '8:30pm', '9:00pm'
@@ -549,49 +574,57 @@ const Thumbs = () => {
     end: new Date(topic.topicData.date),
   }))
 
+  const handleMeetingTitleChanged = (e) => {
+    const value = e.target.value ? e.target.value : ''
+    if (/^[a-zA-Z0-9\ ]*$/.test(value)) {
+      setMeetingTitle(value)
+      setMeetingTitleError(false)
+    } else {
+      setMeetingTitleError(true)
+    }
+  }
+
+  const proposeMenu = <div style={{display: 'flex', flexDirection: 'column', width: '100%', justifyContent: 'center', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.5s', transform: `translateY(${isDatePickerVisible ? '0%' : '-100%'})`}}>
+    <h1>{getMeetingTitle()}</h1>
+    <h2>{getMeetingSubtitle()}</h2>
+    <h3>{getMeetingTime()}</h3>
+    <input type="text" value={meetingTitle} onChange={handleMeetingTitleChanged} onBlur={handleMeetingTitleChanged} placeholder="Meeting Title" />
+    <div style={{display: 'flex', flexDirection: 'row' }}>
+      <label>
+        <input type="checkbox" checked={fllChecked} onChange={() => setFllChecked(!fllChecked)} /> FLL
+      </label>
+      <label>
+        <input type="checkbox" checked={ftcChecked} onChange={() => setFtcChecked(!ftcChecked)} /> FTC
+      </label>
+    </div>
+    <DatePicker selected={date} onChange={setDate} inline />
+    <div style={{display: 'flex', flexDirection: 'row' }}>
+      <select value={startTime} onChange={e => setStartTime(e.target.value)}>
+        {timeIncrements.map(time => <option key={time} value={time}>{time}</option>)}
+      </select>
+      <select value={endTime} onChange={e => setEndTime(e.target.value)}>
+        {timeIncrements.map(time => <option key={time} value={time}>{time}</option>)}
+      </select>
+    </div>
+    {!meetingTitle && <p><span style={{color: 'red'}}>❌</span> Please provide a meeting title.</p>}
+    {meetingTitleError && <p><span style={{color: 'red'}}>❌</span> Meeting title must contain only numbers or letters</p>}
+    {!date && <p><span style={{color: 'red'}}>❌</span> Please select a date for the meeting.</p>}
+  </div>
+
+  const activeComponent = <div style={{display: 'flex', position: 'relative', width: '100%', flexDirection: 'column' }}>
+    {isDatePickerVisible ? proposeMenu : activeProposal}
+  </div>
+
   return (
-    <div style={{display: 'flex', position: 'relative', height: '100%', width: '100%', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'center', position: 'absolute', top: '8em', zIndex: '1'}}>
-        {isDatePickerVisible && <button onClick={() => setDatePickerVisible(false)}>Cancel</button>}
+    <div style={{display: 'flex', flexDirection: 'column', position: 'relative', width: '100%' }}>
+      {isDatePickerVisible && <button onClick={() => handleCancelPickDate(false)}>Cancel</button>}
+      <div style={{display: 'flex', position: 'relative', alignItems: 'center', width: '100%', flexDirection: 'row' }}>
+        {!isDatePickerVisible && <button onClick={handlePrevious} disabled={currentMeetingIndex <= 0}>Previous</button>}
+        {activeComponent}
+        {!isDatePickerVisible && <button onClick={handleNext} disabled={currentMeetingIndex >= displayedTopics.length - 1}>Next</button>}
       </div>
-      <div style={{display: 'flex', position: 'relative', alignItems: 'center', height: '100%', width: '100%', flexDirection: 'row' }}>
-        <button onClick={handlePrevious} disabled={currentMeetingIndex <= 0}>Previous</button>
-        <div style={{display: 'flex', position: 'relative', height: '100%', width: '100%', flexDirection: 'column' }}>
-          <div style={{display: 'flex', flexDirection: 'column', position: 'absolute', height: '100%', width: '100%', justifyContent: 'center', justifyContent: 'center', alignItems: 'center', transition: 'transform 0.5s', transform: `translateY(${isDatePickerVisible ? '0%' : '-100%'})`}}>
-            <h1>{getMeetingTitle()}</h1>
-            <h2>{getMeetingSubtitle()}</h2>
-            <h3>{getMeetingTime()}</h3>
-            <input type="text" value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} placeholder="Meeting Title" />
-            <div style={{display: 'flex', flexDirection: 'row' }}>
-              <label>
-                <input type="checkbox" checked={fllChecked} onChange={() => setFllChecked(!fllChecked)} /> FLL
-              </label>
-              <label>
-                <input type="checkbox" checked={ftcChecked} onChange={() => setFtcChecked(!ftcChecked)} /> FTC
-              </label>
-            </div>
-            <DatePicker selected={date} onChange={setDate} inline />
-            <div style={{display: 'flex', flexDirection: 'row' }}>
-              <select value={startTime} onChange={e => setStartTime(e.target.value)}>
-                {timeIncrements.map(time => <option key={time} value={time}>{time}</option>)}
-              </select>
-              <select value={endTime} onChange={e => setEndTime(e.target.value)}>
-                {timeIncrements.map(time => <option key={time} value={time}>{time}</option>)}
-              </select>
-            </div>
-          </div>
-          <div style={{display: 'flex', position: 'absolute', height: '100%', width: '100%', transition: 'transform 0.5s', transform: `translateY(${isDatePickerVisible ? '100%' : '0%'})` }}>
-            <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', justifyContent: 'center', height: '100%', width: '100%', overflow: 'hidden' }}>
-                {visibleProposals}
-            </div>
-          </div>
-        </div>
-        <button onClick={handleNext} disabled={currentMeetingIndex >= displayedTopics.length - 1}>Next</button>
-      </div>
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'center', position: 'absolute', bottom: '8em', zIndex: '1'}}>
-        {!isDatePickerVisible && <button onClick={() => setDatePickerVisible(true)}>Propose Meeting</button>}
-        {isDatePickerVisible && <button onClick={handleDateConfirm}>Confirm Proposal</button>}
-      </div>
+      {!isDatePickerVisible && <button onClick={() => setDatePickerVisible(true)}>Propose Meeting</button>}
+      {isDatePickerVisible && <button onClick={handleDateConfirm} disabled={!meetingTitle || !date}>Confirm Proposal</button>}
     </div>
   )
 }
