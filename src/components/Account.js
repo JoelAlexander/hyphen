@@ -11,7 +11,6 @@ const Account = (props) => {
   const faucetContract = context.getContract('faucet.hyphen');
   const [faucetBalance, setFaucetBalance] = useState(null);
   const [faucetBlock, setFaucetBlock] = useState(null);
-  const [conciergeBalance, setConciergeBalance] = useState(null);
   const [isAuthorized, setIsAuthorized] = useState(null);
 
   useEffect(() => {
@@ -19,9 +18,6 @@ const Account = (props) => {
   }, []);
 
   const update = async () => {
-    const balance = await context.houseWallet.getBalance();
-    setConciergeBalance(balance);
-
     const faucetResult = await faucetContract.balance();
     setFaucetBalance(faucetResult);
 
@@ -42,38 +38,6 @@ const Account = (props) => {
 
   const claimDisbursement = () => {
     faucetContract.use().then((receipt) => update());
-  };
-
-  const take = async (amount) => {
-    const gasPrice = await context.signer.getGasPrice();
-    const balance = await context.houseWallet.getBalance();
-
-    const gasAmount = 21000;
-    const gasCost = gasPrice.mul(gasAmount);
-    const amountPlusGas = amount.add(gasCost);
-    if (balance.gte(amountPlusGas)) {
-      // TODO: Reimplement house wallet
-      // context.executeTransaction(
-      //   context.houseWallet.sendTransaction({
-      //     to: context.signer.address,
-      //     value: amount,
-      //     gasLimit: gasAmount,
-      //     gasPrice: gasPrice,
-      //     type: 0x0
-      //   })
-      // ).then(() => update());
-    }
-  };
-
-  const put = async (amount) => {
-    const gasPrice = await context.signer.getGasPrice();
-    context.executeTransaction({
-        to: context.houseWallet.address,
-        value: amount,
-        gasLimit: 21000,
-        gasPrice: gasPrice,
-        type: 0x0
-      }).then((receipt) => update());
   };
 
   const toHMSTime = (seconds) => {
@@ -105,22 +69,8 @@ const Account = (props) => {
     </div>
   );
 
-  const message = conciergeBalance && toEthAmountString(conciergeBalance);
-  const amount = ethers.BigNumber.from("1000000000000000");
-  const giveMessage = "➕ " + toEthAmountString(amount, 3);
-  const takeMessage = "🤲 " + toEthAmountString(amount, 3);
-  const concierge = (
-    <div>
-      <h3>🛎️ Concierge</h3>
-      <p>{message}</p>
-      <button onClick={() => put(amount)}>{giveMessage}</button>
-      <button onClick={() => take(amount)}>{takeMessage}</button>
-    </div>
-  );
-
   return (
     <div>
-      {concierge}
       {faucet}
       <YourEnsName />
       <CreateInvitationCode />

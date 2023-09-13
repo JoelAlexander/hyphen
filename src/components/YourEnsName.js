@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from './HyphenContext';
-import { ethers } from 'ethers';
 import namehash from 'eth-ens-namehash';
+import { usePromise } from 'react-use'
 import './Hyphen.css';
+const ethers = require('ethers');
+
+const ZeroAddress = "0x0000000000000000000000000000000000000000"
 
 const YourEnsName = ({onNameSet}) => {
+  const mounted = usePromise()
   const context = useContext(HyphenContext);
   const ensContract = context.getContract(context.configuration.ens)
   const resolverContract = context.getContract('resolver')
@@ -14,10 +18,26 @@ const YourEnsName = ({onNameSet}) => {
   const [enteredLabelString, setEnteredLabelString] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
+  const [nameAlreadyTaken, setNameAlreadyTaken] = useState(null)
+
+  const fullname = enteredLabelString + ".hyphen";
+  const label = ethers.utils.id(enteredLabelString);
+  const node = namehash.hash(fullname);
 
   useEffect(() => {
     update();
   }, []);
+
+  useEffect(() => {
+    if (enteredLabelString == '') {
+      return
+    }
+
+    mounted(ensContract.owner(node))
+      .then((owner) => {
+        setNameAlreadyTaken(owner !== ZeroAddress)
+      })
+  }, [enteredLabelString])
 
   const update = () => {
     return context.getEnsName(context.address).then(setName);
@@ -33,9 +53,6 @@ const YourEnsName = ({onNameSet}) => {
       return;
     }
 
-    const fullname = enteredLabelString + ".hyphen";
-    const label = ethers.utils.id(enteredLabelString);
-    const node = namehash.hash(fullname);
     setCurrentStep('Registering name');
     setIsLoading(true);
     fifsRegistrarContract.register(label, context.address)
@@ -92,24 +109,27 @@ const YourEnsName = ({onNameSet}) => {
   let action;
   if (fifsRegistrarContract) {
     if (name) {
-      action = (
-        <div>
-          <button onClick={releaseName}>Release name: {name}</button>
-        </div>);
+      action = <>
+        <button onClick={releaseName}>Release name: {name}</button>
+      </>;
     } else {
-      action = (
-        <div>
-          <input type="text" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />.hyphen
-          <input onClick={claimName} type="submit" value="Claim name" />
-        </div>);
+      action = <>
+        <input type="text" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />
+        <input onClick={claimName} type="submit" value="Claim name" />
+      </>;
     }
   } else {
     action = <p>No registrar.hyphen found! {context.provider.network.ensAddress}</p>;
   }
 
+  const message =
+    nameAlreadyTaken === null ? null :
+    enteredLabelString === '' ? null :
+    nameAlreadyTaken ? `'${enteredLabelString}' already taken` : `'${enteredLabelString}' available`
+
   return (
     <div>
-      {!isLoading && action}
+      {!isLoading && <>{action}<p>{message}</p></>}
       {isLoading && (
         <div>
           <div className="spinner"></div>

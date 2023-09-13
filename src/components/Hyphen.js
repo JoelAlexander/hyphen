@@ -1,7 +1,7 @@
 import { hot } from 'react-hot-loader'
 import React, { useState, useEffect } from 'react'
 import { usePromise } from 'react-use'
-import {Outlet, RouterProvider, Route, Link, createBrowserRouter, createRoutesFromElements, useLocation } from 'react-router-dom'
+import {Outlet, RouterProvider, Route, Link, createBrowserRouter, createHashRouter, createRoutesFromElements, useNavigate, useLocation } from 'react-router-dom'
 import HyphenContext from './HyphenContext'
 import ItemShare from './ItemShare.js'
 import Account from './Account.js'
@@ -20,7 +20,7 @@ const menuItems = {
   'Account': { emoji: '👤', path: '/account' },
   'Terabytes': { emoji: '🔗', path: '/terabytes' },
   'Thumbs': { emoji: '👍', path: '/thumbs' },
-  // 'Item Share': { emoji: '🔗', component: ItemShare, path: '/tool-library' },
+  'Item Share': { emoji: '🔗', path: '/tool-library' },
   // 'Counter': { emoji: '🔔', component: Counter, path: '/counter' },
   // 'Help': { emoji: '❓', component: Faq, path: '/help' }
 }
@@ -46,25 +46,26 @@ const NavMenu = ({ items }) => {
   </div>
 }
 
-const HyphenOutlet = ({ entries, blockNumber, address, signer, name, setSigner, setAddress, setHouseWallet, setName, logout, isInFlightTransactions }) => {
+const HyphenOutlet = ({ entries, blockNumber, address, setSigner, setAddress, setHouseWallet, setName, logout, isInFlightTransactions }) => {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [menuStack, setMenuStack] = useState([])
   const currentMenu = getSubMenu(menuStack)
 
-  const statusBar = signer && name ?
-    <StatusBar
-      logout={logout}
-      syncing={isInFlightTransactions}
-      address={address || 'logged-out'}
-      blockNumber={blockNumber}
-      entries={entries} /> : null
+  useEffect(() => {
+    navigate(`${location.pathname}${location.search}`)
+  }, [])
 
-  const location = useLocation()
-  const onboarding = (!signer || !name) && <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} />
   const navMenu = location.pathname === '/' ? <NavMenu items={currentMenu} /> : null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'inline-block', width: '100%' }}>
-        {statusBar}
+      <StatusBar
+        logout={logout}
+        syncing={isInFlightTransactions}
+        address={address || 'logged-out'}
+        blockNumber={blockNumber}
+        entries={entries} />
       </div>
       <div style={{ display: 'inline-block', flex: '1', width: '100%', height: '100%' }}>
         <div style={{
@@ -75,7 +76,7 @@ const HyphenOutlet = ({ entries, blockNumber, address, signer, name, setSigner, 
           height: '100%',
           paddingLeft: '2em',
           paddingRight: '2em' }}>
-          {onboarding || navMenu || <Outlet />}
+          {navMenu || <Outlet />}
         </div>
       </div>
     </div>)
@@ -279,15 +280,18 @@ const Hyphen = ({ provider, configuration }) => {
     setActivityToasts(previousToasts => [...previousToasts, { address, message }])
   }
 
-  const router = createBrowserRouter(
+  const applicationRouter = createBrowserRouter(
     createRoutesFromElements(
       <Route path='/' element={<HyphenOutlet entries={entries} blockNumber={blockNumber} address={address} signer={signer} name={name} setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} logout={logout} isInFlightTransactions={pendingTransactions.length !== 0} />}>
         <Route path='account' element={<Account />} />
         <Route path='terabytes' element={<Thumbs />} />
         <Route path='thumbs' element={<Thumbs />} />
+        <Route path='tool-library' element={<ItemShare />} />
       </Route>
     )
   )
+
+  const routerProvider = (signer && name) ? <RouterProvider router={applicationRouter} /> : <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName}/>
 
   return (<HyphenContext.Provider value={{
     blockNumber: blockNumber,
@@ -306,7 +310,7 @@ const Hyphen = ({ provider, configuration }) => {
     showToast: showToast,
     addActivityToast: addActivityToast
   }}>
-    <RouterProvider router={router} />
+    {routerProvider}
     {toastVisible && <Toast />}
     {activityToasts.length > 0 && <ActivityToast toast={activityToasts[0]} />}
   </HyphenContext.Provider>)
