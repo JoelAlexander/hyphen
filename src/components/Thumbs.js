@@ -4,6 +4,7 @@ import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import moment from 'moment'
+import context from 'react-bootstrap/esm/AccordionContext'
 const ethers = require("ethers")
 
 const OneDayBlocks = 14400
@@ -27,7 +28,7 @@ const mergeAndSortEvents = (events) => {
   })
 }
 
-const updateProposed = (addr, topic, memo, blockNumber) => {
+const updateProposed = (blockNumber, addr, topic, memo) => {
   const topicString = topic.toString()
   const proposal = { proposer: addr, blockNumber: blockNumber }
   return (topics) => {
@@ -54,7 +55,7 @@ const updateProposed = (addr, topic, memo, blockNumber) => {
   }
 }
 
-const updateRecalled = (addr, topic, memo, blockNumber) => {
+const updateRecalled = (blockNumber, addr, topic, memo) => {
   const topicString = topic.toString()
   const recall = { proposer: addr, blockNumber: blockNumber }
   return (topics) => {
@@ -81,9 +82,8 @@ const updateRecalled = (addr, topic, memo, blockNumber) => {
   }
 }
 
-const updateThumbsUp = (addr, topic, memo, _blockNumber) => {
+const updateThumbsUp = (blockNumber, addr, topic, memo) => {
   const topicString = topic.toString()
-  const blockNumber = _blockNumber
   return (topics) => {
     const newThumbsUp = { memo: memo, blockNumber: blockNumber }
     const existingTopic = topics[topicString]
@@ -115,14 +115,13 @@ const updateThumbsUp = (addr, topic, memo, _blockNumber) => {
   }
 }
 
-const updateThumbsDown = (addr, topic, memo, _blockNumber) => {
-  const blockNumber = _blockNumber
+const updateThumbsDown = (blockNumber, addr, topic, memo) => {
   const topicString = topic.toString()
   return (topics) => {
     const newThumbsDown = { memo: memo, blockNumber: blockNumber }
     const existingTopic = topics[topicString]
     if (existingTopic) {
-      const existingThumbsForAddress = existingTopic.thumbsUp[addr]
+      const existingThumbsForAddress = existingTopic.thumbDown[addr]
       if (existingThumbsForAddress) {
         return { ...topics,
           [topicString]: {
@@ -149,191 +148,109 @@ const updateThumbsDown = (addr, topic, memo, _blockNumber) => {
   }
 }
 
-const useThumbsState = (contractAddress, startBlock, endBlock) => {
+const useEventDigest = (contract, startBlock, handlers) => {
   const context = useContext(HyphenContext)
-  const contract = context.getContract(contractAddress, ThumbsContract.abi)
-  const [topics, setTopics] = useState({})
+  const [state, setState] = useState({})
 
   const digestEvents = (events) => {
-    setTopics(mergeAndSortEvents(events).reduce((result, event) => {
-      if (event.event === "Proposed") {
-        return updateProposed(event.args.addr, event.args.topic, event.args.memo, event.blockNumber)(result);
-      } else if (event.event === "ThumbsUp") {
-        return updateThumbsUp(event.args.addr, event.args.topic, event.args.memo, event.blockNumber)(result);
-      } else if (event.event === "ThumbsDown") {
-        return updateThumbsDown(event.args.addr, event.args.topic, event.args.memo, event.blockNumber)(result);
-      } else if (event.event === "Recalled") {
-        return updateRecalled(event.args.addr, event.args.topic, event.args.memo, event.blockNumber)(result);
-      }
-      return result;
-    }, topics))
+    setState(mergeAndSortEvents(events).reduce((result, event) => {
+      return handlers[event.event].digestEvent(event.blockNumber, ...event.args)(result)
+    }, state))
   }
 
   useEffect(() => {
-    const proposedFilter = contract.filters.Proposed()
-    const proposedEvents = contract.queryFilter(proposedFilter, startBlock, endBlock)
-  
-    const upFilter = contract.filters.ThumbsUp()
-    const upEvents = contract.queryFilter(upFilter, startBlock, endBlock)
-  
-    const downFilter = contract.filters.ThumbsDown()
-    const downEvents = contract.queryFilter(downFilter, startBlock, endBlock)
-
-    const recallFilter = contract.filters.Recalled()
-    const recallEvents = contract.queryFilter(recallFilter, startBlock, endBlock)
-
-    Promise.all([proposedEvents, upEvents, downEvents, recallEvents]).then(digestEvents)
+    Promise.all(Object.entries(handlers).map(([eventName, {filterArgs}]) => {
+      const startBlockToUse = startBlock ? startBlock : 0
+      const filterArgsToUse = filterArgs ? filterArgs : []
+      const filter = contract.filters[eventName](...filterArgsToUse)
+      const queryFilter = contract.queryFilter(filter, startBlockToUse, context.blockNumber)
+      return queryFilter
+    })).then(digestEvents)
   }, [])
 
   useEffect(() => {
-    const proposedListener = (addr, topic, memo) => {
-      setTopics(updateProposed(addr, topic, memo, context.blockNumber))
-    }
-  
-    const thumbsUpListener = (addr, topic, memo) => {
-      setTopics(updateThumbsUp(addr, topic, memo, context.blockNumber))
-    }
-  
-    const thumbsDownListener = (addr, topic, memo) => {
-      setTopics(updateThumbsDown(addr, topic, memo, context.blockNumber))
-    }
+    const unregisterListeners = Object.entries(handlers).map(([eventName, {digestEvent, filterArgs}]) => {
+      const filterArgsToUse = filterArgs ? filterArgs : []
+      const filter = contract.filters[eventName](...filterArgsToUse)
+      const listener = (...args) => {
+        setState(digestEvent(context.blockNumber, ...args))
+      }
+      contract.on(filter, listener)
+      return () => {
+        contract.off(filter, listener)
+      }
+    })
 
-    const recallListener = (addr, topic, memo) => {
-      setTopics(updateRecalled(addr, topic, memo, context.blockNumber))
-    }
-  
-    contract.on("Proposed", proposedListener)
-    contract.on("ThumbsUp", thumbsUpListener)
-    contract.on("ThumbsDown", thumbsDownListener)
-    contract.on("Recalled", recallListener)
-  
     return () => {
-      contract.off("Proposed", proposedListener)
-      contract.off("ThumbsUp", thumbsUpListener)
-      contract.off("ThumbsDown", thumbsDownListener)
-      contract.off("Recalled", recallListener)
+      unregisterListeners.forEach((fn) => {fn()})
     }
   }, [context.blockNumber])
 
-  return topics
+  return state
 }
 
-const useThumbs = (contractAddress) => {
+const useInteractiveContractState = (contract, startBlock, eventHandlers) => {
   const context = useContext(HyphenContext)
-  const address = context.address
-  const topics = useThumbsState(contractAddress, context.blockNumber - OneMonthBlocks, context.blockNumber)
-  const [pendingProposals, setPendingProposals] = useState({})
-  const [pendingThumbsUp, setPendingThumbsUp] = useState({})
-  const [pendingThumbsDown, setPendingThumbsDown] = useState({})
-  const [pendingRecalls, setPendingRecalls] = useState({})
-  const [mergedTopics, setMergedTopics] = useState({})
+  const trueState = useEventDigest(contract, eventHandlers, startBlock)
+  const [pendingEvents, setPendingEvents] = useState(
+    Object.fromEntries(
+      Object.entries(eventHandlers).map(([eventName, _]) => [eventName, {}])))
+  const [withPendingEventFunctions, setWithPendingEventFunctions] = useState(
+    Object.fromEntries(
+      Object.entries(eventHandlers).map(([eventName, _]) => [eventName, () => {}])))
+  const [mergedState, setMergedState] = useState({})
 
-  const mergeProposals = (topics) => {
-    return Object.values(pendingProposals)
-      .reduce((result, pendingProposal) => {
-        return updateProposed(address, pendingProposal.topic, pendingProposal.memo, pendingProposal.blockNumber)(result)
-      }, topics)
-  }
-
-  const mergeRecalls = (topics) => {
-    return Object.values(pendingRecalls)
-      .reduce((result, pendingRecall) => {
-        return updateRecalled(address, pendingRecall.topic, pendingRecall.memo, pendingRecall.blockNumber)(result)
-      }, topics)
-  }
-
-  const mergeThumbsUp = (topics) => {
-    return Object.values(pendingThumbsUp)
-      .reduce((result, pendingThumb) => {
-        return updateThumbsUp(address, pendingThumb.topic, pendingThumb.memo, pendingThumb.blockNumber)(result)
-      }, topics)
-  }
-
-  const mergeThumbsDown = (topics) => {
-    return Object.values(pendingThumbsDown)
-      .reduce((result, pendingThumb) => {
-        return updateThumbsDown(address, pendingThumb.topic, pendingThumb.memo, pendingThumb.blockNumber)(result)
-      }, topics)
-  }
-
-  const mergePending = [
-    mergeProposals,
-    mergeThumbsUp,
-    mergeThumbsDown,
-    mergeRecalls
-  ]
-  
   useEffect(() => {
-    setMergedTopics(mergePending.reduce((result, mergeFunction) => {
+    const withPendingEventFunctions = Object.fromEntries(
+      Object.entries(eventHandlers)
+        .map(([eventName, _]) => {
+          const withPendingEvent = (...args) => {
+            const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
+            const [...newPendingEvent] = args
+            newPendingEvent.blockNumber = context.blockNumber
+            const beforePromise = () => {
+              setPendingEvents((prev) => {
+                return {...prev, [eventName]: { ...prev[eventName], [actionId]: newPendingEvent}}
+              })
+            }
+            const afterPromise = () => {
+              setPendingEvents(prev => {
+                const {[eventName]: { [actionId]: _, ...remainingInner }, ...remainingOuter } = prev
+                return {[eventName]: { ...remainingInner }, ...remainingOuter }
+              })
+            }
+            return (promise) => {
+              return Promise.resolve(beforePromise())
+                .then(promise)
+                .finally(afterPromise)
+            }
+          }
+
+          return [`withPending${eventName}`, withPendingEvent]
+        })
+    )
+    setWithPendingEventFunctions(withPendingEventFunctions)
+  }, context.blockNumber)
+
+  useEffect(() => {
+    const mergeFunctions = Object.entries(eventHandlers)
+      .map(([eventName, { digestEvent }]) => {
+        return (state) => {
+          const pendingEventsForEventName =  Object.values(pendingEvents[eventName])
+          return pendingEventsForEventName.reduce((result, pendingEvent) => {
+            return digestEvent(pendingEvent.blockNumber, ...pendingEvent)(result)
+          }, state)
+        }
+      })
+
+    const newMergedState = mergeFunctions.reduce((result, mergeFunction) => {
       return mergeFunction(result)
-    }, topics))
-  }, [topics, pendingProposals, pendingThumbsUp, pendingThumbsDown, pendingRecalls])
+    }, trueState)
 
-  const withPendingProposal = (memo, promise) => {
-    const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
-    const topic = ethers.BigNumber.from(ethers.utils.keccak256(ethers.utils.solidityPack(['string'], [memo]))).toString()
-    const proposal = { topic: topic, memo: memo, blockNumber: context.blockNumber }
-    setPendingProposals(prev => {
-      return { ...prev, [actionId]: proposal }
-    })
-    return promise.finally(() => {
-      setPendingProposals(prev => {
-        const { [actionId]: _, ...remaining } = prev
-        return remaining
-      })
-    })
-  }
+    setMergedState(newMergedState)
+  }, [trueState, pendingEvents])
 
-  const withPendingRecall = (memo, promise) => {
-    const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
-    const topic = ethers.BigNumber.from(ethers.utils.keccak256(ethers.utils.solidityPack(['string'], [memo]))).toString()
-    const recall = { topic: topic, memo: memo, blockNumber: context.blockNumber }
-    setPendingRecalls(prev => {
-      return { ...prev, [actionId]: recall }
-    })
-    return promise.finally(() => {
-      setPendingRecalls(prev => {
-        const { [actionId]: _, ...remaining } = prev
-        return remaining
-      })
-    })
-  }
-
-  const withPendingThumbsUp = (topic, memo, promise) => {
-    const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
-    const thumbUp = { topic: topic, memo: memo, blockNumber: context.blockNumber }
-    setPendingThumbsUp(prev => {
-        return { ...prev, [actionId]: thumbUp}
-      })
-    return promise.finally(() => {
-      setPendingThumbsUp(prev => {
-        const { [topic]: _, ...remaining } = prev
-        return remaining
-      })
-    })
-  }
-
-  const withPendingThumbsDown = (topic, memo, promise) => {
-    const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
-    const thumbDown = { topic: topic, memo: memo, blockNumber: context.blockNumber }
-    setPendingThumbsDown(prev => {
-      return { ...prev, [actionId]: thumbDown}
-    })
-    return promise.finally(() => {
-      setPendingThumbsDown(prev => {
-        const { [topic]: _, ...remaining } = prev
-        return remaining
-      })
-    })
-  }
-
-  return [
-    mergedTopics,
-    withPendingProposal,
-    withPendingThumbsUp,
-    withPendingThumbsDown,
-    withPendingRecall
-  ]
+  return [mergedState, withPendingEventFunctions]
 }
 
 const MeetingProposal = ({ topic, topicData, thumbsUp, thumbsDown, recall }) => {
@@ -409,16 +326,25 @@ const MeetingProposal = ({ topic, topicData, thumbsUp, thumbsDown, recall }) => 
       </div>
       
       {isOriginalProposer && 
-          <button style={{ background: 'red', color: 'white' }} onClick={() => recall(topicData.memo)}>Cancel proposed meeting</button>}
+          <button style={{ background: 'red', color: 'white' }} onClick={() => recall(topic, topicData.memo)}>Cancel proposed meeting</button>}
   </div>
 );
 }
 
 const Thumbs = () => {
   const context = useContext(HyphenContext)
+  const address = context.address
   const contract = context.getContract('thumbs.hyphen')
-  const thumbsAddress = context.getResolvedAddress('thumbs.hyphen')
-  const [ topics, withPendingProposal, withPendingThumbsUp, withPendingThumbsDown, withPendingRecall] = useThumbs(thumbsAddress)
+  const [topics, {withPendingProposed, withPendingRecalled, withPendingThumbsUp, withPendingThumbsDown}] =
+    useInteractiveContractState(
+      contract,
+      context.blockNumber - OneMonthBlocks,
+      {
+        Proposed: { digestEvent: updateProposed },
+        ThumbsUp: { digestEvent: updateThumbsUp },
+        ThumbsDown: { digestEvent: updateThumbsDown },
+        Recalled: { digestEvent: updateRecalled }
+      })
   const [displayedTopics, setDisplayedTopics] = useState([])
   const [currentMeetingIndex, setCurrentMeetingIndex] = useState(-1)
   const [isDatePickerVisible, setDatePickerVisible] = useState(false)
@@ -430,44 +356,53 @@ const Thumbs = () => {
   const [startTime, setStartTime] = useState('5:30pm')
   const [endTime, setEndTime] = useState('8:00pm')
 
+  const computeTopic = (memoString) => {
+    const packedData = ethers.utils.solidityPack(
+      ['string'],
+      [memoString])
+    return ethers.utils.keccak256(packedData)
+  }
+
   const propose = (memo) => {
-    return withPendingProposal(memo, contract.propose(memo))
+    return withPendingProposed(address, computeTopic(memo), memo)(contract.propose(memo))
   }
 
   const thumbsUp = (topic, memo) => {
-    return withPendingThumbsUp(topic, memo, contract.thumbsUp(topic, memo))
+    return withPendingThumbsUp(address, topic, memo)(contract.thumbsUp(topic, memo))
   }
 
   const thumbsDown = (topic, memo) => {
-    return withPendingThumbsDown(topic, memo, contract.thumbsDown(topic, memo))
+    return withPendingThumbsDown(address, topic, memo)(contract.thumbsDown(topic, memo))
   }
 
-  const recall = (memo) => {
-    return withPendingRecall(memo, contract.recall(memo))
+  const recall = (topic, memo) => {
+    return withPendingRecalled(address, topic, memo)(contract.recall(memo))
   }
 
   useEffect(() => {
     const filterAndSortTopics = (topics) => {
       return Object.entries(topics)
-        .filter(([_, topicData]) => topicData.memo.match(/\d{2}-\d{2}-\d{4}/))
-        .filter(([_, topicData]) => {
-          const latestProposal = topicData.proposals[topicData.proposals.length - 1]
-          const latestProposer = latestProposal ? latestProposal.proposer : null
-          const cancellingRecalls = latestProposal ? topicData.recalls.filter(recall => {
-            return recall.blockNumber > latestProposal.blockNumber && recall.proposer == latestProposer
-          }) : []
-          return latestProposal && cancellingRecalls.length === 0
-        })
+        //.filter(([_, topicData]) => topicData.memo.match(/\d{2}-\d{2}-\d{4}/))
+        // .filter(([_, topicData]) => {
+        //   const latestProposal = topicData.proposals[topicData.proposals.length - 1]
+        //   const latestProposer = latestProposal ? latestProposal.proposer : null
+        //   const cancellingRecalls = latestProposal ? topicData.recalls.filter(recall => {
+        //     return recall.blockNumber > latestProposal.blockNumber && recall.proposer == latestProposer
+        //   }) : []
+        //   return latestProposal && cancellingRecalls.length === 0
+        // })
         .map(([topic, topicData]) => {
-          const dateMatch = topicData.memo.match(/\d{2}-\d{2}-\d{4}/)
-          const date = new Date(dateMatch[0]);
-          const formattedDate = `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
+          // const dateMatch = topicData.memo.match(/\d{2}-\d{2}-\d{4}/)
+          // const date = new Date(dateMatch[0]);
+          // const formattedDate = `${date.getMonth() + 1}-${date.getDate()}-${date.getFullYear()}`;
           return {
             topic,
             topicData: {
               ...topicData,
-              title: topicData.memo.replace(dateMatch[0], '').trim(),
-              date: formattedDate,
+              title: topicData.memo,
+              date: "Foo Date"
+              //title: topicData.memo.replace(dateMatch[0], '').trim(),
+              //date: formattedDate,
             }
           }
         })

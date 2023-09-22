@@ -38,6 +38,10 @@
     "thumbs": {
       "source": "Thumbs",
       "args": [ "0x0000000000000000000000000000000000000000" ]
+    },
+    "utilities": {
+      "source": "AccountSettings",
+      "args": ["ens", "registrar.hyphen", "0xb3f5995282240bf5e4135198c8bd11d0e2663433985b2a2c23bca3778f818a13"]
     }
   }
 }

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 import '@local-blockchain-toolbox/contract-primitives/contracts/AddressSet.sol';
 
-contract Onboard {
+contract AddressGroup {
 
   event Knocked(address indexed addr, string memo);
   event Onboarded(address indexed addr, string memo);

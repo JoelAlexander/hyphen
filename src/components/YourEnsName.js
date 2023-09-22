@@ -3,6 +3,7 @@ import HyphenContext from './HyphenContext';
 import namehash from 'eth-ens-namehash';
 import { usePromise } from 'react-use'
 import './Hyphen.css';
+import EnsAllow from './EnsAllow';
 const ethers = require('ethers');
 
 const ZeroAddress = "0x0000000000000000000000000000000000000000"
@@ -11,7 +12,8 @@ const YourEnsName = ({onNameSet}) => {
   const mounted = usePromise()
   const context = useContext(HyphenContext);
   const ensContract = context.getContract(context.configuration.ens)
-  const resolverContract = context.getContract('resolver')
+  const accountSettings = context.getContract('utilities.hyphen')
+  // const resolverContract = context.getContract('resolver')
   const fifsRegistrarContract = context.getContract('registrar.hyphen')
   const reverseRegistrarContract = context.getContract('addr.reverse')
   const [name, setName] = useState(null);
@@ -53,27 +55,13 @@ const YourEnsName = ({onNameSet}) => {
       return;
     }
 
-    setCurrentStep('Registering name');
-    setIsLoading(true);
-    fifsRegistrarContract.register(label, context.address)
-      .then(() => {
-        setCurrentStep('Setting address');
-        return resolverContract['setAddr(bytes32,address)'](node, context.address)
-          .then(() => {
-            setCurrentStep('Setting resolver');
-            return ensContract.setResolver(node, resolverContract.address)
-              .then(() => {
-                setCurrentStep('Setting reverse record');
-                return reverseRegistrarContract.setName(fullname)
-                  .then(() => {
-                    return update().then(() => {
-                      onNameSet(fullname);
-                      setIsLoading(false);
-                    });
-                  })
-              });
-          });
-      }).catch((reason) => setIsLoading(false));
+    setCurrentStep('Registering name')
+    setIsLoading(true)
+    const promises = Promise.all([
+      reverseRegistrarContract.setName(fullname),
+      accountSettings.setupName(label),
+    ])
+    mounted(promises).finally(() => setIsLoading(false))
   };
 
   const releaseName = () => {
@@ -87,39 +75,25 @@ const YourEnsName = ({onNameSet}) => {
       return;
     }
 
-    const labelString = name.substring(0, suffixIndex);
-    const label = ethers.utils.id(labelString);
-    const node = namehash.hash(name);
-    setCurrentStep('Removing address');
-    setIsLoading(true);
-    resolverContract['setAddr(bytes32,address)'](node, ethers.constants.AddressZero)
-      .then(() => {
-        setCurrentStep('Removing resolver');
-        update();
-        return ensContract.setResolver(node, ethers.constants.AddressZero)
-          .then(() => {
-            setCurrentStep('Unregistering name');
-            return fifsRegistrarContract.register(label, ethers.constants.AddressZero)
-              .then(() => setIsLoading(false))
-          });
-      })
-      .catch((reason) => setIsLoading(false));
+    setCurrentStep('Removing address')
+    setIsLoading(true)
+    const promises = Promise.all([
+      reverseRegistrarContract.setName(''),
+      ensContract.setOwner(namehash.hash(name), ZeroAddress)
+    ])
+    mounted(promises).finally(() => setIsLoading(false))
   };
 
   let action;
-  if (fifsRegistrarContract) {
-    if (name) {
-      action = <>
-        <button onClick={releaseName}>Release name: {name}</button>
-      </>;
-    } else {
-      action = <>
-        <input type="text" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />
-        <input onClick={claimName} type="submit" value="Claim name" />
-      </>;
-    }
+  if (name) {
+    action = <>
+      <button onClick={releaseName}>Release name: {name}</button>
+    </>;
   } else {
-    action = <p>No registrar.hyphen found! {context.provider.network.ensAddress}</p>;
+    action = <>
+      <input type="text" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />
+      <input onClick={claimName} type="submit" value="Claim name" />
+    </>;
   }
 
   const message =
@@ -129,6 +103,7 @@ const YourEnsName = ({onNameSet}) => {
 
   return (
     <div>
+      <EnsAllow address={accountSettings.address} />
       {!isLoading && <>{action}<p>{message}</p></>}
       {isLoading && (
         <div>

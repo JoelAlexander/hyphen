@@ -10,7 +10,7 @@ contract Faucet {
     using Math for uint;
     using SafeMath for uint;
 
-    uint private constant DISBURSEMENT_FRACTION = 1000000;
+    uint private constant DISBURSEMENT_FRACTION = 100;
     uint private constant DISBURSEMENT_PERIOD_BLOCKS = 14400;
 
     mapping(address => uint) private canUseFaucetAtBlock;

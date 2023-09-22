@@ -1,19 +1,19 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
-import "./Onboard.sol";
+import "./AddressGroup.sol";
 import "./Thumbs.sol";
 
 contract Team {
 
   address public owner;
-  Onboard public members;
-  Onboard public mentors;
+  AddressGroup public members;
+  AddressGroup public mentors;
   Thumbs public thumbs;
 
   constructor(address _owner) {
     owner = _owner;
-    members = new Onboard(address(this));
-    mentors = new Onboard(address(this));
+    members = new AddressGroup(address(this));
+    mentors = new AddressGroup(address(this));
     thumbs = new Thumbs(address(this));
   }
 
