@@ -35,7 +35,7 @@ const HyphenLoader = ({provider, configuration, contracts}) => {
   }, [addresses])
 
   if (isLoading) {
-    return <Spinner />
+    return <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}><Spinner /></div>
   } else {
     return <Hyphen provider={provider} configuration={({...configuration, contracts: contracts, resolvedAddresses: addresses})} />
   }

@@ -37,7 +37,8 @@ const UniquePassphrase = ({ setSignerAndAddress, invalidWallet, invalidInviteCod
     setPassphrase()
   }
 
-  const setupAccount = async () => {
+  const setupAccount = async (event) => {
+    event.preventDefault();
     const wallet = createWallet(passphrase)
     if (!inviteCode || invalidInviteCode) {
       setSignerAndAddress([wallet, wallet.address])
@@ -104,22 +105,32 @@ const UniquePassphrase = ({ setSignerAndAddress, invalidWallet, invalidInviteCod
         {invalidInviteCode && <p className='error'>
           Invite code is not valid.
         </p>}
-        <input
-          type="text"
-          value={passphrase}
-          onChange={(e) => setPassphrase(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.keyCode === 13 && passphrase) {
-              setupAccount();
-            }
-          }}
-          disabled={isInProgress}
-          autoCapitalize="none"
-          autocomplete="one-time-code"
-        />
-        <button onClick={setupAccount} >
-          {buttonText}
-        </button>
+        <form>
+          {/* Hidden username field */}
+          <input 
+            type="text" 
+            name="username" 
+            value={fingerprint} 
+            style={{ display: 'none' }} 
+          />
+          <input
+            type="password"
+            name="password"
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.keyCode === 13 && passphrase) {
+                setupAccount();
+              }
+            }}
+            disabled={isInProgress}
+            autoCapitalize="none"
+            autocomplete={inviteCode ? "new-password" : "current-password"}
+          />
+          <button type="submit" onClick={(e) => setupAccount(e)}>
+            {buttonText}
+          </button>
+        </form>
         {showForgetButton && (
           <div>
             <button
@@ -240,18 +251,15 @@ const SignIn = ({ fingerprint, forgetFingerprint }) => {
 
   useEffect(() => {
     if (pendingSigner && pendingAddress) {
-      return pendingSigner.provider
-        .lookupAddress(pendingAddress)
-        .then(context.setName)
+      Promise.all([
+        pendingSigner.provider.lookupAddress(pendingAddress),
+        pendingSigner.getBalance()
+      ]).then(([currentName, balance]) => {
+        context.setName(currentName)
+        setBalance(balance)
+      })
     }
   }, [pendingSigner, pendingAddress])
-
-  useEffect(() => {
-    if (pendingSigner && pendingAddress) {
-      pendingSigner.getBalance().then(setBalance)
-    }
-  }, [pendingSigner, pendingAddress])
-
 
   useEffect(() => {
     if (pendingSigner && pendingAddress && balance && balance.gt(0)) {

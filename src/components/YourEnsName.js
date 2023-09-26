@@ -86,7 +86,7 @@ const YourEnsName = () => {
     </>
   } else {
     action = <>
-      <input type="text" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />
+      <input type="text" autocomplete="one-time-code" value={enteredLabelString} onChange={onEnteredLabelStringChanged} />
       <input onClick={claimName} type="submit" value="Claim name" />
     </>
   }
