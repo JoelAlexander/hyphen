@@ -1,5 +1,5 @@
 import React, { useContext } from 'react'
-import HyphenContext from './HyphenContext'
+import HyphenContext from '../context/HyphenContext'
 
 const VerboseProposal = ({ topic, topicData, thumbsUp, thumbsDown }) => {
   const context = useContext(HyphenContext)
@@ -14,7 +14,7 @@ const VerboseProposal = ({ topic, topicData, thumbsUp, thumbsDown }) => {
     return a.blockNumber - b.blockNumber;
   });
 
-  const currentBlockNumber = context.blockNumber
+  const currentBlockNumber = context.getBlockNumber()
   return (
     <>
       <button onClick={() => thumbsUp(topic)}>Thumbs Up</button>

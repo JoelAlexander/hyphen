@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react'
-import HyphenContext from './HyphenContext'
+import HyphenContext from '../context/HyphenContext'
 import Address from './Address'
 import Blockies from 'react-blockies'
 import { Tab, Tabs } from 'react-bootstrap'
@@ -341,7 +341,7 @@ const ENSItemShare = () => {
     const term = ethers.BigNumber.from(_term)
     const id = _id.toString()
     return prev => {
-      return { ...prev, [id]: { ...prev[id], [requester]: { term: term, blockNumber: context.blockNumber }}}
+      return { ...prev, [id]: { ...prev[id], [requester]: { term: term, blockNumber: context.getBlockNumber() }}}
     }
   }
 
@@ -442,56 +442,57 @@ const ENSItemShare = () => {
   }, [])
 
   useEffect(() => {
+    const blockNumber = context.getBlockNumber()
     const yourRemovedItemsFilter = itemShareContract.filters.ItemRemoved(context.address)
-    const yourRemovedItemsEvents = itemShareContract.queryFilter(yourRemovedItemsFilter, 0, context.blockNumber)
+    const yourRemovedItemsEvents = itemShareContract.queryFilter(yourRemovedItemsFilter, 0, blockNumber)
 
     const yourAddedItemsFilter = itemShareContract.filters.ItemAdded(context.address)
-    const yourAddedItemsEvents = itemShareContract.queryFilter(yourAddedItemsFilter, 0, context.blockNumber)
+    const yourAddedItemsEvents = itemShareContract.queryFilter(yourAddedItemsFilter, 0, blockNumber)
 
     const requestsToYouFilter = itemShareContract.filters.ItemRequested(context.address)
-    const requestsToYouEvents = itemShareContract.queryFilter(requestsToYouFilter, 0, context.blockNumber)
+    const requestsToYouEvents = itemShareContract.queryFilter(requestsToYouFilter, 0, blockNumber)
 
     const requestsFromYouFilter = itemShareContract.filters.ItemRequested(null, context.address)
-    const requestsFromYouEvents = itemShareContract.queryFilter(requestsFromYouFilter, 0, context.blockNumber)
+    const requestsFromYouEvents = itemShareContract.queryFilter(requestsFromYouFilter, 0, blockNumber)
 
     const requestsDeniedFromYouFilter = itemShareContract.filters.RequestDenied(context.address)
-    const requestsDeniedFromYouEvents = itemShareContract.queryFilter(requestsDeniedFromYouFilter, 0, context.blockNumber)
+    const requestsDeniedFromYouEvents = itemShareContract.queryFilter(requestsDeniedFromYouFilter, 0, blockNumber)
 
     const requestsDeniedToYouFilter = itemShareContract.filters.RequestDenied(null, context.address)
-    const requestsDeniedToYouEvents = itemShareContract.queryFilter(requestsDeniedToYouFilter, 0, context.blockNumber)
+    const requestsDeniedToYouEvents = itemShareContract.queryFilter(requestsDeniedToYouFilter, 0, blockNumber)
 
     const requestsApprovedFromYouFilter = itemShareContract.filters.RequestApproved(context.address)
-    const requestsApprovedFromYouEvents = itemShareContract.queryFilter(requestsApprovedFromYouFilter, 0, context.blockNumber)
+    const requestsApprovedFromYouEvents = itemShareContract.queryFilter(requestsApprovedFromYouFilter, 0, blockNumber)
 
     const requestsApprovedToYouFilter = itemShareContract.filters.RequestApproved(null, context.address)
-    const requestsApprovedToYouEvents = itemShareContract.queryFilter(requestsApprovedToYouFilter, 0, context.blockNumber)
+    const requestsApprovedToYouEvents = itemShareContract.queryFilter(requestsApprovedToYouFilter, 0, blockNumber)
 
     const ownershipTransferredFromYouFilter = itemShareContract.filters.OwnershipTransferred(context.address)
-    const ownershipTransferredFromYouEvents = itemShareContract.queryFilter(ownershipTransferredFromYouFilter, 0, context.blockNumber)
+    const ownershipTransferredFromYouEvents = itemShareContract.queryFilter(ownershipTransferredFromYouFilter, 0, blockNumber)
 
     const ownershipTransferredToYouFilter = itemShareContract.filters.OwnershipTransferred(null, context.address)
-    const ownershipTransferredToYouEvents = itemShareContract.queryFilter(ownershipTransferredToYouFilter, 0, context.blockNumber)
+    const ownershipTransferredToYouEvents = itemShareContract.queryFilter(ownershipTransferredToYouFilter, 0, blockNumber)
 
     const returnsToYouFilter = itemShareContract.filters.ItemReturned(context.address)
-    const returnsToYouEvents = itemShareContract.queryFilter(returnsToYouFilter, 0, context.blockNumber)
+    const returnsToYouEvents = itemShareContract.queryFilter(returnsToYouFilter, 0, blockNumber)
 
     const returnsFromYouFilter = itemShareContract.filters.ItemReturned(null, context.address);
-    const returnsFromYouEvents = itemShareContract.queryFilter(returnsFromYouFilter, 0, context.blockNumber)
+    const returnsFromYouEvents = itemShareContract.queryFilter(returnsFromYouFilter, 0, blockNumber)
 
     const recentAdditionsFilter = itemShareContract.filters.ItemAdded()
-    const recentAdditionEvents = itemShareContract.queryFilter(recentAdditionsFilter, 0, context.blockNumber)
+    const recentAdditionEvents = itemShareContract.queryFilter(recentAdditionsFilter, 0, blockNumber)
 
     const recentRemovalsFilter = itemShareContract.filters.ItemRemoved()
-    const recentRemovalEvents = itemShareContract.queryFilter(recentRemovalsFilter, 0, context.blockNumber)
+    const recentRemovalEvents = itemShareContract.queryFilter(recentRemovalsFilter, 0, blockNumber)
 
     const recentRequestsFilter = itemShareContract.filters.ItemRequested()
-    const recentRequestEvents = itemShareContract.queryFilter(recentRequestsFilter, 0, context.blockNumber)
+    const recentRequestEvents = itemShareContract.queryFilter(recentRequestsFilter, 0, blockNumber)
 
     const recentReturnsFilter = itemShareContract.filters.ItemReturned()
-    const recentReturnEvents = itemShareContract.queryFilter(recentReturnsFilter, 0, context.blockNumber)
+    const recentReturnEvents = itemShareContract.queryFilter(recentReturnsFilter, 0, blockNumber)
 
     const recentOwnershipTransferredFilter = itemShareContract.filters.ItemReturned()
-    const recentOwnershipTransferredEvents = itemShareContract.queryFilter(recentOwnershipTransferredFilter, 0, context.blockNumber)
+    const recentOwnershipTransferredEvents = itemShareContract.queryFilter(recentOwnershipTransferredFilter, 0, blockNumber)
 
     Promise.all([yourAddedItemsEvents, yourRemovedItemsEvents, requestsApprovedToYouEvents, requestsApprovedFromYouEvents, returnsToYouEvents, returnsFromYouEvents])
         .then(mergeAndSortEvents)
@@ -723,7 +724,7 @@ const ENSItemShare = () => {
 
   const handleApproveRequest = (id, requester, _term) => {
     const term = ethers.BigNumber.from(_term)
-    const termEnd = term.eq(0) ? term : term.add(context.blockNumber)
+    const termEnd = term.eq(0) ? term : term.add(context.getBlockNumber())
     updatePendingItem(id, approveRequest(id, requester, termEnd))
     setRequests(removeRequest(id, requester))
     itemShareContract.approveRequest(requester, id, term)

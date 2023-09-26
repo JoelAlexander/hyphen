@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
-import HyphenContext from './HyphenContext';
+import HyphenContext from '../context/HyphenContext';
 import { toEthAmountString } from '../Utils';
 import YourEnsName from './YourEnsName.js';
 import CreateInvitationCode from './CreateInvitationCode';
 
 const ethers = require("ethers");
 
-const Account = (props) => {
+const Account = () => {
   const context = useContext(HyphenContext);
   const faucetContract = context.getContract('faucet.hyphen');
   const [faucetBalance, setFaucetBalance] = useState(null);
@@ -48,7 +48,7 @@ const Account = (props) => {
 
   const balanceMessage = faucetBalance && <p>{toEthAmountString(faucetBalance)}</p>;
 
-  const blocksUntilCanUse = !faucetBlock || !props.blockNumber ? null : faucetBlock - props.blockNumber;
+  const blocksUntilCanUse = !faucetBlock || !context.getBlockNumber() ? null : faucetBlock - context.getBlockNumber();
   const faucetDisplay = (() => {
     if (isAuthorized === null || blocksUntilCanUse === null) {
       return null;

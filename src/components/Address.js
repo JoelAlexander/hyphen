@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react'
-import HyphenContext from './HyphenContext'
+import HyphenContext from '../context/HyphenContext'
 import { usePromise } from 'react-use'
 const ethers = require('ethers')
 

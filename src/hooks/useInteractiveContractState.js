@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react'
-import HyphenContext from '../components/HyphenContext'
+import HyphenContext from '../context/HyphenContext'
 const ethers = require("ethers")
 
 const mergeAndSortEvents = (events) => {
@@ -20,32 +20,44 @@ const mergeAndSortEvents = (events) => {
   })
 }
 
-const useEventDigest = (contract, startBlock, eventHandlers) => {
+const useEventDigest = (contract, startBlock, initialStatePromise, eventHandlers) => {
   const context = useContext(HyphenContext)
-  const [state, setState] = useState({})
-
-  const digestEvents = (events) => {
-    setState(mergeAndSortEvents(events).reduce((result, event) => {
-      return eventHandlers[event.event].digestEvent(event.blockNumber, ...event.args)(result)
-    }, state))
-  }
+  const [state, setState] = useState(null)
 
   useEffect(() => {
-    Promise.all(Object.entries(eventHandlers).map(([eventName, {filterArgs}]) => {
-      const startBlockToUse = startBlock ? startBlock : 0
-      const filterArgsToUse = filterArgs ? filterArgs : []
-      const filter = contract.filters[eventName](...filterArgsToUse)
-      const queryFilter = contract.queryFilter(filter, startBlockToUse, context.blockNumber)
-      return queryFilter
-    })).then(digestEvents)
+    const blockNumber = context.getBlockNumber()
+    console.log(`Fetching Initial State Current Block: ${blockNumber}`)
+    initialStatePromise.then((initialState) => {
+      console.log(`Initital State: ${JSON.stringify(initialState)}`)
+      console.log(`Digesting initial events: Start block: ${startBlock}, Current Block: ${blockNumber}`)
+      if (startBlock < blockNumber) {
+        console.log(`Digesting prior events`)
+        const digestEvents = (events) => {
+          setState(mergeAndSortEvents(events).reduce((result, event) => {
+            return eventHandlers[event.event].digestEvent(event.blockNumber, ...event.args)(result)
+          }, initialState))
+        }
+  
+        Promise.all(Object.entries(eventHandlers).map(([eventName, {filterArgs}]) => {
+          const filterArgsToUse = filterArgs ? filterArgs : []
+          const filter = contract.filters[eventName](...filterArgsToUse)
+          return contract.queryFilter(filter, startBlock, blockNumber)
+        })).then(digestEvents)
+      } else {
+        console.log(`Setting initial state directly`)
+        setState(initialState)
+      }
+    })
   }, [])
 
   useEffect(() => {
-    const unregisterListeners = Object.entries(eventHandlers).map(([eventName, {digestEvent, filterArgs}]) => {
+    const unregisterListeners = Object.entries(eventHandlers).map(([eventName, {filterArgs, digestEvent}]) => {
       const filterArgsToUse = filterArgs ? filterArgs : []
       const filter = contract.filters[eventName](...filterArgsToUse)
       const listener = (...args) => {
-        setState(digestEvent(context.blockNumber, ...args))
+        const blockNumber = context.getBlockNumber()
+        console.log(`Received event: ${blockNumber}`)
+        setState(digestEvent(blockNumber, ...args))
       }
       contract.on(filter, listener)
       return () => {
@@ -56,21 +68,21 @@ const useEventDigest = (contract, startBlock, eventHandlers) => {
     return () => {
       unregisterListeners.forEach((fn) => {fn()})
     }
-  }, [context.blockNumber])
+  }, [])
 
   return state
 }
 
-const useInteractiveContractState = (contract, startBlock, eventHandlers) => {
+const useInteractiveContractState = (contract, startBlock, initialStatePromise, eventHandlers) => {
   const context = useContext(HyphenContext)
-  const trueState = useEventDigest(contract, startBlock, eventHandlers)
+  const trueState = useEventDigest(contract, startBlock, initialStatePromise, eventHandlers)
   const [pendingEvents, setPendingEvents] = useState(
     Object.fromEntries(
       Object.entries(eventHandlers).map(([eventName, _]) => [eventName, {}])))
   const [withPendingEventFunctions, setWithPendingEventFunctions] = useState(
     Object.fromEntries(
       Object.entries(eventHandlers).map(([eventName, _]) => [eventName, () => {}])))
-  const [mergedState, setMergedState] = useState({})
+  const [mergedState, setMergedState] = useState(null)
 
   useEffect(() => {
     const withPendingEventFunctions = Object.fromEntries(
@@ -79,7 +91,9 @@ const useInteractiveContractState = (contract, startBlock, eventHandlers) => {
           const withPendingEvent = (...args) => {
             const actionId = ethers.BigNumber.from(ethers.utils.randomBytes(32)).toString()
             const [...newPendingEvent] = args
-            newPendingEvent.blockNumber = context.blockNumber
+            const blockNumber = context.getBlockNumber()
+            newPendingEvent.blockNumber = context.getBlockNumber()
+            console.log(`New pending event at ${blockNumber}`)
             const beforePromise = () => {
               setPendingEvents((prev) => {
                 return {...prev, [eventName]: { ...prev[eventName], [actionId]: newPendingEvent}}
@@ -102,9 +116,13 @@ const useInteractiveContractState = (contract, startBlock, eventHandlers) => {
         })
     )
     setWithPendingEventFunctions(withPendingEventFunctions)
-  }, context.blockNumber)
+  }, [])
 
   useEffect(() => {
+    if (trueState === null) {
+      return
+    }
+
     const mergeFunctions = Object.entries(eventHandlers)
       .map(([eventName, { digestEvent }]) => {
         const pendingEventsForEventName = Object.values(pendingEvents[eventName])

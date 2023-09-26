@@ -1,8 +1,8 @@
 import { hot } from 'react-hot-loader'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { usePromise } from 'react-use'
-import {Outlet, RouterProvider, Route, Link, createBrowserRouter, createHashRouter, createRoutesFromElements, useNavigate, useLocation } from 'react-router-dom'
-import HyphenContext from './HyphenContext'
+import {Outlet, RouterProvider, Route, Link, createBrowserRouter, createRoutesFromElements, useNavigate, useLocation } from 'react-router-dom'
+import HyphenContext from '../context/HyphenContext'
 import ItemShare from './ItemShare.js'
 import Account from './Account.js'
 import Counter from './Counter.js'
@@ -46,7 +46,7 @@ const NavMenu = ({ items }) => {
   </div>
 }
 
-const HyphenOutlet = ({ entries, blockNumber, address, setSigner, setAddress, setHouseWallet, setName, logout, isInFlightTransactions }) => {
+const HyphenOutlet = ({ entries, blockNumber, address, logout, isInFlightTransactions }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const [menuStack, setMenuStack] = useState([])
@@ -85,31 +85,33 @@ const HyphenOutlet = ({ entries, blockNumber, address, setSigner, setAddress, se
 const Hyphen = ({ provider, configuration }) => {
   const mounted = usePromise()
   const [entries, setEntries] = useState([])
-  const [blockNumber, setBlockNumber] = useState(null)
+  const [blockNumber, setBlockNumber] = useState(0)
   const [toastVisible, setToastVisible] = useState(false)
-  const [signer, setSigner] = useState(null)
-  const [balance, setBalance] = useState(null)
-  const [address, setAddress] = useState(null)
+  const [[signer, address], setSignerAndAddress] = useState([null, null])
   const [name, setName] = useState(null)
+  const [balance, setBalance] = useState(null)
   const [houseWallet, setHouseWallet] = useState(null)
   const [unsentTransactions, setUnsentTransactions] = useState([])
   const [inProgressTransaction, setInProgressTransaction] = useState(null)
   const [pendingTransactions, setPendingTransactions] = useState([])
-  const [connectedContracts, setConnectedContracts] = useState({})
   const [isPolling, setIsPolling] = useState(true)
   const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(2)
   const [activityToasts, setActivityToasts] = useState([])
   const [addressCache, setAddressCache] = useState({})
+  const blockNumberRef = useRef(0)
+
+  const setLatestBlockNumber = (latestBlockNumber) => {
+    console.log(`BlockNumber: ${latestBlockNumber}`)
+    blockNumberRef.current = latestBlockNumber
+    setBlockNumber(_ => latestBlockNumber)
+  }
 
   useEffect(() => {
+    mounted(provider.getBlockNumber()).then(setLatestBlockNumber)
     const intervalId = setInterval(() => {
       mounted(provider.getBlockNumber())
-        .then((latestBlockNumber) => {
-          console.log(`BlockNumber: ${latestBlockNumber}`)
-          setBlockNumber(_ => latestBlockNumber)
-        })
+        .then(setLatestBlockNumber)
     }, pollingIntervalSeconds * 1000)
-
     return () => clearInterval(intervalId)
   }, [])
 
@@ -214,19 +216,16 @@ const Hyphen = ({ provider, configuration }) => {
       address = configuration.resolvedAddresses[address]
     }
 
-    if (connectedContracts[address]) {
-      return connectedContracts[address]
-    }
-
     const contractInterface = new ethers.utils.Interface(abi)
     const contract = new ethers.Contract(address, abi, signer ? signer : provider)
-    const returnedContract = new Proxy({}, {
+    return new Proxy({}, {
       get: (_, prop) => {
         try {
           const functionFragment = contractInterface.getFunction(prop)
           if (functionFragment.stateMutability === 'view' ) {
             return (...args) => {
-              return contract.callStatic[prop](...args)
+              console.log(`Making static call with block number ${blockNumberRef.current}`)
+              return contract.callStatic[prop](...args, { blockTag: blockNumberRef.current })
             }
           } else {
             return (...args) => {
@@ -240,8 +239,6 @@ const Hyphen = ({ provider, configuration }) => {
         }
       },
     })
-    connectedContracts[address] = returnedContract
-    return returnedContract
   }
 
   const logout = () => {
@@ -250,9 +247,7 @@ const Hyphen = ({ provider, configuration }) => {
     setEntries([])
     setBlockNumber(null)
     setToastVisible(false)
-    setConnectedContracts({})
-    setSigner(null)
-    setAddress(null)
+    setSignerAndAddress([null, null])
     setName(null)
     setHouseWallet(null)
     setUnsentTransactions([])
@@ -282,7 +277,7 @@ const Hyphen = ({ provider, configuration }) => {
 
   const applicationRouter = createBrowserRouter(
     createRoutesFromElements(
-      <Route path='/' element={<HyphenOutlet entries={entries} blockNumber={blockNumber} address={address} signer={signer} name={name} setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName} logout={logout} isInFlightTransactions={pendingTransactions.length !== 0} />}>
+      <Route path='/' element={<HyphenOutlet entries={entries} blockNumber={blockNumber} address={address} signer={signer} name={name} logout={logout} isInFlightTransactions={pendingTransactions.length !== 0} />}>
         <Route path='account' element={<Account />} />
         <Route path='terabytes' element={<Thumbs />} />
         <Route path='thumbs' element={<Thumbs />} />
@@ -290,11 +285,15 @@ const Hyphen = ({ provider, configuration }) => {
       </Route>
     )
   )
+  
+  const getBlockNumber = () => {
+    return blockNumberRef.current
+  }
 
-  const routerProvider = (signer && name) ? <RouterProvider router={applicationRouter} /> : <Onboarding setSigner={setSigner} setAddress={setAddress} setHouseWallet={setHouseWallet} setName={setName}/>
+  const routerProvider = (signer && name) ? <RouterProvider router={applicationRouter} /> : <Onboarding />
 
   return (<HyphenContext.Provider value={{
-    blockNumber: blockNumber,
+    getBlockNumber: getBlockNumber,
     configuration: configuration,
     provider: provider,
     getResolvedAddress: getResolvedAddress,
@@ -306,6 +305,18 @@ const Hyphen = ({ provider, configuration }) => {
     balance: balance,
     address: address,
     name: name,
+    setSignerAndAddress: setSignerAndAddress,
+    setName: (newName) => {
+      setAddressCache(prevState => {
+        if (newName) {
+          return {...prevState, [address]: newName}
+        } else {
+          const {[address]: _, ...remaining} = prevState
+          return remaining
+        }
+      })
+      setName(newName)
+    },
     houseWallet: houseWallet,
     showToast: showToast,
     addActivityToast: addActivityToast

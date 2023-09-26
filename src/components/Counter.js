@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import HyphenContext from './HyphenContext';
+import HyphenContext from '../context/HyphenContext';
 
 const Counter = () => {
   const context = useContext(HyphenContext);

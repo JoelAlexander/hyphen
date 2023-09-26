@@ -4,14 +4,14 @@ import { openDB } from 'idb';
 import Toast from './Toast';
 import Blockies from 'react-blockies';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
-import HyphenContext from './HyphenContext';
+import HyphenContext from '../context/HyphenContext';
 import YourEnsName from './YourEnsName';
 import './Hyphen.css';
 import './Onboarding.css';
 import { invalid } from 'moment';
 const ethers = require("ethers");
 
-const UniquePassphrase = ({ invalidWallet, invalidInviteCode, fingerprint, forgetFingerprint, inviteCode, setSigner }) => {
+const UniquePassphrase = ({ setSignerAndAddress, invalidWallet, invalidInviteCode, fingerprint, forgetFingerprint, inviteCode }) => {
   const [passphrase, setPassphrase] = useState('')
   const [isInProgress, setIsInProgress] = useState(false)
   const [showForgetButton, setShowForgetButton] = useState(false)
@@ -38,12 +38,12 @@ const UniquePassphrase = ({ invalidWallet, invalidInviteCode, fingerprint, forge
   }
 
   const setupAccount = async () => {
+    const wallet = createWallet(passphrase)
     if (!inviteCode || invalidInviteCode) {
-      setSigner(createWallet(passphrase))
+      setSignerAndAddress([wallet, wallet.address])
     } else {
       setIsInProgress(true)
       const inviteWallet = new ethers.Wallet(inviteCode, context.provider);
-      const userWallet = createWallet(passphrase)
 
       const amount = await inviteWallet.getBalance()
       const gasLimit = 21000
@@ -56,7 +56,7 @@ const UniquePassphrase = ({ invalidWallet, invalidInviteCode, fingerprint, forge
 
       try {
         const transaction = await inviteWallet.sendTransaction({
-          to: userWallet.address,
+          to: wallet.address,
           value: amountMinusGas,
           gasLimit: gasLimit,
           gasPrice: gasPrice,
@@ -65,7 +65,7 @@ const UniquePassphrase = ({ invalidWallet, invalidInviteCode, fingerprint, forge
 
         const receipt = await transaction.wait();
         if (receipt.status === 1) {
-          setSigner(userWallet);
+          setSignerAndAddress([wallet, wallet.address])
         } else {
           setIsInProgress(false);
           alert('Failed to set up your account. Please try again.');
@@ -202,20 +202,18 @@ const ClaimName = ({ setName }) => {
   );
 };
 
-const SignIn = ({ setSigner, setAddress, setName, fingerprint, forgetFingerprint }) => {
-  const navigate = useNavigate()
+const SignIn = ({ fingerprint, forgetFingerprint }) => {
   const { inviteCode } = useParams()
-  const [wallet, setWallet] = useState(null);
-  const [isValidInviteCode, setIsValidInviteCode] = useState(null);
-  const [[balance, name], setBalanceAndName] = useState([null, null]);
+  const [isValidInviteCode, setIsValidInviteCode] = useState(null)
+  const [[pendingSigner, pendingAddress], setPendingSignerAndAddress] = useState([null, null])
+  const [balance, setBalance] = useState(null)
   const context = useContext(HyphenContext)
 
   const noBalance = balance && balance.eq(0)
-  const balanceNoName = balance && name != null
 
   const step = context.signer === null || context.address === null ?
-    <UniquePassphrase invalidWallet={noBalance} invalidInviteCode={isValidInviteCode === false} fingerprint={fingerprint} forgetFingerprint={forgetFingerprint} inviteCode={inviteCode} setSigner={setWallet} /> :
-    <ClaimName setName={(name) => setBalanceAndName([balance, name])} />
+    <UniquePassphrase setSignerAndAddress={setPendingSignerAndAddress} invalidWallet={noBalance} invalidInviteCode={isValidInviteCode === false} fingerprint={fingerprint} forgetFingerprint={forgetFingerprint} inviteCode={inviteCode} /> :
+    <ClaimName setName={context.setName} />
 
   useEffect(() => {
     if (inviteCode) {
@@ -240,25 +238,26 @@ const SignIn = ({ setSigner, setAddress, setName, fingerprint, forgetFingerprint
   }, [])
 
   useEffect(() => {
-    if (wallet !== null) {
-      wallet.getBalance()
-        .then((balance) => {
-          return wallet.provider
-            .lookupAddress(wallet.address)
-            .then((name) => {
-              setBalanceAndName([balance, name])
-            })
-        })
+    if (pendingSigner && pendingAddress) {
+      return pendingSigner.provider
+        .lookupAddress(pendingAddress)
+        .then(context.setName)
     }
-  }, [wallet])
+  }, [pendingSigner, pendingAddress])
 
   useEffect(() => {
-    if (wallet && balance && balance.gt(0)) {
-      setSigner(wallet)
-      setAddress(wallet.address)
-      setName(name)
+    if (pendingSigner && pendingAddress) {
+      pendingSigner.getBalance().then(setBalance)
     }
-  }, [wallet, balance, name])
+  }, [pendingSigner, pendingAddress])
+
+
+  useEffect(() => {
+    if (pendingSigner && pendingAddress && balance && balance.gt(0)) {
+      context.setName(context.name)
+      context.setSignerAndAddress([pendingSigner, pendingAddress])
+    }
+  }, [pendingSigner, pendingAddress, balance, context.name])
 
   return (
     <div className="onboarding-container">
@@ -269,10 +268,9 @@ const SignIn = ({ setSigner, setAddress, setName, fingerprint, forgetFingerprint
   );
 };
 
-const Onboarding = ({ setSigner, setAddress, setName }) => {
+const Onboarding = () => {
 
-  const [fingerprint, setFingerprint] = useState(null);
-  const context = useContext(HyphenContext);
+  const [fingerprint, setFingerprint] = useState(null)
 
   useEffect(() => {
     openDB('Hyphen', 1, {
@@ -306,20 +304,17 @@ const Onboarding = ({ setSigner, setAddress, setName }) => {
     }
   }, [fingerprint])
 
-
-
   const forgetFingerprint = () => {
     if (window.confirm('Are you sure you want to forget this fingerprint?  Make sure you\'ve copied it to a safe place if you want to import it later.')) {
       setFingerprint(undefined)
     }
-  };
-
+  }
 
   const onboardingRouter = createHashRouter(
     createRoutesFromElements(
       <Route path=':inviteCode?' element={
         fingerprint ? <>
-          <SignIn setSigner={setSigner} setAddress={setAddress} setName={setName} fingerprint={fingerprint} forgetFingerprint={forgetFingerprint} />
+          <SignIn fingerprint={fingerprint} forgetFingerprint={forgetFingerprint} />
         </> : <>
           <h1>Welcome to Hyphen</h1>
           <ImportFingerprint setFingerprint={setFingerprint} />

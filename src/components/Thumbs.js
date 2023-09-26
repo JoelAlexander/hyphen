@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react'
-import HyphenContext from './HyphenContext'
+import HyphenContext from '../context/HyphenContext'
 import ThumbsContract from '../../artifacts/contracts/Thumbs.sol/Thumbs.json'
 import useInteractiveContractState from '../hooks/useInteractiveContractState'
 import DatePicker from 'react-datepicker'
@@ -316,7 +316,8 @@ const Thumbs = () => {
   const [topics, {withPendingProposed, withPendingRecalled, withPendingThumbsUp, withPendingThumbsDown}] =
     useInteractiveContractState(
       contract,
-      context.blockNumber - 10000,
+      context.getBlockNumber() - 10000,
+      Promise.resolve({}),
       {
         Proposed: { digestEvent: updateProposed },
         ThumbsUp: { digestEvent: updateThumbsUp },
@@ -391,6 +392,7 @@ const Thumbs = () => {
           return 0;
       });
     }
+    if (topics === null) return
     const topicsToDisplay = filterAndSortTopics(topics)
     setDisplayedTopics(topicsToDisplay)
     if (currentMeetingIndex === -1 || currentMeetingIndex >= topicsToDisplay.length) {

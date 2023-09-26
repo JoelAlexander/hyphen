@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import HyphenContext from './HyphenContext';
+import HyphenContext from '../context/HyphenContext';
 import AccountStatus from './AccountStatus';
 import Overlay from 'react-bootstrap/Overlay';
 import Popover from 'react-bootstrap/Popover';
