@@ -115,7 +115,7 @@ const UniquePassphrase = ({ setSignerAndAddress, invalidWallet, invalidInviteCod
           }}
           disabled={isInProgress}
           autoCapitalize="none"
-          autocomplete="off"
+          autocomplete="one-time-code"
         />
         <button onClick={setupAccount} >
           {buttonText}
