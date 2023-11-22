@@ -18,7 +18,6 @@ const updateApprovalForAll = (blockNumber, owner, operator, isApproved) => {
 }
 
 const useIsApprovedForAll = (address) => {
-  const mounted = usePromise()
   const context = useContext(HyphenContext)
   const ensContract = context.getContract(context.configuration.ens)
 
@@ -45,7 +44,6 @@ const useIsApprovedForAll = (address) => {
   const handleDisapprove = () => {
     withPendingApprovalForAll(context.address, address, false)(ensContract.setApprovalForAll(address, false))
   }
-
 
   const isApproved = approvals ? approvals[context.address] ? approvals[context.address][address] ? approvals[context.address][address].isApproved : false : false : false
 

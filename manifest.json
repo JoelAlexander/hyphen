@@ -1,8 +1,7 @@
 {
   "name": "hyphen",
-  "namespace": {
-    "type": "FIFSRegistrar"
-  },
+  "source": "HyphenModule",
+  "args": ["ens", "0x55e669954004eed7950ec672d84690d1b724fd3ff1f90653688772c541590cee"],
   "deploy": {
     "faucetauthorizer": {
       "source": "@local-blockchain-toolbox/contract-primitives/SingleAccountAuthorizer"
@@ -38,10 +37,6 @@
     "thumbs": {
       "source": "Thumbs",
       "args": [ "0x0000000000000000000000000000000000000000" ]
-    },
-    "utilities": {
-      "source": "AccountSettings",
-      "args": ["ens", "registrar.hyphen", "0xb3f5995282240bf5e4135198c8bd11d0e2663433985b2a2c23bca3778f818a13"]
     }
   }
 }

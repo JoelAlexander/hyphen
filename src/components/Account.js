@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import HyphenContext from '../context/HyphenContext';
+import Balance from './Balance';
 import { toEthAmountString } from '../Utils';
 import YourEnsName from './YourEnsName.js';
 import CreateInvitationCode from './CreateInvitationCode';
+import ApprovalGateContainer from './ApprovalGateContainer';
 
 const ethers = require("ethers");
 
@@ -70,11 +72,12 @@ const Account = () => {
   );
 
   return (
-    <div>
+    <ApprovalGateContainer addressOrName={'hyphen'}>
+      <Balance balance={context.balance} />
       {faucet}
       <YourEnsName />
       <CreateInvitationCode />
-    </div>
+    </ApprovalGateContainer>
   );
 };
 

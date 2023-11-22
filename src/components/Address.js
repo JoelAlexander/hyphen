@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from 'react'
 import HyphenContext from '../context/HyphenContext'
 import { usePromise } from 'react-use'
+import { shortenHex } from '../Utils'
 const ethers = require('ethers')
 
 const Address = ({ address }) => {
@@ -16,7 +17,6 @@ const Address = ({ address }) => {
     }
   }, [])
 
-  const shortenHex = (raw) => raw.slice(0, 5) + "..." + raw.slice(raw.length - 3)
   const shortenedAddress = address ? shortenHex(address) : '\u{200D}'
   const displayValue = ensName ? ensName : shortenedAddress
   return displayValue

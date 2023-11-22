@@ -1,8 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import HyphenLoader from './components/HyphenLoader'
-import 'bootstrap/dist/css/bootstrap.min.css'
-import 'purecss/build/pure.css'
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles.css'
 require('./../manifest.json')
 

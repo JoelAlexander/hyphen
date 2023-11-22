@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { usePromise } from 'react-use'
 import {Outlet, RouterProvider, Route, Link, createBrowserRouter, createRoutesFromElements, useNavigate, useLocation } from 'react-router-dom'
 import HyphenContext from '../context/HyphenContext'
+import useLocalSettings from '../hooks/useLocalSettings';
 import ItemShare from './ItemShare.js'
 import Account from './Account.js'
 import Counter from './Counter.js'
@@ -60,12 +61,6 @@ const HyphenOutlet = ({ entries, blockNumber, address, logout, isInFlightTransac
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'inline-block', width: '100%' }}>
-      <StatusBar
-        logout={logout}
-        syncing={isInFlightTransactions}
-        address={address || 'logged-out'}
-        blockNumber={blockNumber}
-        entries={entries} />
       </div>
       <div style={{ display: 'inline-block', flex: '1', width: '100%', height: '100%' }}>
         <div style={{
@@ -87,8 +82,11 @@ const Hyphen = ({ provider, configuration }) => {
   const [entries, setEntries] = useState([])
   const [blockNumber, setBlockNumber] = useState(0)
   const [toastVisible, setToastVisible] = useState(false)
+  const [account, setAccount] = useState(null)
+  const [network, setNetwork] = useState(null)
   const [[signer, address], setSignerAndAddress] = useState([null, null])
   const [name, setName] = useState(null)
+  const [zone, setZone] = useState(null)
   const [balance, setBalance] = useState(null)
   const [houseWallet, setHouseWallet] = useState(null)
   const [unsentTransactions, setUnsentTransactions] = useState([])
@@ -97,8 +95,46 @@ const Hyphen = ({ provider, configuration }) => {
   const [isPolling, setIsPolling] = useState(true)
   const [pollingIntervalSeconds, setPollingIntervalSeconds] = useState(2)
   const [activityToasts, setActivityToasts] = useState([])
-  const [addressCache, setAddressCache] = useState({})
+  const [addressCache, setAddressCache] = useState(
+    Object.fromEntries(
+      Object.entries(configuration.resolvedAddresses)
+        .map(([ensName, resolvedAddress]) => [resolvedAddress, ensName])))
   const blockNumberRef = useRef(0)
+  const [selectedAccountIndex, setSelectedAccountIndex] = useState(0)
+  const {
+    accounts,
+    addAccount,
+    removeAccount,
+    updateAccountOrder,
+    updateNetworkOrder,
+    updateZoneOrder,
+    addNetwork,
+    removeNetwork,
+    addZone,
+    removeZone
+  } = useLocalSettings()
+  const [selectedPreselectedNetworkIndex, setSelectedNetworkIndex] = useState(null)
+  const hasAccount = signer !== null && address !== null
+  const selectedFingerprint = selectedAccountIndex !== null && accounts.length > selectedAccountIndex ?
+    accounts[selectedAccountIndex].fingerprint : null
+  const networks = selectedAccountIndex !== null && accounts.length > selectedAccountIndex ? accounts[selectedAccountIndex].networks : null
+
+  useEffect(() => {
+    if (selectedAccountIndex === null) {
+      setAccount(null)
+      setNetwork(null)
+    } else if (accounts.length > selectedAccountIndex) {
+      setAccount(accounts[selectedAccountIndex])
+    }
+  }, [accounts, selectedAccountIndex])
+
+  useEffect(() => {
+    if (selectedAccountIndex !== null && accounts.length > selectedAccountIndex && accounts[selectedAccountIndex].networks.length > 0) {
+      setSelectedNetworkIndex(0)
+    } else if (selectedAccountIndex !== null && accounts.length > selectedAccountIndex && accounts[selectedAccountIndex].networks.length == 0) {
+      setSelectedNetworkIndex(null)
+    }
+  }, [selectedAccountIndex])
 
   const setLatestBlockNumber = (latestBlockNumber) => {
     console.log(`BlockNumber: ${latestBlockNumber}`)
@@ -201,13 +237,17 @@ const Hyphen = ({ provider, configuration }) => {
     }
   }
 
-  const getResolvedAddress = (ensName) => {
-    return configuration.resolvedAddresses[ensName]
+  const getResolvedAddress = (addressOrName) => {
+    return ethers.utils.isAddress(addressOrName) ? addressOrName : configuration.resolvedAddresses[addressOrName]
   }
 
   const getContract = (address, abi) => {
     if (!abi) {
-      abi = configuration.contracts[address]
+      if (configuration.contracts[address]) {
+        abi = configuration.contracts[address]
+      } else {
+        throw new Error(`No ABI found for ${address}`)
+      }
     }
 
     // Use resolved address to avoid unnecessary name lookups
@@ -249,6 +289,7 @@ const Hyphen = ({ provider, configuration }) => {
     setToastVisible(false)
     setSignerAndAddress([null, null])
     setName(null)
+    setZone(null)
     setHouseWallet(null)
     setUnsentTransactions([])
     setInProgressTransaction(null)
@@ -277,7 +318,7 @@ const Hyphen = ({ provider, configuration }) => {
 
   const applicationRouter = createBrowserRouter(
     createRoutesFromElements(
-      <Route path='/' element={<HyphenOutlet entries={entries} blockNumber={blockNumber} address={address} signer={signer} name={name} logout={logout} isInFlightTransactions={pendingTransactions.length !== 0} />}>
+      <Route path='/' element={<HyphenOutlet entries={entries} blockNumber={blockNumber} address={address} signer={signer} name={name} logout={logout} />}>
         <Route path='account' element={<Account />} />
         <Route path='terabytes' element={<Thumbs />} />
         <Route path='thumbs' element={<Thumbs />} />
@@ -290,12 +331,43 @@ const Hyphen = ({ provider, configuration }) => {
     return blockNumberRef.current
   }
 
-  const routerProvider = (signer && name) ? <RouterProvider router={applicationRouter} /> : <Onboarding />
+  const getDisplayName = (addressOrName) => {
+    const cachedEnsName = getCachedEnsName(addressOrName)
+    return ethers.utils.isAddress(addressOrName) ?
+      (cachedEnsName ? cachedEnsName : addressOrName):
+      addressOrName;
+  }
+
+  const signIn = (userSecret) => {
+    const privateKey = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(account.fingerprint + userSecret));
+    const wallet = new ethers.Wallet(privateKey, provider);
+    setSignerAndAddress([wallet, wallet.address])
+  }
+
+  const signOut = ()=> {
+    setSignerAndAddress([null, null])
+  }
+
+  const routerProvider = signer ?
+    <RouterProvider router={applicationRouter} /> :
+    <Onboarding
+      account={account}
+      network={network}
+      accounts={accounts}
+      addAccount={addAccount}
+      removeAccount={removeAccount}
+      addNetwork={(network) => addNetwork(selectedFingerprint, network)}
+      removeNetwork={(network) => removeNetwork(selectedFingerprint, network)}
+      setDefaultNetwork={(network) => updateNetworkOrder(selectedFingerprint, network, 0)}
+      selectNetwork={(network) => setNetwork(network)}
+      signIn={signIn}
+      signOut={signOut}/>
 
   return (<HyphenContext.Provider value={{
     getBlockNumber: getBlockNumber,
     configuration: configuration,
     provider: provider,
+    getDisplayName: getDisplayName,
     getResolvedAddress: getResolvedAddress,
     getEnsName: getEnsName,
     getCachedEnsName: getCachedEnsName,
@@ -304,8 +376,10 @@ const Hyphen = ({ provider, configuration }) => {
     signer: signer,
     balance: balance,
     address: address,
+    network: network,
     name: name,
     setSignerAndAddress: setSignerAndAddress,
+    setNetwork: setNetwork,
     setName: (newName) => {
       setAddressCache(prevState => {
         if (newName) {
@@ -317,10 +391,17 @@ const Hyphen = ({ provider, configuration }) => {
       })
       setName(newName)
     },
+    setZone: setZone,
     houseWallet: houseWallet,
     showToast: showToast,
     addActivityToast: addActivityToast
   }}>
+    <StatusBar
+      logout={logout}
+      syncing={pendingTransactions.length !== 0}
+      address={address || 'logged-out'}
+      blockNumber={blockNumber}
+      entries={entries} />
     {routerProvider}
     {toastVisible && <Toast />}
     {activityToasts.length > 0 && <ActivityToast toast={activityToasts[0]} />}

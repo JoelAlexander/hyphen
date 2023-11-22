@@ -18,15 +18,15 @@ module.exports = function (source) {
   }
 
   const ensEntries = [
-    [ configuration.ens, '@ensdomains/ens-contracts/registry/ENS' ],
-    [ 'resolver', '@ensdomains/ens-contracts/resolvers/PublicResolver' ],
-    [ 'addr.reverse', '@ensdomains/ens-contracts/registry/ReverseRegistrar']
+    [ configuration.ens, '@local-blockchain-toolbox/ens-contracts/registry/ENS' ],
+    [ manifest.name, manifest.source],
+    [ 'ens', '@local-blockchain-toolbox/ens-contracts/registry/ENS' ],
+    [ 'resolver', '@local-blockchain-toolbox/ens-contracts/resolvers/PublicResolver' ],
+    [ 'addr.reverse', '@local-blockchain-toolbox/contract-primitives/IntrinsicRegistrar']
   ];
-  const namespacesEntries = manifest.namespace && manifest.namespace.type && manifest.namespace.type === 'FIFSRegistrar' ?
-        [[ `registrar.${manifest.name}`, '@ensdomains/ens-contracts/registry/FIFSRegistrar' ]] : []
 
   const deployedEntries = Object.entries(manifest.deploy).map(([key, value]) => [`${key}.${manifest.name}`, value.source]);
-  const allEntries = [...ensEntries, ...namespacesEntries, ...deployedEntries];
+  const allEntries = [...ensEntries, ...deployedEntries];
   const importStatements = allEntries
     .map(
       ([address, contractName]) => `contracts['${address}'] = ${getContractAbiExpression(contractName)};`

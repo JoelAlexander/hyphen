@@ -8,12 +8,11 @@ const ethers = require('ethers')
 
 const ZeroAddress = "0x0000000000000000000000000000000000000000"
 
-const YourEnsName = () => {
+const YourZoneName = ({address}) => {
   const mounted = usePromise()
   const context = useContext(HyphenContext);
   const ensContract = context.getContract(context.configuration.ens)
-  const hyphenContract = context.getContract('hyphen')
-  const [isApproved, setIsApproved] = useState(null)
+  const zoneContract = context.getContract(address)
   const reverseRegistrarContract = context.getContract('addr.reverse')
   const [name, setName] = useState(null)
   const [enteredLabelString, setEnteredLabelString] = useState('')

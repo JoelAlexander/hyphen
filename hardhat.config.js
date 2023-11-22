@@ -1,4 +1,3 @@
-require("@nomiclabs/hardhat-waffle");
 require('@openzeppelin/hardhat-upgrades');
 
 // Public address for account: 0x7c65D04C226d47fA70ba3f1913443684547AF18F

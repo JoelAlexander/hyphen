@@ -56,7 +56,7 @@ const useEventDigest = (contract, startBlock, initialStatePromise, eventHandlers
       const filter = contract.filters[eventName](...filterArgsToUse)
       const listener = (...args) => {
         const blockNumber = context.getBlockNumber()
-        console.log(`Received event: ${blockNumber}`)
+        console.log(`:${blockNumber}:${eventName}`)
         setState(digestEvent(blockNumber, ...args))
       }
       contract.on(filter, listener)
@@ -108,7 +108,12 @@ const useInteractiveContractState = (contract, startBlock, initialStatePromise, 
             return (promise) => {
               beforePromise()
               return Promise.resolve(promise)
-                .finally(() => afterPromise())
+                .finally(() => {
+                  // .25 sec delay to reduce visual jitter.
+                  setTimeout(() => {
+                    afterPromise()
+                  }, 250)
+                })
             }
           }
 

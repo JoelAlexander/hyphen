@@ -46,3 +46,5 @@ export const getContrastColor = (bgColor) => {
 
   return luminance > 0.5 ? 'black' : 'white';
 };
+
+export const shortenHex = (raw) => raw.slice(0, 5) + "..." + raw.slice(raw.length - 3)
