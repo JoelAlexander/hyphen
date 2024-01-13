@@ -32,5 +32,5 @@ module.exports = function (source) {
     )
     .join('\n');
 
-  return `${contractsDeclaration}\n${importStatements}\n${source}`;
+  return `${ensAbi}\n${contractsDeclaration}\n${importStatements}\n${source}`;
 };

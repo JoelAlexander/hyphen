@@ -5,9 +5,9 @@
   "license": "MIT",
   "scripts": {
     "contracts": "hardhat compile",
-    "serve": "webpack-dev-server --hot",
-    "build": "webpack --mode development",
-    "buildProd": "webpack --mode production"
+    "serve": "node setupDevEnvironment.js && REACT_APP_ENV=development webpack-dev-server --hot",
+    "build": "REACT_APP_ENV=development webpack --mode development",
+    "buildProd": "REACT_APP_ENV=production webpack --mode production"
   },
   "dependencies": {
     "bootstrap": "^5.3.2",

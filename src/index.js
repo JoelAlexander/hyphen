@@ -11,7 +11,7 @@ function App() {
   const [configuration, setConfiguration] = useState(null);
 
   useEffect(() => {
-    fetch('/chain-config.json')
+    fetch('/chain-config', { cache: 'no-store' })
       .then(response => response.json())
       .then(data => {
         setConfiguration(data);
@@ -24,11 +24,11 @@ function App() {
 
   const provider = new ethers.providers.StaticJsonRpcProvider(
     { url: configuration.url },
-    { name: "home", chainId: configuration.chainId, ensAddress: configuration.ens }
+    { chainId: configuration.chainId, ensAddress: configuration.ens }
   );
 
   const contractsWithEns = {
-  	...contracts,
+  	...CONTRACTS,
   	[configuration.ens]: ENS_ABI 
   }
 

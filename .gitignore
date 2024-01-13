@@ -8,5 +8,5 @@ cache/**
 artifacts/**
 src/abi/**
 *.dbg.json
-**/configuration.json
+**/chain-config.json
 stats.json

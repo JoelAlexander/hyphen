@@ -1,4 +1,5 @@
 const path = require('path')
+const fs = require('fs')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const NodePolyfillPlugin = require('node-polyfill-webpack-plugin')
 
@@ -44,7 +45,21 @@ module.exports = {
     historyApiFallback: true,
     compress: true,
     port: 3030,
-    open: true
+    open: true,
+    setupMiddlewares: (middlewares, devServer) => {
+        if (!devServer) {
+            throw new Error('webpack-dev-server is not defined');
+        }
+
+        devServer.app.get('/chain-config', function(req, res) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+          res.json(JSON.parse(fs.readFileSync(path.join(__dirname, 'chain-config.json'), 'utf8')));
+        });
+
+        return middlewares;
+    },
   },
   plugins: [
     HtmlWebpackPluginConfig,
