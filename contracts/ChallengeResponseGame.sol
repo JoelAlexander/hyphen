@@ -18,7 +18,7 @@ contract ChallengeResponseGame {
 		owner = _owner;
 	}
 
-	function newChallenge(string calldata challenge) onlyOwner {
+	function newChallenge(string calldata challenge) public onlyOwner {
 		emit NewChallenge(challenge);
 	}
 }
