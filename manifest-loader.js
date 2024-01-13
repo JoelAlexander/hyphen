@@ -1,12 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const configuration = require('./configuration.json');
 const manifest = require('./manifest.json');
 
 module.exports = function (source) {
 
-  const contractsDeclaration = `const contracts = {};`;
-
+  const contractsDeclaration = `const CONTRACTS = {};`;
   const getContractAbiExpression = (contractName) => {
     const contractNameParts = contractName.split('/');
     const moduleContractPath = path.join("artifacts", "contracts", `${contractName}.sol`, `${contractName}.json`);
@@ -17,8 +15,9 @@ module.exports = function (source) {
     return expression + '.abi';
   }
 
+  const ensAbi = `const ENS_ABI = ${getContractAbiExpression('@local-blockchain-toolbox/ens-contracts/registry/ENS')};`
+
   const ensEntries = [
-    [ configuration.ens, '@local-blockchain-toolbox/ens-contracts/registry/ENS' ],
     [ manifest.name, manifest.source],
     [ 'ens', '@local-blockchain-toolbox/ens-contracts/registry/ENS' ],
     [ 'resolver', '@local-blockchain-toolbox/ens-contracts/resolvers/PublicResolver' ],
@@ -29,7 +28,7 @@ module.exports = function (source) {
   const allEntries = [...ensEntries, ...deployedEntries];
   const importStatements = allEntries
     .map(
-      ([address, contractName]) => `contracts['${address}'] = ${getContractAbiExpression(contractName)};`
+      ([address, contractName]) => `CONTRACTS['${address}'] = ${getContractAbiExpression(contractName)};`
     )
     .join('\n');
 
